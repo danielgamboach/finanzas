@@ -77,6 +77,9 @@ export interface Tx {
   transaction_tags?: { tags: { name: string } | null }[];
 }
 
+export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'yearly';
+export type PayMethod = 'card' | 'transfer' | 'cash';
+
 export interface Recurring {
   id: string;
   space_id: string;
@@ -86,8 +89,26 @@ export interface Recurring {
   category_id: string | null;
   account_id: string | null;
   merchant: string;
-  day_of_month: number;
+  frequency: Frequency;
+  next_due: string; // YYYY-MM-DD
+  method: PayMethod;
+  match_pattern: string | null;
+  last_paid_on: string | null;
+  notes: string | null;
   active: boolean;
+}
+
+export interface RecurringSuggestion {
+  merchant_key: string;
+  merchant: string | null;
+  raw_merchant: string | null;
+  currency: Currency;
+  amount: number;
+  months: number;
+  last_date: string;
+  next_guess: string;
+  category_id: string | null;
+  account_id: string | null;
 }
 
 export interface Goal {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/api';
+import { addPeriod, patternFrom } from '../lib/recurring';
 import { extractTags, tagsOf } from '../lib/calc';
-import { fromInputDateTime, moneyRaw, parseAmount, todayCR, toInputDateTime } from '../lib/format';
+import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
 import { go, TX_SELECT, useApp } from '../store';
 import { Icon, Loading, Segmented, tint } from '../ui';
@@ -151,9 +152,9 @@ export function TxForm({ id }: { id?: string }) {
         const [created] = await db.insert<Tx>('transactions', { ...row, source: 'manual', created_by: userId });
         txId = created.id;
         if (repeat) {
-          const t = todayCR();
-          const day = Math.min(new Date(occurred_at).getUTCDate(), 28);
-          const [rec] = await db.insert('recurring', {
+          const day = new Date(new Date(occurred_at).getTime() - 6 * 3600000).toISOString().slice(0, 10);
+          const acc = accs.find((a) => a.id === accountId);
+          const [rec] = await db.insert<{ id: string }>('recurring', {
             space_id: spaceId,
             kind: row.kind,
             amount: row.amount,
@@ -161,8 +162,11 @@ export function TxForm({ id }: { id?: string }) {
             category_id: row.category_id,
             account_id: accountId,
             merchant: row.merchant || 'Recurrente',
-            day_of_month: day,
-            last_generated: `${t.y}-${String(t.m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+            frequency: 'monthly',
+            next_due: addPeriod(day, 'monthly'),
+            method: acc?.kind === 'credit_card' ? 'card' : 'transfer',
+            match_pattern: patternFrom(row.merchant) || null,
+            last_paid_on: day,
           });
           await db.update('transactions', { id: txId }, { recurring_id: rec.id });
         }
@@ -350,7 +354,7 @@ export function TxForm({ id }: { id?: string }) {
             <div className="field-row">
               <span className="col">
                 <span>🔁 Repetir cada mes</span>
-                <small>{repeat ? 'Se va a crear solo cada mes' : 'Para alquiler, suscripciones o salario'}</small>
+                <small>{repeat ? 'Queda en Recurrentes y te avisamos el próximo mes' : 'Para alquiler, suscripciones o salario'}</small>
               </span>
               <button role="switch" aria-checked={repeat} aria-label="Repetir cada mes" className={repeat ? 'switch on' : 'switch'} onClick={() => setRepeat((r) => !r)}>
                 <span />

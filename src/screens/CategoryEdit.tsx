@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { db } from '../lib/api';
-import { inRange, monthRange, sumSpend } from '../lib/calc';
-import { crIso, money, monthShort, parseAmount, todayCR } from '../lib/format';
+import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
+import { crIso, money, monthName, monthShort, parseAmount, todayCR } from '../lib/format';
 import type { Category } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
-import { COLOR_NAMES, Emo, Icon, Loading, Segmented, tint } from '../ui';
+import { BigMoney, COLOR_NAMES, Emo, Icon, Loading, Segmented, tint } from '../ui';
+import { groupByDay, MonthNav, useMonth } from './Home';
 import { TxRow } from '../ui/TxRow';
 
 const EMOJI_IDEAS = ['🛒', '🍽️', '🛵', '🚕', '⛽', '🪴', '🔑', '💡', '🎬', '💊', '📺', '👕', '☕', '🐾', '🎁', '✈️', '📚', '🏋️', '💇', '🧾', '💼', '💻', '💰', '✨'];
@@ -182,6 +183,76 @@ export function CategoryEdit({ id }: { id: string }) {
             )}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/** Movements of one category, month by month. The pencil opens the editor. */
+export function CategoryView({ id }: { id: string }) {
+  const { categories, space, cur, fx } = useApp();
+  const cat = categories.find((c) => c.id === id);
+  const [ym, setYm] = useMonth();
+  const t = todayCR();
+  const isCurrent = ym[0] === t.y && ym[1] === t.m;
+  const month = monthRange(ym[0], ym[1]);
+  const week = weekRange(space?.week_start ?? 5);
+  const range = useMemo(() => ({ from: [month.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [month.from, month.to, week.from, week.to]);
+  const { txs, loading } = useTxs(range);
+
+  if (!space || !cat) return <Loading />;
+  const mine = txs.filter((x) => x.category_id === id);
+  const inMonth = mine.filter((x) => inRange(x, month));
+  const total = cat.kind === 'income' ? inMonth.reduce((a, x) => a + Number(x.amount_crc), 0) : sumSpend(inMonth);
+  const weekly = cat.limit_period === 'weekly';
+  const limit = cat.limit_amount ? Number(cat.limit_amount) : null;
+  const periodSpent = weekly && isCurrent ? sumSpend(mine.filter((x) => inRange(x, week))) : total;
+  const pct = limit ? Math.round((periodSpent / limit) * 100) : null;
+  const groups = groupByDay(inMonth);
+
+  return (
+    <div className="screen no-nav">
+      <header className="topbar">
+        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <h1 className="h2 row gap8"><span aria-hidden="true">{cat.emoji}</span>{cat.name}</h1>
+        <button className="round" onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" /></button>
+      </header>
+
+      <section className="hero small" aria-label="Total de la categoría">
+        <MonthNav ym={ym} setYm={setYm} />
+        <span className="muted-label">{cat.kind === 'income' ? 'Ingresos' : 'Gastado'} en {monthName(ym[1])}</span>
+        <BigMoney crc={total} size={48} />
+        <span className="muted-label">{inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}</span>
+      </section>
+
+      {limit !== null && (
+        <div className="card pad col gap8">
+          <div className="row between small-strong">
+            <span>{weekly && isCurrent ? 'Esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
+            <span className={pct !== null && pct >= 100 ? 'danger' : ''}>{money(periodSpent, cur, fx)} de {money(limit, cur, fx)}</span>
+          </div>
+          <div className="bar"><div className="bar-fill" style={{ width: `${Math.min(pct || 0, 100)}%`, background: (pct || 0) >= 100 ? '#C8372D' : (pct || 0) >= 80 ? '#C27C00' : '#111' }} /></div>
+        </div>
+      )}
+
+      {loading && txs.length === 0 ? (
+        <Loading />
+      ) : groups.length === 0 ? (
+        <div className="card empty center">
+          <span className="big-emoji">{cat.emoji}</span>
+          <strong>Sin movimientos en {monthName(ym[1])}</strong>
+          <span>Probá con otro mes.</span>
+        </div>
+      ) : (
+        groups.map((g) => (
+          <section key={g.label} className="col gap8">
+            <div className="row between">
+              <span className="date-pill">{g.label}</span>
+              {g.total !== 0 && <span className="date-pill">{money(g.total, cur, fx)}</span>}
+            </div>
+            <div className="card list">{g.rows.map((x) => <TxRow key={x.id} t={x} />)}</div>
+          </section>
+        ))
       )}
     </div>
   );

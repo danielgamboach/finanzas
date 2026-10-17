@@ -146,7 +146,7 @@ export function Movimientos() {
           </section>
         ))
       )}
-      <Nav active="mov" />
+      <Nav active={null} />
     </div>
   );
 }

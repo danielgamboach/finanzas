@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/api';
 import { moneyRaw } from '../lib/format';
-import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '../ui';
 
@@ -13,7 +12,6 @@ export function Ajustes() {
   const [joinCode, setJoinCode] = useState('');
   const [newSpace, setNewSpace] = useState('');
   const [token, setToken] = useState<string | null>(null);
-  const [recurring, setRecurring] = useState<Recurring[]>([]);
   const [unmatched, setUnmatched] = useState(0);
 
   useEffect(() => {
@@ -23,7 +21,6 @@ export function Ajustes() {
 
   useEffect(() => {
     if (!space) return;
-    db.from<Recurring>('recurring').eq('space_id', space.id).order('day_of_month').then(setRecurring).catch(() => undefined);
     db.from('ingest_unmatched', 'id').then((r) => setUnmatched(r.length)).catch(() => undefined);
   }, [space]);
 
@@ -57,16 +54,6 @@ export function Ajustes() {
   }
   async function makeToken() {
     setToken(await db.rpc<string>('create_ingest_token', { p_label: 'Google Apps Script' }));
-  }
-  async function toggleRec(r: Recurring) {
-    await db.update('recurring', { id: r.id }, { active: !r.active });
-    setRecurring(recurring.map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)));
-  }
-  async function deleteRec(r: Recurring) {
-    if (!confirm(`¿Eliminar "${r.merchant}" de los recurrentes? Los movimientos ya creados se quedan.`)) return;
-    await db.remove('recurring', { id: r.id });
-    setRecurring(recurring.filter((x) => x.id !== r.id));
-    bump();
   }
   const copy = (t: string) => navigator.clipboard?.writeText(t).then(() => toast('Copiado'));
 
@@ -153,27 +140,10 @@ export function Ajustes() {
         {accounts.length === 0 && <span className="muted small">Sin cuentas todavía.</span>}
       </section>
 
-      <section className="card pad col gap12">
-        <h2 className="h3">🔁 Recurrentes de {space?.name}</h2>
-        {recurring.length === 0 ? (
-          <span className="muted small">Al guardar un movimiento podés marcar “Repetir cada mes”.</span>
-        ) : (
-          recurring.map((r) => {
-            const c = categories.find((x) => x.id === r.category_id);
-            return (
-              <div key={r.id} className="row gap10">
-                <Emo e={c?.emoji || '🔁'} color={c?.color} size={40} />
-                <span className="grow col">
-                  <strong className="sm">{r.merchant}</strong>
-                  <span className="muted small">Día {r.day_of_month} · {moneyRaw(Number(r.amount), r.currency)}</span>
-                </span>
-                <button role="switch" aria-checked={r.active} aria-label={`Activo: ${r.merchant}`} className={r.active ? 'switch on' : 'switch'} onClick={() => toggleRec(r)}><span /></button>
-                <button className="icon-btn" aria-label={`Eliminar ${r.merchant}`} onClick={() => deleteRec(r)}><Icon name="trash" size={18} /></button>
-              </div>
-            );
-          })
-        )}
-      </section>
+      <a className="card pad row gap10 link-card" href="#/recurrentes">
+        <span className="grow col"><strong className="sm">🔁 Recurrentes de {space?.name}</strong><span className="muted small">Pagos fijos, suscripciones y lo que se espera pagar</span></span>
+        <Icon name="chevRight" size={18} />
+      </a>
 
       <section className="card pad col gap12">
         <h2 className="h3">📬 Vouchers automáticos</h2>

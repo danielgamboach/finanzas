@@ -85,7 +85,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReady(false);
     if (!userId) return;
     loadBase().catch(() => setReady(true));
-    db.rpc('generate_my_recurring').catch(() => undefined);
   }, [userId, loadBase]);
 
   const loadSpaceMeta = useCallback(async () => {

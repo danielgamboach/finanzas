@@ -17,6 +17,8 @@ export interface WorthData {
   latest: Record<string, Snapshot | undefined>;
   snaps: Snapshot[];
   cardDebt: Record<string, number>;
+  cardSplit: Record<string, { CRC: number; USD: number }>;
+  cards: number;
   assets: number;
   savings: number;
   investments: number;
@@ -30,6 +32,19 @@ export interface WorthData {
 }
 
 const toCrc = (v: number, a: Account, fx: number) => (a.currency === 'USD' ? v * fx : v);
+
+/** What's been charged to a card since its last recorded payment, split by the currency of each charge. */
+function cardByCurrency(card: Account, txs: Tx[]) {
+  const pays = txs.filter((t) => t.to_account_id === card.id && t.kind === 'transfer').map((t) => t.occurred_at).sort();
+  const since = pays[pays.length - 1] || '';
+  const out = { CRC: 0, USD: 0 };
+  for (const t of txs) {
+    if (t.account_id !== card.id || t.occurred_at <= since) continue;
+    const sign = t.kind === 'expense' ? 1 : t.kind === 'refund' ? -1 : 0;
+    out[t.currency === 'USD' ? 'USD' : 'CRC'] += sign * Number(t.amount);
+  }
+  return out;
+}
 
 export function useNetWorth(spaceId: string | null): WorthData {
   const { fx, version } = useApp();
@@ -50,7 +65,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const cards = accs.filter((a) => a.kind === 'credit_card').map((a) => a.id);
       const since = new Date(Date.now() - 60 * 86400000).toISOString();
       const ct = cards.length
-        ? await db.from<Tx>('transactions', 'id,kind,amount_crc,account_id,to_account_id,occurred_at').eq('space_id', spaceId).gte('occurred_at', since).limit(3000)
+        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at').eq('space_id', spaceId).gte('occurred_at', since).limit(3000)
         : [];
       if (!alive) return;
       setAccounts(accs);
@@ -65,14 +80,17 @@ export function useNetWorth(spaceId: string | null): WorthData {
 
   const latest: Record<string, Snapshot | undefined> = {};
   for (const s of snaps) if (!latest[s.account_id]) latest[s.account_id] = s;
-  let savings = 0, investments = 0, debts = 0, stale = 0;
+  let savings = 0, investments = 0, debts = 0, stale = 0, cards = 0;
   const cardDebt: Record<string, number> = {};
+  const cardSplit: Record<string, { CRC: number; USD: number }> = {};
   const now = Date.now();
   for (const a of accounts) {
     if (a.kind === 'credit_card') {
       const owed = cardOutstanding(a, cardTx);
       cardDebt[a.id] = owed;
+      cardSplit[a.id] = cardByCurrency(a, cardTx);
       debts += owed;
+      cards += owed;
       continue;
     }
     const s = latest[a.id];
@@ -97,9 +115,15 @@ export function useNetWorth(spaceId: string | null): WorthData {
   });
   const tracked = accounts.filter((a) => a.kind !== 'credit_card').length;
   return {
-    accounts, latest, snaps, cardDebt, assets: savings + investments, savings, investments, debts,
+    accounts, latest, snaps, cardDebt, cardSplit, cards, assets: savings + investments, savings, investments, debts,
     net: savings + investments - debts, count: tracked, stale, history, loading, reload: () => setTick((x) => x + 1),
   };
+}
+
+function cardLine(x?: { CRC: number; USD: number }) {
+  if (!x || (Math.abs(x.CRC) < 1 && Math.abs(x.USD) < 0.01)) return 'Al día desde el último pago';
+  const parts = [Math.abs(x.CRC) >= 1 ? moneyRaw(x.CRC, 'CRC') : '', Math.abs(x.USD) >= 0.01 ? moneyRaw(x.USD, 'USD') : ''].filter(Boolean);
+  return `Por pagar: ${parts.join(' + ')}`;
 }
 
 function Sparkline({ values }: { values: number[] }) {
@@ -130,14 +154,16 @@ export function Patrimonio() {
   const delta = w.history[5] && prev ? w.net - prev : 0;
   const byInst = new Map<string, Account[]>();
   w.accounts.forEach((a) => {
-    const k = a.kind === 'credit_card' || a.kind === 'loan' ? 'Deudas' : a.institution || 'Otras';
+    const k = a.kind === 'credit_card' ? 'Tarjetas de crédito' : a.kind === 'loan' ? 'Préstamos' : a.institution || 'Otras';
     byInst.set(k, [...(byInst.get(k) || []), a]);
   });
-  const groups = [...byInst.entries()].sort((a, b) => (a[0] === 'Deudas' ? 1 : b[0] === 'Deudas' ? -1 : a[0].localeCompare(b[0])));
+  const last = (k: string) => (k === 'Tarjetas de crédito' ? 2 : k === 'Préstamos' ? 1 : 0);
+  const groups = [...byInst.entries()].sort((a, b) => last(a[0]) - last(b[0]) || a[0].localeCompare(b[0]));
 
   return (
     <div className="screen">
       <TopBar />
+      <h1 className="h1">Cuentas</h1>
       <section className="col gap10 px4" aria-label="Patrimonio neto">
         <div className="row between">
           <span className="muted-label">Patrimonio neto</span>
@@ -152,7 +178,7 @@ export function Patrimonio() {
       <div className="hscroll">
         <div className="bento mint tile"><span className="bento-title sm"><span>🏦</span>Ahorro</span><span className="bento-num sm">{money(w.savings, cur, fx)}</span></div>
         <div className="bento lilac tile"><span className="bento-title sm"><span>📈</span>Inversión</span><span className="bento-num sm">{money(w.investments, cur, fx)}</span></div>
-        <div className="bento pink tile"><span className="bento-title sm"><span>💳</span>Deudas</span><span className="bento-num sm">{money(w.debts, cur, fx)}</span></div>
+        <div className="bento pink tile"><span className="bento-title sm"><span>💳</span>Tarjetas de crédito</span><span className="bento-num sm">{money(w.cards, cur, fx)}</span></div>
       </div>
 
       <div className="hscroll">
@@ -196,7 +222,7 @@ export function Patrimonio() {
 
       <section className="col gap12">
         <div className="section-head">
-          <h2 className="h2">Cuentas</h2>
+          <h2 className="h2">Tus cuentas</h2>
           <span className="muted small">{w.accounts.length} cuentas</span>
         </div>
         {w.loading && w.accounts.length === 0 ? <Loading /> : w.accounts.length === 0 ? (
@@ -217,7 +243,7 @@ export function Patrimonio() {
                       <span className="tx-mid">
                         <span className="tx-name">{a.name}{a.last4 ? ` ••${a.last4}` : ''}</span>
                         <span className={stale ? 'tx-cat warn-text' : 'tx-cat'}>
-                          {isCard ? 'Lo que se debe desde el último pago' : s ? `${stale ? '⏰ ' : ''}Actualizado ${shortDate(s.taken_on + 'T18:00:00Z')}` : '⏰ Sin saldo registrado'}
+                          {isCard ? cardLine(w.cardSplit[a.id]) : s ? `${stale ? '⏰ ' : ''}Actualizado ${shortDate(s.taken_on + 'T18:00:00Z')}` : '⏰ Sin saldo registrado'}
                         </span>
                       </span>
                       <span className="tx-amt">
@@ -234,7 +260,7 @@ export function Patrimonio() {
           </div>
         )}
       </section>
-      <Nav active="worth" />
+      <Nav active="accounts" />
     </div>
   );
 }
@@ -365,11 +391,15 @@ export function AccountEdit({ id }: { id: string }) {
             {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{KIND_EMOJI[k]} {l}</option>)}
           </select>
         </label>
-        <div className="grid2">
-          {(['CRC', 'USD'] as const).map((c) => (
-            <button key={c} className={acc.currency === c ? 'opt on' : 'opt'} aria-pressed={acc.currency === c} onClick={() => set('currency', c)}>{c === 'CRC' ? '₡ Colones' : '$ Dólares'}</button>
-          ))}
-        </div>
+        {acc.kind === 'credit_card' ? (
+          <span className="hint">💳 Las tarjetas aceptan cargos en colones y en dólares. Se muestran por separado.</span>
+        ) : (
+          <div className="grid2">
+            {(['CRC', 'USD'] as const).map((c) => (
+              <button key={c} className={acc.currency === c ? 'opt on' : 'opt'} aria-pressed={acc.currency === c} onClick={() => set('currency', c)}>{c === 'CRC' ? '₡ Colones' : '$ Dólares'}</button>
+            ))}
+          </div>
+        )}
         {(acc.kind === 'credit_card' || acc.kind === 'debit') && (
           <label className="col gap6"><span className="field-label">Últimos 4 dígitos</span><input className="input" inputMode="numeric" maxLength={4} value={acc.last4 || ''} onChange={(e) => set('last4', e.target.value.replace(/\D/g, ''))} placeholder="7731" /><span className="hint">Con esto los vouchers del correo caen en esta cuenta y este espacio.</span></label>
         )}
@@ -450,7 +480,7 @@ export function GoalEdit({ id }: { id: string }) {
       </div>
       <div className="card pad col gap10">
         <span className="field-label">¿Qué cuentas suman a esta meta?</span>
-        {assets.length === 0 && <span className="muted">Agregá cuentas en Patrimonio primero.</span>}
+        {assets.length === 0 && <span className="muted">Agregá cuentas en Cuentas primero.</span>}
         {assets.map((a) => (
           <label key={a.id} className="check">
             <input type="checkbox" checked={linked.includes(a.id)} onChange={(e) => setLinked(e.target.checked ? [...linked, a.id] : linked.filter((x) => x !== a.id))} />

@@ -34,6 +34,8 @@ const paths: Record<string, string> = {
   back: 'M15 18l-6-6 6-6',
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   refresh: 'M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7',
+  repeat: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
+  pencil: 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4',
 };
 
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths | string; size?: number; stroke?: number }) {
@@ -64,12 +66,12 @@ export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
   );
 }
 
-export function Nav({ active }: { active: 'home' | 'mov' | 'budget' | 'worth' | null }) {
+export function Nav({ active }: { active: 'home' | 'budget' | 'rec' | 'accounts' | null }) {
   const items = [
     { k: 'home', label: 'Inicio', icon: 'home', href: '/' },
-    { k: 'mov', label: 'Movimientos', icon: 'list', href: '/movimientos' },
     { k: 'budget', label: 'Presupuesto', icon: 'pie', href: '/presupuesto' },
-    { k: 'worth', label: 'Patrimonio', icon: 'wallet', href: '/patrimonio' },
+    { k: 'rec', label: 'Recurrentes', icon: 'repeat', href: '/recurrentes' },
+    { k: 'accounts', label: 'Cuentas', icon: 'wallet', href: '/cuentas' },
   ] as const;
   return (
     <div className="nav-wrap">

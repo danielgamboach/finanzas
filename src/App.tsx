@@ -1,12 +1,13 @@
 import { AppProvider, useApp, useRoute } from './store';
 import { Loading, Toast } from './ui';
 import { Ajustes } from './screens/Ajustes';
-import { CategoryEdit } from './screens/CategoryEdit';
+import { CategoryEdit, CategoryView } from './screens/CategoryEdit';
 import { Home } from './screens/Home';
 import { Login } from './screens/Login';
 import { Movimientos } from './screens/Movimientos';
 import { AccountEdit, GoalEdit, Patrimonio, Saldos } from './screens/Patrimonio';
 import { Presupuesto } from './screens/Presupuesto';
+import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
 
 function Router() {
@@ -16,7 +17,7 @@ function Router() {
   if (!ready) return <Loading />;
   if (spaces.length === 0) return <Loading />;
 
-  const [, a, b] = path.split('/');
+  const [, a, b, c] = path.split('/');
   switch (a) {
     case '':
     case undefined:
@@ -30,7 +31,12 @@ function Router() {
     case 'presupuesto':
       return <Presupuesto />;
     case 'categoria':
-      return <CategoryEdit key={b} id={b} />;
+      return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
+    case 'recurrentes':
+      return <Recurrentes />;
+    case 'recurrente':
+      return <RecurringEdit key={b} id={b} />;
+    case 'cuentas':
     case 'patrimonio':
       return <Patrimonio />;
     case 'saldos':

@@ -6,6 +6,9 @@ import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
 import { TxRow } from '../ui/TxRow';
+import { MonthChart } from '../ui/MonthChart';
+import { daysUntil, useRecurring } from '../lib/recurring';
+import { RecRow } from './Recurrentes';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
   const t = todayCR();
@@ -49,10 +52,6 @@ export function groupByDay(txs: Tx[]) {
 }
 
 interface Insight { emoji: string; text: string; tone: 'good' | 'neutral' | 'warn' | 'bad'; fp: string; at: number }
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-const DAY_LETTERS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
 /** Changes whenever something the message talks about changes: a new or edited movement, a limit, or the day. */
 function fingerprint(txs: Tx[], categories: { id: string; limit_amount: number | null; limit_period: string | null }[], today: string) {
@@ -120,7 +119,6 @@ function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; ready: bo
     <section className={`ai-note tone-${note?.tone || 'neutral'}${busy && !note ? ' loading' : ''}`} aria-live="polite" aria-busy={busy}>
       <span className="ai-note-emoji" aria-hidden="true">{note?.emoji || '✨'}</span>
       <span className="ai-note-body">
-        <span className="ai-note-label">✨ Tu copiloto</span>
         {note ? (
           <span className="ai-note-text">{note.text}</span>
         ) : (
@@ -137,18 +135,39 @@ function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; ready: bo
   );
 }
 
+/** Cumulative spend per day for a month, from day 1 up to `upTo` days. */
+function cumulative(txs: Tx[], y: number, m: number, upTo: number) {
+  const daily = new Array(upTo).fill(0);
+  for (const t of txs) {
+    const l = crLocal(t.occurred_at);
+    if (l.getUTCFullYear() !== y || l.getUTCMonth() !== m) continue;
+    const d = l.getUTCDate() - 1;
+    if (d < upTo) daily[d] += spend(t);
+  }
+  let acc = 0;
+  return daily.map((v) => (acc += v));
+}
+
 export function Home() {
   const { space, categories, accounts, cur, fx, bump, toast, profiles, userId } = useApp();
   const t = todayCR();
   const month = monthRange(t.y, t.m);
+  const prevMonth = monthRange(t.y, t.m - 1);
   const week = weekRange(space?.week_start ?? 5);
   const prevWeek = weekRange(space?.week_start ?? 5, -1);
   const range = useMemo(
-    () => ({ from: [month.from, prevWeek.from].sort()[0], to: [month.to, week.to].sort()[1] }),
+    () => ({ from: [prevMonth.from, prevWeek.from].sort()[0], to: [month.to, week.to].sort()[1] }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [month.from, month.to, prevWeek.from, week.to],
+    [prevMonth.from, prevWeek.from, month.to, week.to],
   );
   const { txs, loading } = useTxs(range);
+  const { items: recs } = useRecurring(space?.id);
+  const [sugCount, setSugCount] = useState(0);
+  const { version } = useApp();
+  useEffect(() => {
+    if (!space) return;
+    db.rpc<unknown[]>('recurring_suggestions', { p_space: space.id }).then((r) => setSugCount(r.length)).catch(() => setSugCount(0));
+  }, [space, version]);
 
   if (!space) return <Loading />;
 
@@ -156,33 +175,31 @@ export function Home() {
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
   const budget = monthBudget(categories);
+  const available = budget - spent;
   const today = dateKey(new Date().toISOString());
   const fp = fingerprint(txs.filter((x) => inRange(x, month) || inRange(x, week)), categories, today);
 
-  // This week, day by day (week_start → +6)
-  const weekTxs = txs.filter((x) => inRange(x, week));
-  const weekSpent = sumSpend(weekTxs);
-  const nowIso = new Date().toISOString();
-  const lastWeekSoFar = sumSpend(txs.filter((x) => x.occurred_at >= prevWeek.from && x.occurred_at < new Date(Date.now() - 7 * 86400000).toISOString()));
-  const hasLastWeek = txs.some((x) => inRange(x, prevWeek));
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const from = new Date(new Date(week.from).getTime() + i * 86400000).toISOString();
-    const to = new Date(new Date(week.from).getTime() + (i + 1) * 86400000).toISOString();
-    const local = crLocal(from);
-    return { letter: DAY_LETTERS[local.getUTCDay()], total: sumSpend(weekTxs.filter((x) => inRange(x, { from, to }))), isToday: nowIso >= from && nowIso < to, future: from > nowIso };
-  });
-  const maxDay = Math.max(...days.map((d) => d.total), 1);
-  const startL = crLocal(week.from);
-  const endL = crLocal(new Date(new Date(week.to).getTime() - 1).toISOString());
-  const diff = weekSpent - lastWeekSoFar;
+  // chart + comparison with last month at this same point
+  const daysInMonth = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate();
+  const pl = crLocal(prevMonth.from);
+  const prevDays = new Date(Date.UTC(pl.getUTCFullYear(), pl.getUTCMonth() + 1, 0)).getUTCDate();
+  const curSeries = cumulative(inMonth, t.y, t.m, t.d);
+  const prevTxs = txs.filter((x) => inRange(x, prevMonth));
+  const prevSeries = prevTxs.length ? cumulative(prevTxs, pl.getUTCFullYear(), pl.getUTCMonth(), prevDays) : null;
+  const prevSoFar = prevSeries ? prevSeries[Math.min(t.d, prevDays) - 1] : 0;
+  const diff = spent - prevSoFar;
+  const fmt = (v: number) => money(v, cur, fx);
+
+  const weekSpent = sumSpend(txs.filter((x) => inRange(x, week)));
+  const ws = crLocal(week.from);
+  const we = crLocal(new Date(new Date(week.to).getTime() - 1).toISOString());
 
   // Friday card payment (shared spaces with a credit card)
   const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
   const cardIds = new Set(cards.map((c) => c.id));
   const prevOnCards = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
   const prevKey = `card-week:${prevWeek.startKey}`;
-  const prevPayment = txs.find((x) => x.external_id === prevKey);
-  const pendingPrev = shared && cards.length > 0 && prevOnCards > 0 && !prevPayment;
+  const pendingPrev = shared && cards.length > 0 && prevOnCards > 0 && !txs.some((x) => x.external_id === prevKey);
   const debit = accounts.find((a) => a.kind === 'debit' && !a.archived);
   const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
 
@@ -204,62 +221,96 @@ export function Home() {
     bump();
   }
 
-  const recent = txs.filter((x) => x.occurred_at <= nowIso && x.kind !== 'transfer').slice(0, 3);
+  const upcoming = recs.filter((r) => r.active && daysUntil(r.next_due) <= 31).slice(0, 5);
+  const nowIso = new Date().toISOString();
+  const recent = txs.filter((x) => x.occurred_at <= nowIso && x.kind !== 'transfer').slice(0, 5);
 
   return (
     <div className="screen">
       <TopBar />
 
-      <h1 className="headline">
-        {shared ? 'Llevan' : 'Llevás'} <strong>{money(spent, cur, fx)}</strong>
-        {budget > 0 ? <> de {money(budget, cur, fx)}</> : null} en {monthName(t.m)}
-      </h1>
+      <section className="card pad month-card" aria-label={`Resumen de ${monthName(t.m)}`}>
+        <div className="row between">
+          <span className={budget > 0 && available < 0 ? 'muted-label big-label neg' : 'muted-label'}>
+            {budget > 0 ? (available >= 0 ? 'Disponible para gastar' : 'Se pasaron del presupuesto por') : `Gastado en ${monthName(t.m)}`}
+          </span>
+          <span className="date-pill nowrap">{cap(monthShort(t.m))} · día {t.d}</span>
+        </div>
+        <BigMoney crc={budget > 0 ? Math.abs(available) : spent} size={48} />
+        <MonthChart
+          current={curSeries}
+          previous={prevSeries}
+          days={daysInMonth}
+          budget={budget}
+          curLabel={cap(monthName(t.m))}
+          prevLabel={cap(monthName(pl.getUTCMonth()))}
+          fmt={fmt}
+        />
+        <div className="stats3">
+          <div className="stat">
+            <span className="stat-label">Gastado</span>
+            <span className="stat-value">{fmt(spent)}</span>
+            <span className="stat-sub">{budget > 0 ? `de ${fmt(budget)}` : <a href="#/presupuesto">Definir presupuesto</a>}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Esta semana</span>
+            <span className="stat-value">{fmt(weekSpent)}</span>
+            <span className="stat-sub">{ws.getUTCDate()} al {we.getUTCDate()} {monthShort(we.getUTCMonth())}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">vs. {monthShort(pl.getUTCMonth())}</span>
+            {prevSeries ? (
+              <span className={diff > 0 ? 'stat-value up' : 'stat-value down'}>{diff > 0 ? '↑ ' : '↓ '}{fmt(Math.abs(diff))}</span>
+            ) : (
+              <span className="stat-value">—</span>
+            )}
+            <span className="stat-sub">{prevSeries ? (diff > 0 ? 'más a esta altura' : 'menos a esta altura') : 'sin datos'}</span>
+          </div>
+        </div>
+      </section>
 
       <AiNote spaceId={space.id} fp={fp} ready={!loading} />
 
-      <section className="bento cyan week-card" aria-label="Gasto de esta semana">
-        <div className="row between">
-          <span className="bento-title"><span>🗓️</span>Esta semana</span>
-          <span className="badge">
-            {startL.getUTCMonth() === endL.getUTCMonth()
-              ? `${startL.getUTCDate()} al ${endL.getUTCDate()} ${monthShort(endL.getUTCMonth())}`
-              : `${startL.getUTCDate()} ${monthShort(startL.getUTCMonth())} al ${endL.getUTCDate()} ${monthShort(endL.getUTCMonth())}`}
-          </span>
+      <section className="col gap12">
+        <div className="section-head">
+          <h2 className="h2">Próximos pagos</h2>
+          <a href="#/recurrentes" className="link">Ver todos</a>
         </div>
-        <BigMoney crc={weekSpent} size={44} />
-        <span className="bento-sub">
-          {hasLastWeek && lastWeekSoFar > 0
-            ? diff > 0
-              ? `${money(diff, cur, fx)} más que la semana pasada a esta altura`
-              : diff < 0
-                ? `${money(-diff, cur, fx)} menos que la semana pasada a esta altura`
-                : 'Igual que la semana pasada a esta altura'
-            : `${plural(weekTxs.filter((x) => x.kind === 'expense').length, 'compra', 'compras')}${shared && cards.length ? ' · la tarjeta se paga el viernes' : ''}`}
-        </span>
-        <div className="week-bars" aria-hidden="true">
-          {days.map((d, i) => (
-            <span key={i} className={`wb${d.isToday ? ' today' : ''}${d.future ? ' future' : ''}`}>
-              <span className="wb-track">
-                <span className="wb-fill" style={{ height: d.total > 0 ? `${Math.max(8, Math.round((d.total / maxDay) * 100))}%` : 0 }} />
-              </span>
-              <span className="wb-day">{d.letter}</span>
-            </span>
-          ))}
-        </div>
-        {pendingPrev && (
-          <div className="week-pay">
-            <span className="grow col">
-              <strong>Toca pagar {money(prevOnCards, cur, fx)}</strong>
-              <span>Tarjeta de la semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
-            </span>
-            <button className="btn-dark sm" onClick={markPaid}>Pagado</button>
+        {upcoming.length === 0 && !pendingPrev ? (
+          <a className="card empty center" href={recs.length ? '#/recurrentes' : '#/recurrente/nueva'}>
+            <span className="big-emoji">🔁</span>
+            <strong>{recs.length ? 'Nada en los próximos 30 días' : 'Agregá tus pagos fijos'}</strong>
+            <span>{recs.length ? 'Todo al día.' : 'Alquiler, internet, suscripciones…'}</span>
+          </a>
+        ) : (
+          <div className="card list">
+            {pendingPrev && (
+              <div className="rec-row ask">
+                <div className="tx-row">
+                  <span className="emo" aria-hidden="true" style={{ width: 48, height: 48, fontSize: 22, background: '#F6CFDF' }}>💳</span>
+                  <span className="tx-mid">
+                    <span className="tx-cat">Semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
+                    <span className="tx-name">Pago de tarjeta</span>
+                  </span>
+                  <span className="tx-amt"><span>{fmt(prevOnCards)}</span><span className="tx-sub strong">Toca pagar</span></span>
+                </div>
+                <div className="rec-ask">
+                  <span>¿Ya se pagó la tarjeta?</span>
+                  <button className="btn-dark sm" onClick={markPaid}>Ya pagué</button>
+                </div>
+              </div>
+            )}
+            {upcoming.map((r) => <RecRow key={r.id} r={r} compact />)}
           </div>
+        )}
+        {sugCount > 0 && (
+          <a className="hint-link" href="#/recurrentes">✨ {sugCount === 1 ? 'Encontré 1 posible suscripción' : `Encontré ${sugCount} posibles suscripciones`} · Revisar</a>
         )}
       </section>
 
       <section className="col gap12">
         <div className="section-head">
-          <h2 className="h2">Últimos movimientos</h2>
+          <h2 className="h2">Movimientos</h2>
           <a href="#/movimientos" className="link">Ver todos</a>
         </div>
         <div className="card list">
