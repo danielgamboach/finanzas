@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { db } from '../lib/api';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
-import { cap, crIso, crLocal, dateKey, dayLabel, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
+import { cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
 import { accountColor, byKind } from '../lib/accounts';
 import { normWords, photoFor, photoUrl } from '../lib/photos';
 import type { Tx } from '../lib/types';
@@ -55,79 +54,6 @@ export function goAdd(tipo: string) {
   go(`/agregar?tipo=${tipo}`);
 }
 
-interface Insight { emoji: string; text: string; tone: 'good' | 'neutral' | 'warn' | 'bad'; fp: string; at: number }
-
-/** Changes whenever something the message talks about changes: a new or edited movement, a limit, or the day. */
-function fingerprint(txs: Tx[], categories: { id: string; limit_amount: number | null; limit_period: string | null }[], today: string) {
-  let h = 5381;
-  const feed = (s: string) => {
-    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  };
-  feed(today);
-  txs.forEach((t) => feed(`${t.id}${t.category_id}${t.amount_crc}${(t as Tx & { updated_at?: string }).updated_at || ''}`));
-  categories.forEach((c) => feed(`${c.id}${c.limit_amount}${c.limit_period}`));
-  return String(h >>> 0);
-}
-
-function readInsight(spaceId: string): Insight | null {
-  try {
-    const raw = localStorage.getItem(`finanzas.insight.${spaceId}`);
-    return raw ? (JSON.parse(raw) as Insight) : null;
-  } catch {
-    return null;
-  }
-}
-function writeInsight(spaceId: string, v: Insight) {
-  try {
-    localStorage.setItem(`finanzas.insight.${spaceId}`, JSON.stringify(v));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-/** The AI's one-liner about the month. Tap it for another take. */
-function AiLine({ spaceId, fp, ready }: { spaceId: string; fp: string; ready: boolean }) {
-  const [note, setNote] = useState<Insight | null>(() => readInsight(spaceId));
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function load(force = false) {
-    const cached = readInsight(spaceId);
-    if (!force && cached && cached.fp === fp) return setNote(cached);
-    if (!force && cached && Date.now() - cached.at < 20_000) return setNote(cached);
-    setBusy(true);
-    setFailed(false);
-    try {
-      const r = await db.fn<{ ok: boolean; emoji?: string; text?: string; tone?: Insight['tone'] }>('insight', { space_id: spaceId, prev: cached?.text });
-      if (r.ok && r.text) {
-        const v: Insight = { emoji: r.emoji || '✨', text: r.text, tone: r.tone || 'neutral', fp, at: Date.now() };
-        writeInsight(spaceId, v);
-        setNote(v);
-      } else setFailed(true);
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    setNote(readInsight(spaceId));
-  }, [spaceId]);
-  useEffect(() => {
-    if (ready && fp) void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spaceId, fp, ready]);
-
-  if (!note && failed) return null;
-  return (
-    <button className={`ai-line tone-${note?.tone || 'neutral'}${busy ? ' busy' : ''}`} onClick={() => load(true)} disabled={busy} aria-live="polite" aria-label={note ? `${note.text}. Tocá para otro mensaje` : 'Pensando…'}>
-      <span className="ai-line-emoji" aria-hidden="true">{note?.emoji || '✨'}</span>
-      {note ? <span className="ai-line-text">{note.text}</span> : <span className="ai-line-skel" aria-hidden="true"><span /><span /></span>}
-    </button>
-  );
-}
-
 // where each merchant bubble sits in the cluster (from the design): left, top, size
 const BUBBLES: [number, number, number][] = [
   [0, 34, 44],
@@ -144,7 +70,7 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
   const prevMonth = monthRange(t.y, t.m - 1);
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
-  const { txs, loading } = useTxs(range);
+  const { txs } = useTxs(range);
   const topRef = useRef<HTMLDivElement>(null);
 
   if (!space) return <Loading />;
@@ -152,7 +78,6 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
   const budget = monthBudget(categories);
-  const fp = fingerprint(txs.filter((x) => inRange(x, month) || inRange(x, week)), categories, dateKey(new Date().toISOString()));
 
   // same day of last month; only when we really have last month's data
   const pl = crLocal(prevMonth.from);
@@ -238,13 +163,12 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
             <a href="#/agregar" className="pill-btn light"><Icon name="plusCircle" size={16} />Gasto</a>
             <button className="pill-btn" onClick={() => goPanel(0)}><Icon name="chart" size={16} />Análisis</button>
           </div>
-          <AiLine spaceId={space.id} fp={fp} ready={!loading} />
         </section>
 
         {peek.length > 0 && (
           <button className="card-peek" onClick={() => goPanel(2)} aria-label="Ver cuentas">
             {peek.map((a, i) => (
-              <span key={a.id} style={{ background: accountColor(a).bg, left: i * 19, zIndex: i }} />
+              <span key={a.id} data-acc={a.id} style={{ background: accountColor(a).bg, left: i * 19, zIndex: i }} />
             ))}
           </button>
         )}

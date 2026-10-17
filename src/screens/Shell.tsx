@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../ui';
+import { CardMorph } from '../ui/CardMorph';
 import { Analisis } from './Presupuesto';
 import { Home } from './Home';
 import { Cuentas } from './Patrimonio';
@@ -22,6 +23,28 @@ export function Shell({ route }: { route: string }) {
   const [idx, setIdx] = useState(panelOf(route));
   const [open, setOpenState] = useState(route === 'movimientos');
   const [focus, setFocus] = useState(0);
+  const pill = useRef<HTMLSpanElement>(null);
+
+  // the bottom bar's white pill follows the finger, not just the final panel
+  useEffect(() => {
+    const el = pager.current;
+    if (!el) return;
+    let raf = 0;
+    const paint = () => {
+      raf = 0;
+      const x = el.scrollLeft / Math.max(1, el.clientWidth);
+      if (pill.current) pill.current.style.transform = `translateX(${x * 100}%)`;
+    };
+    const on = () => {
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    paint();
+    el.addEventListener('scroll', on, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', on);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   const scrollTo = useCallback((i: number, smooth: boolean) => {
     const el = pager.current;
@@ -95,7 +118,9 @@ export function Shell({ route }: { route: string }) {
           <Cuentas />
         </section>
       </div>
+      <CardMorph pager={pager} />
       <nav className="pnav" aria-label="Navegación principal">
+        <span className="pnav-track" aria-hidden="true"><span ref={pill} className="pnav-pill" /></span>
         {([
           ['grid', 'Análisis'],
           ['house', 'Inicio'],

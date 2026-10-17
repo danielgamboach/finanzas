@@ -3,7 +3,7 @@ import { db } from '../lib/api';
 import { cardOutstanding } from '../lib/calc';
 import { crIso, money, moneyRaw, parseAmount, shortDate, todayCR } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
-import { go, useApp } from '../store';
+import { go, navigate, useApp } from '../store';
 import { BackBar, Emo, Icon, Loading, tint } from '../ui';
 import { ACCOUNT_COLORS, accountColor, BRANDS, byKind } from '../lib/accounts';
 import { MovementsBrowser } from './Movimientos';
@@ -152,7 +152,7 @@ export function AccountCard({ a, w, onClick, style, big = false }: { a: Account;
   const f = accountFigure(a, w);
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag className={big ? 'wcard big' : 'wcard'} style={{ background: c.bg, color: c.fg, ...style }} onClick={onClick}>
+    <Tag className={big ? 'wcard big' : 'wcard'} data-acc={a.id} style={{ background: c.bg, color: c.fg, viewTransitionName: `card-${a.id}`, ...style } as React.CSSProperties} onClick={onClick}>
       <span className="wc-top">
         <span className="wc-name">{a.name}</span>
         <span className="wc-num">{a.last4 ? `••••${a.last4}` : a.institution || ''}</span>
@@ -213,7 +213,7 @@ export function Cuentas() {
               <h2 className="h2 px4">{g.title}</h2>
               <div className="wstack">
                 {list.map((a, i) => (
-                  <AccountCard key={a.id} a={a} w={w} onClick={() => go(`/cuenta/${a.id}`)} style={{ zIndex: i }} />
+                  <AccountCard key={a.id} a={a} w={w} onClick={() => navigate(`/cuenta/${a.id}`)} style={{ zIndex: i }} />
                 ))}
               </div>
             </section>

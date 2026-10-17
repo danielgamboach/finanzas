@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { go, useApp } from '../store';
+import { navigateBack, useApp } from '../store';
 import { moneyParts } from '../lib/format';
 import { useDragToClose } from './useDragToClose';
 
@@ -92,7 +92,7 @@ export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
 export function BackBar({ title, right }: { title?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <header className="topbar">
-      <button className="round" onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Volver"><Icon name="back" /></button>
+      <button className="round" onClick={navigateBack} aria-label="Volver"><Icon name="back" /></button>
       {title ? <h1 className="h2 topbar-title">{title}</h1> : <span />}
       {right || <span style={{ width: 48 }} />}
     </header>

@@ -5,6 +5,8 @@ import { cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR } fr
 import { useApp, useTxs } from '../store';
 import { Emo, Icon, Loading, Segmented } from '../ui';
 import { MonthChart } from '../ui/MonthChart';
+import { AiNote, fingerprint } from '../ui/AiNote';
+import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 
 /** Left panel: the month at a glance, budgets by category and trends. */
@@ -19,8 +21,11 @@ export function Analisis() {
   // six months back for the analysis, plus the current week
   const range = useMemo(() => ({ from: crIso(ym[0], ym[1] - 5, 1), to: [month.to, week.to].sort()[1] }), [ym, month.to, week.to]);
   const { txs, loading } = useTxs(range);
+  // the AI always talks about the current month and week
+  const nowMonth = monthRange(t.y, t.m);
 
   if (!space) return <Loading />;
+  const fp = fingerprint(txs.filter((x) => inRange(x, nowMonth) || inRange(x, week)), categories, dateKey(new Date().toISOString()));
   const stats = categoryStats(categories, txs, month, week, isCurrent);
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
@@ -52,6 +57,7 @@ export function Analisis() {
       <header className="panel-head">
         <h1 className="h1">Análisis</h1>
       </header>
+      <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />
       <MonthNav ym={ym} setYm={setYm} />
       <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
         <span className="muted small">Llevás</span>

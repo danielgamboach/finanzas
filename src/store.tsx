@@ -206,6 +206,33 @@ export const go = (path: string) => {
   location.hash = path;
 };
 
+type VT = { finished: Promise<void> };
+const startVT = (cb: () => Promise<void>): VT | null => {
+  const d = document as Document & { startViewTransition?: (cb: () => Promise<void>) => VT };
+  if (!d.startViewTransition || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return null;
+  return d.startViewTransition(cb);
+};
+const nextPaint = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+/** Like go(), but morphs shared elements (view-transition-name) between the two screens when the browser can. */
+export function navigate(path: string) {
+  if (!startVT(async () => {
+    location.hash = path;
+    await nextPaint();
+  })) go(path);
+}
+
+/** history.back() with the same morph. */
+export function navigateBack() {
+  if (history.length <= 1) return navigate('/');
+  if (!startVT(() => new Promise<void>((res) => {
+    const done = () => nextPaint().then(res);
+    addEventListener('hashchange', done, { once: true });
+    history.back();
+    setTimeout(done, 400); // never block the screen if the event doesn't come
+  }))) history.back();
+}
+
 export function useQuery() {
   const q = location.hash.split('?')[1] || '';
   return new URLSearchParams(q);
