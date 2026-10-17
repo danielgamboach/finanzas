@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/api';
+import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
 import { useDragToClose } from '../ui/useDragToClose';
 import { extractTags, tagsOf } from '../lib/calc';
@@ -108,8 +109,8 @@ export function TxForm({ id }: { id?: string }) {
 
   const kind = TYPE_TO_KIND[type];
   const catKind = type === 'ingreso' ? 'income' : 'expense';
-  const visibleCats = cats.filter((c) => c.kind === catKind);
-  const shownCats = showAllCats ? visibleCats : visibleCats.slice(0, 8);
+  const visibleCats = pickerOrder(cats.filter((c) => c.kind === catKind));
+  const shownCats = showAllCats || visibleCats.findIndex((c) => c.id === categoryId) >= 8 ? visibleCats : visibleCats.slice(0, 8);
   const num = parseAmount(amount);
   const eq = cur === 'USD' ? moneyRaw(num * fx, 'CRC') : moneyRaw(num / fx, 'USD');
   const spaceMembers = members.filter((m) => m.space_id === spaceId);
@@ -288,10 +289,13 @@ export function TxForm({ id }: { id?: string }) {
                   onClick={() => setCategoryId(c.id === categoryId ? null : c.id)}
                 >
                   <span className="cat-emoji">{c.emoji}</span>
-                  {c.name}
+                  <span>
+                    {c.name}
+                    {c.parent_id && <span className="cat-parent">{cats.find((p) => p.id === c.parent_id)?.name}</span>}
+                  </span>
                 </button>
               ))}
-              {visibleCats.length > 8 && !showAllCats && (
+              {shownCats.length < visibleCats.length && (
                 <button className="cat-tile" style={{ background: tint('gray', false) }} onClick={() => setShowAllCats(true)}>
                   <span className="cat-emoji">✨</span>
                   Más
@@ -301,7 +305,7 @@ export function TxForm({ id }: { id?: string }) {
             {orig && categoryChanged && fromEmail && (
               <label className="check">
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-                <span>Recordar: “{rulePattern(orig.raw_merchant || '')}” siempre va en {selectedCat?.emoji} {selectedCat?.name}</span>
+                <span>Recordar: “{rulePattern(orig.raw_merchant || '')}” siempre va en {selectedCat?.emoji} {catLabel(cats, selectedCat)}</span>
               </label>
             )}
           </div>

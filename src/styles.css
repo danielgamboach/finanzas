@@ -238,6 +238,21 @@ select.input { appearance: auto; }
 .bar-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
 .cat-row { display: flex; gap: 12px; align-items: center; padding: 14px 12px 14px 14px; }
 .cat-row strong { font-size: 15px; }
+.cat-card { padding: 0; overflow: hidden; }
+.cat-row, .sub-row, .list-row { text-decoration: none; color: var(--ink); }
+.bar.thin { height: 5px; border-radius: 3px; }
+.sub-toggle { border: none; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 14px; border-top: 1px solid var(--soft); background: none; font-size: 13px; font-weight: 700; color: var(--muted, #6b6b66); }
+.sub-list { display: flex; flex-direction: column; padding: 2px 14px 12px; gap: 2px; }
+.sub-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+.sub-emo { width: 28px; text-align: center; font-size: 18px; color: #8A8A85; }
+.gap4 { gap: 4px; }
+.cat-parent { display: block; font-size: 10px; font-weight: 700; opacity: .6; line-height: 1.1; }
+.sub-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.sub-chips::-webkit-scrollbar { display: none; }
+.sub-chips .pill { border: none; flex: none; height: 36px; padding: 0 14px; gap: 6px; font-size: 13px; }
+.sub-chips .pill.on { background: var(--ink); color: #fff; }
+.pill-n { font-weight: 700; opacity: .6; }
+.title-cat .col { line-height: 1.15; }
 .pct { font-size: 13px; font-weight: 800; }
 .month-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; height: 220px; }
 .month-bars.short { height: 160px; }

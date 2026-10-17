@@ -1,5 +1,6 @@
 import { crIso, crLocal, todayCR } from './format';
 import type { Account, Category, Tx } from './types';
+import { familyIds } from './cats';
 
 export interface Range { from: string; to: string }
 
@@ -19,7 +20,7 @@ export function weekRange(weekStart: number, offsetWeeks = 0, ref = todayCR()): 
 
 /** Monthly budget = sum of category limits (weekly limits count ~4.33 times). */
 export function monthBudget(cats: Category[]) {
-  return cats.reduce((a, c) => a + (c.kind === 'expense' && !c.archived && c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
+  return cats.reduce((a, c) => a + (c.kind === 'expense' && !c.archived && !c.parent_id && c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
 }
 
 export const inRange = (t: Tx, r: Range) => t.occurred_at >= r.from && t.occurred_at < r.to;
@@ -57,6 +58,8 @@ export interface CatStat {
   level: Level;
   projection: number | null;
   periodLabel: string;
+  /** Month spend per subcategory, plus the part left on the parent itself (cat = parent). */
+  subs: { cat: Category; monthSpent: number; spent: number; direct?: boolean }[];
 }
 
 export function categoryStats(cats: Category[], txs: Tx[], month: Range, week: Range, isCurrentMonth: boolean): CatStat[] {
@@ -64,9 +67,10 @@ export function categoryStats(cats: Category[], txs: Tx[], month: Range, week: R
   const l = crLocal(month.from);
   const daysInMonth = new Date(Date.UTC(l.getUTCFullYear(), l.getUTCMonth() + 1, 0)).getUTCDate();
   return cats
-    .filter((c) => c.kind === 'expense' && !c.archived)
+    .filter((c) => c.kind === 'expense' && !c.archived && !c.parent_id)
     .map((cat) => {
-      const ofCat = txs.filter((x) => x.category_id === cat.id);
+      const fam = familyIds(cats, cat.id);
+      const ofCat = txs.filter((x) => x.category_id && fam.has(x.category_id));
       const monthSpent = sumSpend(ofCat.filter((x) => inRange(x, month)));
       const weekly = cat.limit_period === 'weekly';
       const spent = weekly && isCurrentMonth ? sumSpend(ofCat.filter((x) => inRange(x, week))) : monthSpent;
@@ -76,8 +80,23 @@ export function categoryStats(cats: Category[], txs: Tx[], month: Range, week: R
       if (isCurrentMonth && !weekly && !cat.is_fixed && monthSpent > 0) {
         projection = Math.round((monthSpent / Math.max(t.d, 1)) * daysInMonth);
       }
+      const kids = cats.filter((c) => c.parent_id === cat.id && !c.archived);
+      const inPeriod = (x: Tx) => (weekly && isCurrentMonth ? inRange(x, week) : inRange(x, month));
+      const subs = kids.length
+        ? [
+            ...kids.map((k) => {
+              const of = ofCat.filter((x) => x.category_id === k.id);
+              return { cat: k, monthSpent: sumSpend(of.filter((x) => inRange(x, month))), spent: sumSpend(of.filter(inPeriod)) };
+            }),
+            (() => {
+              const of = ofCat.filter((x) => x.category_id === cat.id);
+              return { cat, monthSpent: sumSpend(of.filter((x) => inRange(x, month))), spent: sumSpend(of.filter(inPeriod)), direct: true };
+            })(),
+          ].sort((a, b) => b.spent - a.spent)
+        : [];
       return {
         cat,
+        subs,
         spent,
         monthSpent,
         limit,

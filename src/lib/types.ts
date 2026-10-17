@@ -36,6 +36,7 @@ export interface Category {
   is_fixed: boolean;
   archived: boolean;
   sort: number;
+  parent_id?: string | null;
 }
 
 export type AccountKind = 'credit_card' | 'debit' | 'savings' | 'investment' | 'cash' | 'cdp' | 'loan' | 'other';

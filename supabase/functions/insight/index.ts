@@ -18,7 +18,7 @@ const cors = {
 };
 
 interface Tx { kind: string; amount_crc: number; category_id: string | null; merchant: string | null; occurred_at: string; status: string }
-interface Cat { id: string; name: string; emoji: string; kind: string; limit_amount: number | null; limit_period: string | null; is_fixed: boolean }
+interface Cat { id: string; name: string; emoji: string; kind: string; limit_amount: number | null; limit_period: string | null; is_fixed: boolean; parent_id?: string | null }
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DOW = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -49,26 +49,38 @@ function facts(space: { name: string; kind: string; week_start: number }, names:
   const NO_DATA = 'sin datos para comparar';
 
   const exp = cats.filter((c) => c.kind === 'expense');
+  const tops = exp.filter((c) => !c.parent_id); // budgets live on parents; subcategories roll up
+  const root = (id: string | null) => exp.find((x) => x.id === id)?.parent_id || id;
   const month = txs.filter((t) => within(t, monthFrom, monthTo));
   const week = txs.filter((t) => within(t, weekFrom, weekTo));
   const catName = (id: string | null) => {
     const c = exp.find((x) => x.id === id);
-    return c ? `${c.emoji} ${c.name}` : 'Sin categoría';
+    const p = c?.parent_id ? exp.find((x) => x.id === c.parent_id) : null;
+    return c ? (p ? `${p.emoji} ${p.name} › ${c.name}` : `${c.emoji} ${c.name}`) : 'Sin categoría';
   };
 
-  const perCat = exp
+  const perCat = tops
     .map((c) => {
-      const mTx = month.filter((t) => t.category_id === c.id);
-      const wTx = week.filter((t) => t.category_id === c.id);
+      const mine = (t: Tx) => root(t.category_id) === c.id;
+      const mTx = month.filter(mine);
+      const wTx = week.filter(mine);
+      const kids = exp.filter((k) => k.parent_id === c.id);
+      const detalle = kids.length
+        ? [...kids.map((k) => [`${k.emoji} ${k.name}`, sum(mTx.filter((t) => t.category_id === k.id))] as const), ['sin detalle', sum(mTx.filter((t) => t.category_id === c.id))] as const]
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `${k}: ${crc(v)}`)
+        : undefined;
       const weekly = c.limit_period === 'weekly';
       const spent = weekly ? sum(wTx) : sum(mTx);
       const limit = c.limit_amount == null ? null : Number(c.limit_amount);
       const p = limit ? pct(spent, limit) : null;
-      const prevMonth = sum(txs.filter((t) => t.category_id === c.id && within(t, prevMonthFrom, prevMonthSameDay)));
+      const prevMonth = sum(txs.filter((t) => mine(t) && within(t, prevMonthFrom, prevMonthSameDay)));
       return {
         categoria: `${c.emoji} ${c.name}`,
         fijo: c.is_fixed,
         mes: crc(sum(mTx)),
+        detalle_del_mes: detalle?.length ? detalle : undefined,
         mes_num: sum(mTx),
         compras_mes: mTx.filter((t) => t.kind === 'expense').length,
         semana: crc(sum(wTx)),
@@ -86,9 +98,9 @@ function facts(space: { name: string; kind: string; week_start: number }, names:
     .map(({ mes_num: _, ...c }) => c);
 
   const monthSpent = sum(month);
-  const budget = exp.reduce((a, c) => a + (c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
-  const fixedIds = new Set(exp.filter((c) => c.is_fixed).map((c) => c.id));
-  const variable = sum(month.filter((t) => !fixedIds.has(t.category_id || '')));
+  const budget = tops.reduce((a, c) => a + (c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
+  const fixedIds = new Set(tops.filter((c) => c.is_fixed).map((c) => c.id));
+  const variable = sum(month.filter((t) => !fixedIds.has(root(t.category_id) || '')));
   const projection = monthSpent - variable + (variable / Math.max(d, 1)) * daysInMonth;
   const biggest = [...week].filter((t) => t.kind === 'expense').sort((a, b) => b.amount_crc - a.amount_crc)[0];
   const merchants = new Map<string, number>();
@@ -179,7 +191,7 @@ Deno.serve(async (req) => {
     const from = crIso(l.getUTCFullYear(), l.getUTCMonth() - 1, 1); // start of last month (always before last week's start)
     const [members, cats, txs] = await Promise.all([
       get(`space_members?select=user_id&space_id=eq.${spaceId}&order=created_at`),
-      get(`categories?select=id,name,emoji,kind,limit_amount,limit_period,is_fixed&space_id=eq.${spaceId}&archived=is.false`),
+      get(`categories?select=id,name,emoji,kind,limit_amount,limit_period,is_fixed,parent_id&space_id=eq.${spaceId}&archived=is.false`),
       get(`transactions?select=kind,amount_crc,category_id,merchant,occurred_at,status&space_id=eq.${spaceId}&occurred_at=gte.${encodeURIComponent(from)}&order=occurred_at.desc&limit=3000`),
     ]);
     const ids = (members as { user_id: string }[]).map((x) => x.user_id);

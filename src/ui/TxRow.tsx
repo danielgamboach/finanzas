@@ -2,6 +2,7 @@ import { go, useApp } from '../store';
 import { money, moneyRaw, relDay } from '../lib/format';
 import { tagsOf } from '../lib/calc';
 import type { Tx } from '../lib/types';
+import { catLabel } from '../lib/cats';
 import { Emo } from '.';
 
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
@@ -15,7 +16,7 @@ export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
   const color = review ? 'butter' : cat?.color || 'gray';
   const who = t.kind === 'contribution' && t.contributor_id ? profiles[t.contributor_id]?.name : null;
-  const label = [showDate ? relDay(t.occurred_at) : null, review ? 'Sin categoría' : cat?.name || KIND_LABEL[t.kind] || '', who, acc ? (acc.last4 ? `••${acc.last4}` : acc.name) : null]
+  const label = [showDate ? relDay(t.occurred_at) : null, review ? 'Sin categoría' : (cat ? catLabel(categories, cat) : '') || KIND_LABEL[t.kind] || '', who, acc ? (acc.last4 ? `••${acc.last4}` : acc.name) : null]
     .filter(Boolean)
     .join(' · ');
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
@@ -33,7 +34,7 @@ export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
         {(review || t.recurring_id || tags.length > 0 || t.category_source === 'ai') && (
           <span className="chips">
             {review && !suggested && <span className="chip warn">Por revisar</span>}
-            {suggested && <span className="chip ai">✨ ¿{suggested.emoji} {suggested.name}?</span>}
+            {suggested && <span className="chip ai">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</span>}
             {!review && t.category_source === 'ai' && <span className="chip ai">✨ IA</span>}
             {t.recurring_id && <span className="chip">🔁 Recurrente</span>}
             {tags.map((g) => (

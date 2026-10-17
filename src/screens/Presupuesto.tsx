@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { categoryStats, inRange, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
+import { categoryStats, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
+import { rootId } from '../lib/cats';
 import { crIso, crLocal, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
 import { useApp, useTxs } from '../store';
 import { Emo, Icon, Loading, Nav, Segmented, TopBar } from '../ui';
@@ -27,7 +28,7 @@ export function Presupuesto() {
   const pace = isCurrent ? Math.round((t.d / daysInMonth) * 100) : 100;
   const usedPct = budget ? Math.round((spent / budget) * 100) : 0;
   const warnCount = stats.filter((s) => s.level === 'warn' || s.level === 'over').length;
-  const fixedSpent = sumSpend(inMonth.filter((x) => stats.find((s) => s.cat.id === x.category_id)?.cat.is_fixed));
+  const fixedSpent = sumSpend(inMonth.filter((x) => stats.find((s) => s.cat.id === rootId(categories, x.category_id))?.cat.is_fixed));
   const variableSpent = spent - fixedSpent;
   const projection = isCurrent ? fixedSpent + Math.round((variableSpent / Math.max(t.d, 1)) * daysInMonth) : spent;
 
@@ -80,42 +81,78 @@ export function Presupuesto() {
             <a href="#/categoria/nueva" className="btn-dark sm"><Icon name="plus" size={16} stroke={2.6} />Nueva</a>
           </div>
           <div className="col gap8">
-            {stats.map((s) => {
-              const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
-              const bar = s.cat.is_fixed ? '#A3A39E' : s.level === 'over' ? '#C8372D' : s.level === 'warn' ? '#C27C00' : '#111';
-              return (
-                <a key={s.cat.id} href={`#/categoria/${s.cat.id}`} className="card cat-row">
-                  <Emo e={s.cat.emoji} color={s.cat.color} />
-                  <span className="grow col gap6">
-                    <span className="row gap6">
-                      <strong>{s.cat.name}</strong>
-                      <span className="chip">{s.periodLabel}</span>
-                      <span className={`ml-auto pct lvl-${s.level}`}>{s.pct !== null ? (s.cat.is_fixed && s.pct >= 100 ? '✅ Pagado' : `${s.pct}%`) : ''}</span>
-                    </span>
-                    {s.limit ? (
-                      <span className="bar"><span className="bar-fill" style={{ width: `${Math.min(s.pct || 0, 100)}%`, background: bar }} /></span>
-                    ) : null}
-                    <span className="strong-sm">
-                      {money(s.spent, cur, fx)}
-                      {s.limit ? ` de ${money(s.limit, cur, fx)}` : ' · sin límite'}
-                    </span>
-                    {s.projection !== null && s.limit !== null && (
-                      <span className={over ? 'small danger' : 'small muted'}>
-                        {over ? '🔺 ' : ''}Proyección {money(s.projection, cur, fx)}
-                        {over ? ` · ${money(s.projection - s.limit, cur, fx)} sobre el límite` : ' · dentro del límite'}
-                      </span>
-                    )}
-                  </span>
-                  <Icon name="chevRight" size={18} />
-                </a>
-              );
-            })}
+            {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
           </div>
         </>
       ) : (
         <Analysis txs={txs} ym={ym} />
       )}
       <Nav active="budget" />
+    </div>
+  );
+}
+
+/** A budget row; parents with subcategories get an expandable breakdown. */
+function CatRow({ s }: { s: CatStat }) {
+  const { cur, fx } = useApp();
+  const [open, setOpen] = useState(false);
+  const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
+  const bar = s.cat.is_fixed ? '#A3A39E' : s.level === 'over' ? '#C8372D' : s.level === 'warn' ? '#C27C00' : '#111';
+  const subs = s.subs.filter((x) => x.spent !== 0 || !x.direct);
+  const kids = s.subs.filter((x) => !x.direct).length;
+  return (
+    <div className="card cat-card">
+      <a href={`#/categoria/${s.cat.id}`} className="cat-row">
+        <Emo e={s.cat.emoji} color={s.cat.color} />
+        <span className="grow col gap6">
+          <span className="row gap6">
+            <strong>{s.cat.name}</strong>
+            <span className="chip">{s.periodLabel}</span>
+            <span className={`ml-auto pct lvl-${s.level}`}>{s.pct !== null ? (s.cat.is_fixed && s.pct >= 100 ? '✅ Pagado' : `${s.pct}%`) : ''}</span>
+          </span>
+          {s.limit ? (
+            <span className="bar"><span className="bar-fill" style={{ width: `${Math.min(s.pct || 0, 100)}%`, background: bar }} /></span>
+          ) : null}
+          <span className="strong-sm">
+            {money(s.spent, cur, fx)}
+            {s.limit ? ` de ${money(s.limit, cur, fx)}` : ' · sin límite'}
+          </span>
+          {s.projection !== null && s.limit !== null && (
+            <span className={over ? 'small danger' : 'small muted'}>
+              {over ? '🔺 ' : ''}Proyección {money(s.projection, cur, fx)}
+              {over ? ` · ${money(s.projection - s.limit, cur, fx)} sobre el límite` : ' · dentro del límite'}
+            </span>
+          )}
+        </span>
+        <Icon name="chevRight" size={18} />
+      </a>
+      {kids > 0 && (
+        <>
+          <button className="sub-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <span>{open ? 'Ocultar detalle' : `Ver detalle · ${kids} ${kids === 1 ? 'subcategoría' : 'subcategorías'}`}</span>
+            <Icon name={open ? 'chevUp' : 'chevDown'} size={16} />
+          </button>
+          {open && (
+            <div className="sub-list">
+              {subs.map((x) => {
+                const pct = s.spent > 0 ? Math.max(0, Math.round((x.spent / s.spent) * 100)) : 0;
+                return (
+                  <a key={x.cat.id + (x.direct ? '-d' : '')} href={`#/categoria/${s.cat.id}?sub=${x.direct ? 'none' : x.cat.id}`} className="sub-row">
+                    <span className="sub-emo" aria-hidden="true">{x.direct ? '•' : x.cat.emoji}</span>
+                    <span className="grow col gap4">
+                      <span className="row between">
+                        <span className="sm">{x.direct ? 'Sin detalle' : x.cat.name}</span>
+                        <strong className="sm">{money(x.spent, cur, fx)}</strong>
+                      </span>
+                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: '#8A8A85' }} /></span>
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -129,7 +166,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
     const r = monthRange(d.getUTCFullYear(), d.getUTCMonth());
     return { m: d.getUTCMonth(), total: sumSpend(txs.filter((x) => inRange(x, r))) };
   });
-  const budget = categories.reduce((a, c) => a + (c.kind === 'expense' && !c.archived && c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
+  const budget = monthBudget(categories);
   const max = Math.max(budget * 1.1, ...months.map((m) => m.total), 1);
 
   // same period comparison
@@ -137,10 +174,11 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
   const curR = { from: crIso(ym[0], ym[1], 1), to: isCurrent ? crIso(ym[0], ym[1], day + 1) : crIso(ym[0], ym[1] + 1, 1) };
   const prevR = { from: crIso(ym[0], ym[1] - 1, 1), to: isCurrent ? crIso(ym[0], ym[1] - 1, day + 1) : crIso(ym[0], ym[1], 1) };
   const cmp = categories
-    .filter((c) => c.kind === 'expense')
+    .filter((c) => c.kind === 'expense' && !c.parent_id)
     .map((c) => {
-      const a = sumSpend(txs.filter((x) => x.category_id === c.id && inRange(x, prevR)));
-      const b = sumSpend(txs.filter((x) => x.category_id === c.id && inRange(x, curR)));
+      const mine = txs.filter((x) => rootId(categories, x.category_id) === c.id);
+      const a = sumSpend(mine.filter((x) => inRange(x, prevR)));
+      const b = sumSpend(mine.filter((x) => inRange(x, curR)));
       return { c, a, b, d: a > 0 ? Math.round(((b - a) / a) * 100) : null };
     })
     .filter((x) => x.a > 0 || x.b > 0)
@@ -150,7 +188,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
   const month = monthRange(ym[0], ym[1]);
   const inMonth = txs.filter((x) => inRange(x, month));
   const total = sumSpend(inMonth);
-  const fixed = sumSpend(inMonth.filter((x) => categories.find((c) => c.id === x.category_id)?.is_fixed));
+  const fixed = sumSpend(inMonth.filter((x) => categories.find((c) => c.id === rootId(categories, x.category_id))?.is_fixed));
   const fixedPct = total ? Math.round((fixed / total) * 100) : 0;
 
   const shops = new Map<string, { n: number; amt: number; cat?: string }>();

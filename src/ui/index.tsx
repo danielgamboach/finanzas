@@ -24,6 +24,7 @@ const paths: Record<string, string> = {
   plus: 'M12 5v14M5 12h14',
   close: 'M6 6l12 12M18 6L6 18',
   chevDown: 'M6 9l6 6 6-6',
+  chevUp: 'M6 15l6-6 6 6',
   chevRight: 'M9 18l6-6-6-6',
   chevLeft: 'M15 18l-6-6 6-6',
   search: 'M18 11a7 7 0 1 1-14 0a7 7 0 1 1 14 0M20 20l-4-4',

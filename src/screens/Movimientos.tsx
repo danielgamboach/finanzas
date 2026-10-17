@@ -3,6 +3,7 @@ import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { periodRange, usePeriod } from '../lib/period';
 import { money } from '../lib/format';
+import { catLabel } from '../lib/cats';
 import { useApp, useTxs } from '../store';
 import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
 import { TxRow } from '../ui/TxRow';
@@ -31,7 +32,7 @@ export function Movimientos() {
       if (filter === 'ingresos' && t.kind !== 'income' && t.kind !== 'contribution') return false;
       if (filter.startsWith('#') && !tagsOf(t).includes(filter)) return false;
       if (needle) {
-        const cat = categories.find((c) => c.id === t.category_id)?.name || '';
+        const cat = catLabel(categories, categories.find((c) => c.id === t.category_id));
         const hay = [t.merchant, t.raw_merchant, t.note, cat, ...tagsOf(t), String(t.amount)].join(' ').toLowerCase();
         if (!hay.includes(needle.replace(/[.,]/g, '')) && !hay.includes(needle)) return false;
       }

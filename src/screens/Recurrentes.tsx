@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { pickerOrder } from '../lib/cats';
 import { db } from '../lib/api';
 import { money, moneyRaw, parseAmount } from '../lib/format';
 import {
@@ -225,7 +226,7 @@ export function RecurringEdit({ id }: { id: string }) {
 
   if (!space) return <Loading />;
   const set = <K extends keyof Recurring>(k: K, v: Recurring[K]) => setR((x) => ({ ...x, [k]: v }));
-  const expenseCats = categories.filter((c) => c.kind === 'expense' && !c.archived);
+  const expenseCats = pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived));
   const spaceAccounts = accounts.filter((a) => !a.archived && (r.method === 'card' ? a.kind === 'credit_card' || a.kind === 'debit' : a.kind !== 'credit_card'));
   const effectivePattern = patternTouched ? pattern : patternFrom(r.merchant);
 
@@ -327,7 +328,10 @@ export function RecurringEdit({ id }: { id: string }) {
           {expenseCats.map((c) => (
             <button key={c.id} className={r.category_id === c.id ? 'cat-tile on' : 'cat-tile'} aria-pressed={r.category_id === c.id} style={{ background: tint(c.color, r.category_id === c.id) }} onClick={() => set('category_id', r.category_id === c.id ? null : c.id)}>
               <span className="cat-emoji">{c.emoji}</span>
-              {c.name}
+              <span>
+                {c.name}
+                {c.parent_id && <span className="cat-parent">{categories.find((p) => p.id === c.parent_id)?.name}</span>}
+              </span>
             </button>
           ))}
         </div>
