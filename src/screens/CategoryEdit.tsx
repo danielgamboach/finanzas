@@ -5,7 +5,9 @@ import { crIso, money, monthName, monthShort, parseAmount, todayCR } from '../li
 import type { Category } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { BigMoney, COLOR_NAMES, Emo, Icon, Loading, Segmented, tint } from '../ui';
-import { groupByDay, MonthNav, useMonth } from './Home';
+import { groupByDay } from './Home';
+import { periodRange, usePeriod } from '../lib/period';
+import { PeriodPicker } from '../ui/PeriodPicker';
 import { TxRow } from '../ui/TxRow';
 
 const EMOJI_IDEAS = ['🛒', '🍽️', '🛵', '🚕', '⛽', '🪴', '🔑', '💡', '🎬', '💊', '📺', '👕', '☕', '🐾', '🎁', '✈️', '📚', '🏋️', '💇', '🧾', '💼', '💻', '💰', '✨'];
@@ -192,10 +194,10 @@ export function CategoryEdit({ id }: { id: string }) {
 export function CategoryView({ id }: { id: string }) {
   const { categories, space, cur, fx } = useApp();
   const cat = categories.find((c) => c.id === id);
-  const [ym, setYm] = useMonth();
-  const t = todayCR();
-  const isCurrent = ym[0] === t.y && ym[1] === t.m;
-  const month = monthRange(ym[0], ym[1]);
+  const [pk, setPk] = usePeriod('cat');
+  const period = periodRange(pk, space?.week_start ?? 5);
+  const isCurrent = pk === 'month';
+  const month = period;
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [month.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [month.from, month.to, week.from, week.to]);
   const { txs, loading } = useTxs(range);
@@ -206,6 +208,10 @@ export function CategoryView({ id }: { id: string }) {
   const total = cat.kind === 'income' ? inMonth.reduce((a, x) => a + Number(x.amount_crc), 0) : sumSpend(inMonth);
   const weekly = cat.limit_period === 'weekly';
   const limit = cat.limit_amount ? Number(cat.limit_amount) : null;
+  const monthLike = pk === 'month' || pk === 'lastmonth' || pk.startsWith('m:');
+  const weekLike = pk === 'week' || pk === 'lastweek';
+  // the limit bar only makes sense when the period matches the limit's period
+  const showLimit = limit !== null && (weekly ? weekLike || isCurrent : monthLike);
   const periodSpent = weekly && isCurrent ? sumSpend(mine.filter((x) => inRange(x, week))) : total;
   const pct = limit ? Math.round((periodSpent / limit) * 100) : null;
   const groups = groupByDay(inMonth);
@@ -219,16 +225,16 @@ export function CategoryView({ id }: { id: string }) {
       </header>
 
       <section className="hero small" aria-label="Total de la categoría">
-        <MonthNav ym={ym} setYm={setYm} />
-        <span className="muted-label">{cat.kind === 'income' ? 'Ingresos' : 'Gastado'} en {monthName(ym[1])}</span>
+        <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />
+        <span className="muted-label">{cat.kind === 'income' ? 'Ingresos' : 'Gastado'} · {period.label}</span>
         <BigMoney crc={total} size={48} />
         <span className="muted-label">{inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}</span>
       </section>
 
-      {limit !== null && (
+      {showLimit && limit !== null && (
         <div className="card pad col gap8">
           <div className="row between small-strong">
-            <span>{weekly && isCurrent ? 'Esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
+            <span>{weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
             <span className={pct !== null && pct >= 100 ? 'danger' : ''}>{money(periodSpent, cur, fx)} de {money(limit, cur, fx)}</span>
           </div>
           <div className="bar"><div className="bar-fill" style={{ width: `${Math.min(pct || 0, 100)}%`, background: (pct || 0) >= 100 ? '#C8372D' : (pct || 0) >= 80 ? '#C27C00' : '#111' }} /></div>
@@ -240,8 +246,8 @@ export function CategoryView({ id }: { id: string }) {
       ) : groups.length === 0 ? (
         <div className="card empty center">
           <span className="big-emoji">{cat.emoji}</span>
-          <strong>Sin movimientos en {monthName(ym[1])}</strong>
-          <span>Probá con otro mes.</span>
+          <strong>Sin movimientos · {period.label}</strong>
+          <span>Probá con otro período.</span>
         </div>
       ) : (
         groups.map((g) => (

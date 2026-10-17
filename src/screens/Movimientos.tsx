@@ -1,20 +1,22 @@
 import { useMemo, useState } from 'react';
 import { db } from '../lib/api';
-import { monthRange, spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
-import { money, monthName } from '../lib/format';
+import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
+import { periodRange, usePeriod } from '../lib/period';
+import { money } from '../lib/format';
 import { useApp, useTxs } from '../store';
 import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
 import { TxRow } from '../ui/TxRow';
-import { groupByDay, MonthNav, useMonth } from './Home';
+import { groupByDay } from './Home';
+import { PeriodPicker } from '../ui/PeriodPicker';
 
 type Filter = 'todos' | 'review' | 'rec' | 'gastos' | 'ingresos' | string;
 
 export function Movimientos() {
-  const { categories, tags, cur, fx, toast, bump } = useApp();
+  const { categories, tags, cur, fx, toast, bump, space } = useApp();
   const [aiBusy, setAiBusy] = useState(false);
-  const [ym, setYm] = useMonth();
-  const month = monthRange(ym[0], ym[1]);
-  const { txs, loading } = useTxs(month);
+  const [pk, setPk] = usePeriod('mov');
+  const period = periodRange(pk, space?.week_start ?? 5);
+  const { txs, loading } = useTxs(period);
   const [filter, setFilter] = useState<Filter>(() => new URLSearchParams(location.hash.split('?')[1] || '').get('f') || 'todos');
   const [q, setQ] = useState('');
 
@@ -117,8 +119,8 @@ export function Movimientos() {
       )}
 
       <section className="hero small" aria-label="Total">
-        <MonthNav ym={ym} setYm={setYm} />
-        <span className="muted-label">{showInflow ? 'Ingresos y aportes' : 'Gastos'} de {monthName(ym[1])}</span>
+        <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />
+        <span className="muted-label">{showInflow ? 'Ingresos y aportes' : 'Gastos'} · {period.label}</span>
         <BigMoney crc={showInflow ? inflow : spent} size={48} />
         <span className="muted-label">{filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}</span>
       </section>
@@ -129,7 +131,7 @@ export function Movimientos() {
         <div className="card empty center">
           <span className="big-emoji">{filter === 'review' ? '🎉' : '🗂️'}</span>
           <strong>{filter === 'review' ? 'Nada por revisar' : 'Sin movimientos'}</strong>
-          <span>{filter === 'review' ? 'Todos los movimientos tienen categoría.' : 'Probá con otro filtro o mes.'}</span>
+          <span>{filter === 'review' ? 'Todos los movimientos tienen categoría.' : 'Probá con otro filtro o período.'}</span>
         </div>
       ) : (
         groups.map((g) => (

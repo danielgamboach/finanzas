@@ -367,3 +367,6 @@ select.input { appearance: auto; }
 .last-tx { padding: 12px 16px 6px; }
 .last-tx-head { padding-bottom: 2px; }
 .ago { font-size: 13px; font-weight: 800; background: #111; color: #fff; border-radius: 12px; padding: 3px 10px; }
+.period-nav { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.period-btn { height: 44px; border-radius: 22px; border: 1.5px solid var(--border); background: #fff; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.period-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
