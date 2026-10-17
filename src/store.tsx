@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { auth, db, getSession, onAuthChange, type Session } from './lib/api';
 import type { Account, Category, Currency, Member, Profile, Space, Tag, Tx } from './lib/types';
 import type { Range } from './lib/calc';
+import type { MerchantPhoto } from './lib/photos';
 
 interface Ctx {
   session: Session | null;
@@ -15,6 +16,7 @@ interface Ctx {
   categories: Category[];
   accounts: Account[];
   tags: Tag[];
+  photos: MerchantPhoto[];
   cur: Currency;
   toggleCur: () => void;
   fx: number;
@@ -45,6 +47,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [photos, setPhotos] = useState<MerchantPhoto[]>([]);
   const [cur, setCur] = useState<Currency>((read('finanzas.cur') as Currency) || 'CRC');
   const [fx, setFx] = useState(460);
   const [version, setVersion] = useState(0);
@@ -97,6 +100,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCategories(c);
     setAccounts(a);
     setTags(t);
+    // photos are optional: never block the app if they fail to load
+    db.from<MerchantPhoto>('merchant_photos').eq('space_id', spaceId).order('pattern').then(setPhotos, () => setPhotos([]));
   }, [spaceId, userId]);
 
   useEffect(() => {
@@ -127,6 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     categories,
     accounts,
     tags,
+    photos,
     cur,
     toggleCur: () => setCur((c) => {
       const n = c === 'CRC' ? 'USD' : 'CRC';
@@ -140,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ready,
     toast,
     toastMsg,
-  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, cur, fx, version, reloadMeta, ready, toast, toastMsg]);
+  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, photos, cur, fx, version, reloadMeta, ready, toast, toastMsg]);
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

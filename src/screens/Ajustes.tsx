@@ -1,3 +1,4 @@
+import { MerchantPhotoList } from '../ui/MerchantPhoto';
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/api';
 import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
@@ -147,6 +148,8 @@ export function Ajustes() {
         <span className="grow col"><strong className="sm">🔁 Recurrentes de {space?.name}</strong><span className="muted small">Pagos fijos, suscripciones y lo que se espera pagar</span></span>
         <Icon name="chevRight" size={18} />
       </a>
+
+      <MerchantPhotoList />
 
       <section className="card pad col gap12">
         <h2 className="h3">📬 Vouchers automáticos</h2>

@@ -228,3 +228,33 @@ export const db = {
     return data as T;
   },
 };
+
+/** Supabase Storage: just what the app needs (upload, delete, public URL). */
+export const storage = {
+  publicUrl(bucket: string, path: string) {
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+  },
+  async upload(bucket: string, path: string, file: Blob) {
+    await ensureFresh();
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'cache-control': '31536000',
+        'x-upsert': 'true',
+      },
+      body: file,
+    });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({})))?.message || `Error ${res.status}`, res.status);
+  },
+  async remove(bucket: string, paths: string[]) {
+    await ensureFresh();
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefixes: paths }),
+    }).catch(() => undefined);
+  },
+};

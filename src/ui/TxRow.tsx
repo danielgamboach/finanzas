@@ -3,13 +3,14 @@ import { money, moneyRaw, relDay } from '../lib/format';
 import { tagsOf } from '../lib/calc';
 import type { Tx } from '../lib/types';
 import { catLabel } from '../lib/cats';
+import { photoFor, photoUrl } from '../lib/photos';
 import { Emo } from '.';
 
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
 const KIND_LABEL: Record<string, string> = { income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
 
 export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
-  const { categories, accounts, cur, fx, profiles } = useApp();
+  const { categories, accounts, cur, fx, profiles, photos } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const acc = accounts.find((a) => a.id === t.account_id);
   const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
@@ -24,10 +25,11 @@ export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
   const showOriginal = t.currency === 'USD' && cur === 'CRC';
   const main = showOriginal ? moneyRaw(Number(t.amount), 'USD', { sign: inflow ? '+' : '' }) : money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const tags = tagsOf(t);
+  const photo = t.kind === 'transfer' ? null : photoFor(photos, t.merchant, t.raw_merchant);
   const suggested = review && t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
   return (
     <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
-      <Emo e={emoji} color={color} />
+      <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
       <span className="tx-mid">
         <span className="tx-cat">{label}</span>
         <span className="tx-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>

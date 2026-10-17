@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { pickerOrder } from '../lib/cats';
+import { photoFor, photoUrl } from '../lib/photos';
 import { db } from '../lib/api';
 import { money, moneyRaw, parseAmount } from '../lib/format';
 import {
@@ -20,7 +21,8 @@ export function recEmoji(r: Recurring, categories: Category[]) {
 
 /** One recurring payment as a row; transfers/cash that are due get "ya pagué / todavía no". */
 export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean }) {
-  const { categories, cur, fx, userId, bump, toast } = useApp();
+  const { categories, cur, fx, userId, bump, toast, photos } = useApp();
+  const photo = photoFor(photos, r.merchant, r.match_pattern);
   const [busy, setBusy] = useState(false);
   const cat = categories.find((c) => c.id === r.category_id);
   const state = recState(r);
@@ -50,7 +52,7 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
   return (
     <div className={ask ? 'rec-row ask' : 'rec-row'}>
       <button className="tx-row" onClick={() => go(`/recurrente/${r.id}`)}>
-        <Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : state === 'overdue' ? 'pink' : cat?.color || 'gray'} />
+        <Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : state === 'overdue' ? 'pink' : cat?.color || 'gray'} img={photo ? photoUrl(photo) : null} />
         <span className="tx-mid">
           <span className="tx-cat">
             {compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`}

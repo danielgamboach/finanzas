@@ -38,6 +38,7 @@ const paths: Record<string, string> = {
   refresh: 'M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7',
   repeat: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4',
+  camera: 'M3 8.5h3.5L8.5 5.5h7l2 3H21V19H3zM12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
 };
 
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths | string; size?: number; stroke?: number }) {
@@ -48,7 +49,15 @@ export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths
   );
 }
 
-export function Emo({ e, color, size = 48 }: { e: string; color?: string | null; size?: number }) {
+export function Emo({ e, color, size = 48, img }: { e: string; color?: string | null; size?: number; img?: string | null }) {
+  const [broken, setBroken] = useState(false);
+  if (img && !broken) {
+    return (
+      <span className="emo photo" aria-hidden="true" style={{ width: size, height: size }}>
+        <img src={img} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
+      </span>
+    );
+  }
   return (
     <span className="emo" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.46, background: tint(color) }}>
       {e}

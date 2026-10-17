@@ -3,6 +3,7 @@ import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
 import { useDragToClose } from '../ui/useDragToClose';
+import { MerchantPhotoField } from '../ui/MerchantPhoto';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
@@ -330,6 +331,7 @@ export function TxForm({ id }: { id?: string }) {
             <span>{type === 'aporte' ? 'Detalle' : 'Comercio o detalle'}</span>
             <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder={type === 'aporte' ? 'Aporte de octubre' : 'Ej. Feria, SINPE a Juan'} />
           </label>
+          {(type === 'gasto' || type === 'ingreso') && <MerchantPhotoField spaceId={spaceId} name={merchant} raw={orig?.raw_merchant} />}
           {type !== 'aporte' && (
             <label className="field-row">
               <span>{type === 'transferir' ? 'Desde' : 'Cuenta'}</span>
