@@ -9,8 +9,8 @@
  *  1. script.google.com → Nuevo proyecto → pegar este archivo.
  *  2. Pegar tu token (Ajustes → Vouchers automáticos → Generar token) en FINANZAS_TOKEN abajo,
  *     o mejor: Configuración del proyecto → Propiedades del script → FINANZAS_TOKEN.
- *  3. Ejecutar `instalar` y aceptar los permisos de Gmail.
- *  4. (Opcional) Ejecutar `importarHistorialSheet` una vez para traer el historial del Sheet.
+ *  3. Ejecutar `instalar` y aceptar los permisos (Gmail, Sheets y conexiones externas).
+ *     La primera vez también importa el historial del Sheet.
  */
 
 const SUPABASE_URL = 'https://vzgnujopgryuskixcnnx.supabase.co';
@@ -57,6 +57,11 @@ function instalar() {
   GmailApp.getUserLabelByName(LABEL) || GmailApp.createLabel(LABEL);
   actualizarTipoDeCambio();
   pulso();
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('HISTORIAL_IMPORTADO')) {
+    importarHistorialSheet();
+    props.setProperty('HISTORIAL_IMPORTADO', new Date().toISOString());
+  }
   procesarVouchers();
   Logger.log('Listo: vouchers cada 10 min, tipo de cambio y recurrentes cada día.');
 }
