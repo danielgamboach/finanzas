@@ -9,6 +9,7 @@ import { AccountEdit, GoalEdit, Patrimonio, Saldos } from './screens/Patrimonio'
 import { Presupuesto } from './screens/Presupuesto';
 import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
+import { NotifPrompt } from './screens/NotifPrompt';
 
 function Router() {
   const { session, ready, spaces } = useApp();
@@ -18,6 +19,15 @@ function Router() {
   if (spaces.length === 0) return <Loading />;
 
   const [, a, b, c] = path.split('/');
+  return (
+    <>
+      <Screen a={a} b={b} c={c} />
+      <NotifPrompt />
+    </>
+  );
+}
+
+function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
   switch (a) {
     case '':
     case undefined:

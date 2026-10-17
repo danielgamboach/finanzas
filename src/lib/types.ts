@@ -5,6 +5,8 @@ export interface Profile {
   id: string;
   name: string | null;
   emoji: string | null;
+  notify_limits?: boolean;
+  notify_card?: boolean;
 }
 
 export interface Space {

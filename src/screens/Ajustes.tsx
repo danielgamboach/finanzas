@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/api';
+import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { moneyRaw } from '../lib/format';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '../ui';
@@ -76,6 +77,8 @@ export function Ajustes() {
         </div>
         <button className="btn-light" onClick={saveProfile}>Guardar perfil</button>
       </section>
+
+      <NotifSettings />
 
       <section className="card pad col gap12">
         <h2 className="h3">🗂️ Espacios</h2>
@@ -163,5 +166,70 @@ export function Ajustes() {
 
       <button className="btn-danger" onClick={() => auth.signOut()}>Cerrar sesión</button>
     </div>
+  );
+}
+
+function NotifSettings() {
+  const { profile, userId, toast, reloadMeta } = useApp();
+  const support = pushSupport();
+  const [perm, setPerm] = useState(permission());
+  const [busy, setBusy] = useState(false);
+
+  async function activate() {
+    setBusy(true);
+    try {
+      const p = await enablePush();
+      setPerm(p);
+      if (p === 'granted') toast('🔔 Notificaciones activadas');
+      else if (p === 'denied') toast('Quedaron bloqueadas en este dispositivo');
+    } catch {
+      toast('No se pudieron activar en este dispositivo');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function test() {
+    setBusy(true);
+    try {
+      const r = await sendTestPush();
+      toast(r.sent ? '📨 Notificación de prueba enviada' : 'Este dispositivo no está registrado todavía');
+    } catch {
+      toast('No se pudo enviar la prueba');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function toggle(col: 'notify_limits' | 'notify_card') {
+    if (!userId) return;
+    await db.update('profiles', { id: userId }, { [col]: !(profile?.[col] ?? true) });
+    await reloadMeta();
+  }
+
+  return (
+    <section className="card pad col gap12">
+      <h2 className="h3">🔔 Notificaciones</h2>
+      {support === 'ios-install' ? (
+        <span className="muted small">En iPhone se activan desde la app instalada: Safari → Compartir → Agregar a inicio, y abrila desde ese ícono.</span>
+      ) : support === 'unsupported' ? (
+        <span className="muted small">Este navegador no permite notificaciones.</span>
+      ) : perm === 'granted' ? (
+        <div className="row between gap10">
+          <span className="small strong-sm">✅ Activas en este dispositivo</span>
+          <button className="btn-light sm" onClick={test} disabled={busy}>Probar</button>
+        </div>
+      ) : perm === 'denied' ? (
+        <span className="muted small">Están bloqueadas para esta app. Activalas en los ajustes del navegador o del teléfono.</span>
+      ) : (
+        <button className="btn-dark" onClick={activate} disabled={busy}>{busy ? 'Activando…' : 'Activar en este dispositivo'}</button>
+      )}
+      <div className="field-row bare">
+        <span className="col"><span>⚠️ Límites de categorías</span><small>Al llegar al 80% y al 100%</small></span>
+        <button role="switch" aria-checked={profile?.notify_limits ?? true} aria-label="Avisos de límites" className={(profile?.notify_limits ?? true) ? 'switch on' : 'switch'} onClick={() => toggle('notify_limits')}><span /></button>
+      </div>
+      <div className="field-row bare">
+        <span className="col"><span>💳 Pago de la tarjeta</span><small>El día de pago, con el monto de la semana</small></span>
+        <button role="switch" aria-checked={profile?.notify_card ?? true} aria-label="Aviso de pago de tarjeta" className={(profile?.notify_card ?? true) ? 'switch on' : 'switch'} onClick={() => toggle('notify_card')}><span /></button>
+      </div>
+    </section>
   );
 }
