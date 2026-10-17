@@ -160,18 +160,18 @@ function importarHistorialSheet() {
   const tok = token_();
   let total = 0, inserted = 0;
   ss.getSheets().forEach((sh) => {
-    const values = sh.getDataRange().getValues();
+    const range = sh.getDataRange();
+    const values = range.getValues();
+    // Dates are read as displayed text (dd/mm/yyyy): a sheet with US locale turns "02/10" into Feb 10.
+    const shown = range.getDisplayValues();
     const rows = [];
     values.forEach((r, i) => {
-      const [fecha, concepto, crc, usd, suma, categoria] = r;
+      const [, concepto, crc, usd, suma, categoria] = r;
+      const fecha = shown[i][0];
       if (!fecha || !concepto) return;
-      let date;
-      if (fecha instanceof Date) date = Utilities.formatDate(fecha, 'America/Costa_Rica', 'yyyy-MM-dd');
-      else {
-        const m = String(fecha).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        if (!m) return;
-        date = m[3] + '-' + pad_(m[2]) + '-' + pad_(m[1]);
-      }
+      const m = String(fecha).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (!m) return;
+      const date = m[3] + '-' + pad_(m[2]) + '-' + pad_(m[1]);
       const nCrc = num_(crc), nUsd = num_(usd), nSum = num_(suma);
       let row;
       if (nCrc > 0) row = { amount: nCrc, currency: 'CRC' };
