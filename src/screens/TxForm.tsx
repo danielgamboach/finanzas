@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/api';
 import { addPeriod, patternFrom } from '../lib/recurring';
+import { useDragToClose } from '../ui/useDragToClose';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
@@ -54,6 +55,7 @@ export function TxForm({ id }: { id?: string }) {
   const [when, setWhen] = useState(toInputDateTime(new Date().toISOString()));
   const [note, setNote] = useState('');
   const [repeat, setRepeat] = useState(false);
+  const dragRef = useDragToClose<HTMLDivElement>(() => (history.length > 1 ? history.back() : go('/')), 'window');
   const [remember, setRemember] = useState(true);
   const [showAllCats, setShowAllCats] = useState(false);
   const [cats, setCats] = useState<Category[]>([]);
@@ -214,7 +216,7 @@ export function TxForm({ id }: { id?: string }) {
 
   return (
     <div className="form-screen">
-      <div className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
+      <div ref={dragRef} className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
         <div className="grabber" />
         <div className="row between">
           <h1 className="h2">{id ? 'Editar movimiento' : 'Nuevo movimiento'}</h1>

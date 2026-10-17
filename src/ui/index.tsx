@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { go, useApp } from '../store';
 import { moneyParts } from '../lib/format';
+import { useDragToClose } from './useDragToClose';
 
 export const PALETTE: Record<string, [string, string]> = {
   mint: ['#EFF7EF', '#CDEBD3'],
@@ -178,9 +179,10 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
+  const dragRef = useDragToClose<HTMLDivElement>(onClose, 'self');
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div ref={dragRef} className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="grabber" />
         <div className="row between">
           <h2 className="h2">{title}</h2>
