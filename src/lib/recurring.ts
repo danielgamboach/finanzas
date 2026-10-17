@@ -73,6 +73,13 @@ export function recState(r: Recurring): RecState {
 }
 
 /** Transfers and cash can't be detected from vouchers, so we ask once they're due. */
+/** Paid for the current period: it stays out of "próximos pagos" until its next due date gets close. */
+export function paidRecently(r: Recurring) {
+  if (!r.last_paid_on) return false;
+  const since = -daysUntil(r.last_paid_on);
+  return since >= 0 && since < PERIOD_DAYS[r.frequency] - leadDays(r.frequency) && recState(r) === 'upcoming';
+}
+
 export const needsConfirm = (r: Recurring) => r.active && r.method !== 'card' && recState(r) !== 'upcoming';
 
 /** Pattern to look for in the voucher text: the first meaningful word(s) of the merchant. */

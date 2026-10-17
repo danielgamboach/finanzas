@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { db } from '../lib/api';
 import { money, moneyRaw, parseAmount } from '../lib/format';
 import {
-  addPeriod, dueLabel, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
+  addPeriod, dueLabel, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
 } from '../lib/recurring';
 import type { Category, Currency, Frequency, PayMethod, Recurring, RecurringSuggestion } from '../lib/types';
 import { go, useApp } from '../store';
@@ -59,7 +59,7 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
         <span className="tx-amt">
           <span>{r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx)}</span>
           <span className={state === 'overdue' ? 'tx-sub danger' : state === 'due' ? 'tx-sub strong' : 'tx-sub'}>
-            {r.active ? dueLabel(r.next_due) : 'Pausado'}
+            {!r.active ? 'Pausado' : paidRecently(r) ? `✅ Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(r.next_due)}
           </span>
         </span>
       </button>

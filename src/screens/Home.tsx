@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/api';
 import { inRange, monthBudget, monthRange, sumSpend, weekRange, spend } from '../lib/calc';
-import { cap, crLocal, dateKey, dayLabel, money, monthName, monthShort, todayCR } from '../lib/format';
+import { cap, crLocal, dateKey, dayLabel, money, monthName, monthShort, timeAgo, todayCR } from '../lib/format';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
 import { TxRow } from '../ui/TxRow';
 import { MonthChart } from '../ui/MonthChart';
-import { daysUntil, useRecurring } from '../lib/recurring';
+import { daysUntil, paidRecently, useRecurring } from '../lib/recurring';
 import { RecRow } from './Recurrentes';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
@@ -221,9 +221,10 @@ export function Home() {
     bump();
   }
 
-  const upcoming = recs.filter((r) => r.active && daysUntil(r.next_due) <= 31).slice(0, 5);
+  const upcoming = recs.filter((r) => r.active && !paidRecently(r) && daysUntil(r.next_due) <= 31).slice(0, 5);
   const nowIso = new Date().toISOString();
-  const recent = txs.filter((x) => x.occurred_at <= nowIso && x.kind !== 'transfer').slice(0, 5);
+  const recent = txs.filter((x) => x.occurred_at <= nowIso && x.kind !== 'transfer').slice(0, 6);
+  const latest = recent[0];
 
   return (
     <div className="screen">
@@ -268,6 +269,16 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {latest && (
+        <section className="card last-tx" aria-label="Último movimiento">
+          <div className="row between last-tx-head">
+            <span className="muted-label">Último movimiento</span>
+            <span className="ago" title={new Date(latest.occurred_at).toLocaleString('es-CR')}>{timeAgo(latest.occurred_at)}</span>
+          </div>
+          <TxRow t={latest} />
+        </section>
+      )}
 
       <AiNote spaceId={space.id} fp={fp} ready={!loading} />
 
@@ -316,10 +327,10 @@ export function Home() {
         <div className="card list">
           {loading && txs.length === 0 ? (
             <Loading />
-          ) : recent.length === 0 ? (
-            <div className="empty">Todavía no hay movimientos. Tocá + para agregar uno.</div>
+          ) : recent.length <= 1 ? (
+            <div className="empty">{recent.length ? 'Por ahora solo está el último.' : 'Todavía no hay movimientos. Tocá + para agregar uno.'}</div>
           ) : (
-            recent.map((r) => <TxRow key={r.id} t={r} showDate />)
+            recent.slice(1).map((r) => <TxRow key={r.id} t={r} showDate />)
           )}
         </div>
       </section>

@@ -69,6 +69,17 @@ export function dayLabel(iso: string) {
   return cap(base);
 }
 
+/** Compact age: "ahora", "5m", "3h", "2d", "1w", then a short date. */
+export function timeAgo(iso: string) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'ahora';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
+  if (s < 35 * 86400) return `${Math.floor(s / (7 * 86400))}w`;
+  return shortDate(iso);
+}
+
 /** "Hoy", "Ayer" or "vie 16 oct". */
 export function relDay(iso: string) {
   const k = dateKey(iso);
