@@ -37,13 +37,18 @@ async function rest(path: string, init: RequestInit = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+// "📺 Suscripciones", "suscripciones", "Suscripciones." all match the same category
+function norm(s: string) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 function key(m: string | null) {
   return (m || '').toUpperCase().replace(/HTTPS?:\/\/\S*/g, '').trim().split(/\s+/).slice(0, 2).join(' ');
 }
 
 async function askClaude(cats: Cat[], examples: string[], items: Tx[]) {
-  const expense = cats.filter((c) => c.kind === 'expense').map((c) => `${c.emoji} ${c.name}`).join(', ');
-  const income = cats.filter((c) => c.kind === 'income').map((c) => `${c.emoji} ${c.name}`).join(', ');
+  const expense = cats.filter((c) => c.kind === 'expense').map((c) => c.name).join(', ');
+  const income = cats.filter((c) => c.kind === 'income').map((c) => c.name).join(', ');
   const list = items.map((t, i) => ({
     i,
     comercio: t.raw_merchant || t.merchant,
@@ -117,14 +122,14 @@ Deno.serve(async (req) => {
       for (const t of items) {
         const a = answers.find((x) => x.i === items.indexOf(t));
         const wantKind = t.kind === 'income' ? 'income' : 'expense';
-        const cat = a?.category ? cats.find((c) => c.kind === wantKind && c.name.toLowerCase() === a.category!.toLowerCase()) : undefined;
+        const cat = a?.category ? cats.find((c) => c.kind === wantKind && norm(c.name) === norm(a.category!)) : undefined;
         const conf = Math.max(0, Math.min(1, Number(a?.confidence) || 0));
         const patch: Record<string, unknown> = { ai_checked_at: new Date().toISOString(), ai_confidence: Math.round(conf * 100) / 100 };
         if (cat && conf >= THRESHOLD) Object.assign(patch, { category_id: cat.id, status: 'posted', category_source: 'ai', suggested_category_id: null });
         else if (cat) patch.suggested_category_id = cat.id;
         if (a?.name && t.raw_merchant && t.source === 'email') patch.merchant = a.name.slice(0, 80);
         await rest(`transactions?id=eq.${t.id}&category_id=is.null`, { method: 'PATCH', body: JSON.stringify(patch) });
-        results.push({ id: t.id, category: cat?.name || null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD) });
+        results.push({ id: t.id, answer: a?.category ?? null, category: cat?.name || null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD) });
       }
     }
     return reply({ ok: true, processed: results.length, results });
