@@ -262,6 +262,9 @@ export function CategoryView({ id }: { id: string }) {
     addEventListener('hashchange', on);
     return () => removeEventListener('hashchange', on);
   }, []);
+  useEffect(() => {
+    document.querySelector('.sub-chips .pill.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [sub, txs.length]);
 
   if (!space || !cat) return <Loading />;
   const parent = parentOf(categories, cat);
