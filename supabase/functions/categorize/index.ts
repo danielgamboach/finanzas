@@ -74,7 +74,7 @@ async function askClaude(cats: Cat[], examples: string[], items: Tx[]) {
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1500, system, messages: [{ role: 'user', content: user }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 4000, system, messages: [{ role: 'user', content: user }] }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${JSON.stringify(data)}`);
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
         const patch: Record<string, unknown> = { ai_checked_at: new Date().toISOString(), ai_confidence: Math.round(conf * 100) / 100 };
         if (cat && conf >= THRESHOLD) Object.assign(patch, { category_id: cat.id, status: 'posted', category_source: 'ai', suggested_category_id: null });
         else if (cat) patch.suggested_category_id = cat.id;
-        if (a?.name && t.raw_merchant && t.source === 'email') patch.merchant = a.name.slice(0, 80);
+        if (a?.name && t.raw_merchant && (t.source === 'email' || t.source === 'import')) patch.merchant = a.name.slice(0, 80);
         await rest(`transactions?id=eq.${t.id}&category_id=is.null`, { method: 'PATCH', body: JSON.stringify(patch) });
         results.push({ id: t.id, answer: a?.category ?? null, category: cat?.name || null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD) });
       }
