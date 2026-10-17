@@ -8,7 +8,9 @@ import {
 } from '../lib/recurring';
 import type { Category, Currency, Frequency, PayMethod, Recurring, RecurringSuggestion } from '../lib/types';
 import { go, useApp } from '../store';
-import { BigMoney, Emo, Icon, Loading, Nav, Segmented, TopBar, tint } from '../ui';
+import { BackBar, BigMoney, Emo, Icon, Loading, Segmented, tint } from '../ui';
+import { inRange, sumSpend, weekRange } from '../lib/calc';
+import { useTxs } from '../store';
 
 /** "Netflix.com 844-5" → "Netflix" */
 export function cleanName(n: string) {
@@ -79,6 +81,47 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
   );
 }
 
+/** Shared spaces pay last week's card charges every Friday from the debit account. */
+function CardPayment() {
+  const { space, accounts, profiles, userId, cur, fx, toast, bump } = useApp();
+  const prevWeek = weekRange(space?.week_start ?? 5, -1);
+  const { txs } = useTxs(space?.kind === 'shared' ? { from: prevWeek.from, to: new Date(Date.now() + 86400000).toISOString() } : null);
+  const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
+  const cardIds = new Set(cards.map((c) => c.id));
+  const owed = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
+  const key = `card-week:${prevWeek.startKey}`;
+  if (!space || space.kind !== 'shared' || !cards.length || owed <= 0 || txs.some((x) => x.external_id === key)) return null;
+  const debit = accounts.find((a) => a.kind === 'debit' && !a.archived);
+  const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
+  async function paid() {
+    if (!space) return;
+    await db.insert('transactions', {
+      space_id: space.id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
+      merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: cards[0].id, source: 'system', external_id: key,
+    });
+    toast('✅ Pago registrado');
+    bump();
+  }
+  return (
+    <div className="card list">
+      <div className="rec-row ask">
+        <div className="tx-row">
+          <Emo e="💳" color="pink" />
+          <span className="tx-mid">
+            <span className="tx-cat">Semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
+            <span className="tx-name">Pago de tarjeta</span>
+          </span>
+          <span className="tx-amt"><span>{money(owed, cur, fx)}</span><span className="tx-sub strong">Toca pagar</span></span>
+        </div>
+        <div className="rec-ask">
+          <span>¿Ya se pagó la tarjeta?</span>
+          <button className="btn-dark sm" onClick={paid}>Ya pagué</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Recurrentes() {
   const { space, cur, fx, categories, toast, bump } = useApp();
   const { items, loading } = useRecurring(space?.id);
@@ -123,9 +166,9 @@ export function Recurrentes() {
   }
 
   return (
-    <div className="screen">
-      <TopBar />
-      <h1 className="h1">Recurrentes</h1>
+    <div className="screen no-nav">
+      <BackBar title="Recurrentes" />
+      <CardPayment />
       <section className="col gap6 px4">
         <span className="muted-label">Total al mes</span>
         <BigMoney crc={monthly} size={52} />
@@ -189,7 +232,6 @@ export function Recurrentes() {
           <div className="card list">{paused.map((r) => <RecRow key={r.id} r={r} />)}</div>
         </section>
       )}
-      <Nav active="rec" />
     </div>
   );
 }

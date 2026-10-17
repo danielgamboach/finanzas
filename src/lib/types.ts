@@ -51,6 +51,8 @@ export interface Account {
   last4: string | null;
   emoji: string;
   archived: boolean;
+  color?: string | null;
+  brand?: 'amex' | 'visa' | 'mastercard' | null;
 }
 
 export interface Tx {

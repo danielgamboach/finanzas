@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { db } from '../lib/api';
 import { cardOutstanding } from '../lib/calc';
-import { crIso, money, moneyRaw, monthShort, parseAmount, shortDate, todayCR } from '../lib/format';
+import { crIso, money, moneyRaw, parseAmount, shortDate, todayCR } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
 import { go, useApp } from '../store';
-import { BigMoney, Emo, Icon, Loading, Nav, TopBar, tint } from '../ui';
+import { BackBar, Emo, Icon, Loading, tint } from '../ui';
+import { ACCOUNT_COLORS, accountColor, BRANDS, byKind } from '../lib/accounts';
+import { MovementsBrowser } from './Movimientos';
 
 const ASSET_KINDS = ['savings', 'investment', 'cdp', 'cash', 'debit', 'other'];
 const KIND_LABEL: Record<string, string> = {
@@ -126,19 +128,48 @@ function cardLine(x?: { CRC: number; USD: number }) {
   return `Por pagar: ${parts.join(' + ')}`;
 }
 
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values), min = Math.min(...values);
-  const span = max - min || 1;
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 320},${6 + (1 - (v - min) / span) * 60}`);
+const GROUPS: { title: string; kinds: string[] }[] = [
+  { title: 'Crédito', kinds: ['credit_card'] },
+  { title: 'Débito y ahorro', kinds: ['debit', 'savings', 'cash', 'cdp', 'other'] },
+  { title: 'Inversión', kinds: ['investment'] },
+  { title: 'Préstamos', kinds: ['loan'] },
+];
+
+/** What a card shows as its main number. */
+function accountFigure(a: Account, w: WorthData) {
+  if (a.kind === 'credit_card') {
+    const line = cardLine(w.cardSplit[a.id]);
+    return line.startsWith('Por pagar') ? { main: line.replace('Por pagar: ', ''), sub: 'Por pagar', stale: false } : { main: moneyRaw(0, 'CRC'), sub: 'Al día', stale: false };
+  }
+  const s = w.latest[a.id];
+  const stale = !s || Date.now() - new Date(s.taken_on).getTime() > 10 * 86400000;
+  return { main: s ? moneyRaw(Number(s.balance), a.currency) : 'Sin saldo', sub: s ? `Saldo · ${shortDate(s.taken_on + 'T18:00:00Z')}` : 'Agregá el saldo', stale };
+}
+
+/** One account drawn as a card. `full` shows the bottom half (number and brand). */
+export function AccountCard({ a, w, onClick, style, big = false }: { a: Account; w: WorthData; onClick?: () => void; style?: React.CSSProperties; big?: boolean }) {
+  const c = accountColor(a);
+  const f = accountFigure(a, w);
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <svg role="img" aria-label="Evolución del patrimonio en los últimos 6 meses" width="100%" height="80" viewBox="0 0 320 72" preserveAspectRatio="none">
-      <path d={`M${pts.join(' L')} L320,72 L0,72 Z`} fill="#DDF1E2" />
-      <polyline points={pts.join(' ')} fill="none" stroke="#111" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
+    <Tag className={big ? 'wcard big' : 'wcard'} style={{ background: c.bg, color: c.fg, ...style }} onClick={onClick}>
+      <span className="wc-top">
+        <span className="wc-name">{a.name}</span>
+        <span className="wc-num">{a.last4 ? `••••${a.last4}` : a.institution || ''}</span>
+      </span>
+      <span className="wc-bottom">
+        <span className="col">
+          <span className="wc-sub">{f.stale && a.kind !== 'credit_card' ? '⏰ ' : ''}{f.sub}</span>
+          <span className="wc-amt">{f.main}</span>
+        </span>
+        {a.brand ? <span className="wc-brand">{BRANDS[a.brand]}</span> : <span className="wc-kind" aria-hidden="true">{a.emoji}</span>}
+      </span>
+    </Tag>
   );
 }
 
-export function Patrimonio() {
+/** Accounts as a wallet: the panel to the right of home. */
+export function Cuentas() {
   const { space, cur, fx } = useApp();
   const w = useNetWorth(space?.id || null);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -149,118 +180,106 @@ export function Patrimonio() {
   }, [space, version]);
 
   if (!space) return <Loading />;
-  const t = todayCR();
-  const prev = w.history[4]?.v ?? 0;
-  const delta = w.history[5] && prev ? w.net - prev : 0;
-  const byInst = new Map<string, Account[]>();
-  w.accounts.forEach((a) => {
-    const k = a.kind === 'credit_card' ? 'Tarjetas de crédito' : a.kind === 'loan' ? 'Préstamos' : a.institution || 'Otras';
-    byInst.set(k, [...(byInst.get(k) || []), a]);
-  });
-  const last = (k: string) => (k === 'Tarjetas de crédito' ? 2 : k === 'Préstamos' ? 1 : 0);
-  const groups = [...byInst.entries()].sort((a, b) => last(a[0]) - last(b[0]) || a[0].localeCompare(b[0]));
+  const accs = [...w.accounts].sort(byKind);
+  const hasAssets = accs.some((a) => a.kind !== 'credit_card');
 
   return (
-    <div className="screen">
-      <TopBar />
-      <h1 className="h1">Cuentas</h1>
-      <section className="col gap10 px4" aria-label="Patrimonio neto">
-        <div className="row between">
-          <span className="muted-label">Patrimonio neto</span>
-          <span className="date-pill">{space.kind === 'personal' ? '🔒 Solo vos' : `${space.emoji} Compartido`}</span>
-        </div>
-        <BigMoney crc={w.net} size={56} />
-        {delta !== 0 && (
-          <span className={delta > 0 ? 'delta-pill up' : 'delta-pill down'}>{delta > 0 ? '↑' : '↓'} {money(Math.abs(delta), cur, fx)} vs. {monthShort((t.m + 11) % 12)}</span>
-        )}
-      </section>
+    <div className="panel-inner">
+      <header className="panel-head">
+        <h1 className="h1">Cuentas</h1>
+        <a href="#/cuenta/nueva" className="round" aria-label="Agregar cuenta"><Icon name="plus" size={20} stroke={2.4} /></a>
+      </header>
 
-      <div className="hscroll">
-        <div className="bento mint tile"><span className="bento-title sm"><span>🏦</span>Ahorro</span><span className="bento-num sm">{money(w.savings, cur, fx)}</span></div>
-        <div className="bento lilac tile"><span className="bento-title sm"><span>📈</span>Inversión</span><span className="bento-num sm">{money(w.investments, cur, fx)}</span></div>
-        <div className="bento pink tile"><span className="bento-title sm"><span>💳</span>Tarjetas de crédito</span><span className="bento-num sm">{money(w.cards, cur, fx)}</span></div>
-      </div>
-
-      <div className="hscroll">
-        <a className="action dark" href="#/saldos"><span>🔄</span>Actualizar saldos</a>
-        <a className="action" href="#/cuenta/nueva"><span>🏦</span>Agregar cuenta</a>
-        <a className="action" href="#/meta/nueva"><span>🎯</span>Nueva meta</a>
-      </div>
-
-      {w.history.some((h) => h.v !== 0) && (
-        <section className="card pad col gap10">
-          <div className="row between"><h2 className="h3">Evolución</h2><span className="muted small">Últimos 6 meses</span></div>
-          <Sparkline values={w.history.map((h, i) => (i === 5 ? w.net : h.v))} />
-          <div className="row between tiny-labels">{w.history.map((h, i) => <span key={i}>{monthShort(h.m)}</span>)}</div>
+      {hasAssets && (
+        <section className="worth-line" aria-label="Patrimonio neto">
+          <span className="col">
+            <span className="muted small">Patrimonio neto</span>
+            <strong className="worth-num">{money(w.net, cur, fx)}</strong>
+          </span>
+          <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Saldos{w.stale ? ` · ${w.stale}` : ''}</a>
         </section>
       )}
 
-      <section className="col gap12">
-        <h2 className="h2 px4">Metas</h2>
+      {w.loading && accs.length === 0 ? (
+        <Loading />
+      ) : accs.length === 0 ? (
+        <a className="card empty center" href="#/cuenta/nueva"><span className="big-emoji">💳</span><strong>Agregá tus cuentas</strong><span>Tarjetas, ahorros, inversiones.</span></a>
+      ) : (
+        GROUPS.map((g) => {
+          const list = accs.filter((a) => g.kinds.includes(a.kind));
+          if (!list.length) return null;
+          return (
+            <section key={g.title} className="col gap10">
+              <h2 className="h2 px4">{g.title}</h2>
+              <div className="wstack">
+                {list.map((a, i) => (
+                  <AccountCard key={a.id} a={a} w={w} onClick={() => go(`/cuenta/${a.id}`)} style={{ zIndex: i }} />
+                ))}
+              </div>
+            </section>
+          );
+        })
+      )}
+
+      <section className="col gap10">
+        <div className="section-head">
+          <h2 className="h2">Metas</h2>
+          <a className="link" href="#/meta/nueva">Nueva</a>
+        </div>
         {goals.length === 0 ? (
-          <a className="card empty center" href="#/meta/nueva"><span className="big-emoji">🎯</span><strong>Creá tu primera meta</strong><span>Ej. 🏡 Casa o 🛟 Emergencias, y asociale cuentas.</span></a>
+          <a className="card empty center" href="#/meta/nueva"><span className="big-emoji">🎯</span><strong>Creá tu primera meta</strong><span>Ej. 🏡 Casa, y asociale cuentas.</span></a>
         ) : (
-          goals.map((g) => {
-            const linked = (g.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
+          goals.map((gl) => {
+            const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
             const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
-            const target = g.currency === 'USD' ? Number(g.target_amount) * fx : Number(g.target_amount);
+            const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
             const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
             return (
-              <a key={g.id} href={`#/meta/${g.id}`} className="goal" style={{ background: tint(g.color) }}>
+              <a key={gl.id} href={`#/meta/${gl.id}`} className="card pad col gap8 goal-row">
                 <div className="row between">
-                  <span className="bento-title"><span>{g.emoji}</span>{g.name}</span>
-                  <span className="badge">{pct}%</span>
+                  <strong className="sm">{gl.emoji} {gl.name}</strong>
+                  <span className="muted small">{pct}%</span>
                 </div>
-                <div className="row gap6 baseline wrap"><span className="goal-num">{money(saved, cur, fx)}</span><span className="goal-sub">de {money(target, cur, fx)}</span></div>
-                <div className="bar white"><span className="bar-fill" style={{ width: `${pct}%`, background: '#111' }} /></div>
-                <span className="goal-sub">🔗 {linked.length ? linked.map((a) => a.name).join(' + ') : 'Sin cuentas asociadas'}</span>
+                <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--ink)' }} /></div>
+                <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
               </a>
             );
           })
         )}
       </section>
+    </div>
+  );
+}
 
-      <section className="col gap12">
-        <div className="section-head">
-          <h2 className="h2">Tus cuentas</h2>
-          <span className="muted small">{w.accounts.length} cuentas</span>
+/** One account: its card, the key number and its movements with filters. */
+export function AccountView({ id }: { id: string }) {
+  const { space, accounts, fx } = useApp();
+  const w = useNetWorth(space?.id || null);
+  const a = w.accounts.find((x) => x.id === id) || accounts.find((x) => x.id === id);
+  if (!a) return <Loading />;
+  const isCard = a.kind === 'credit_card';
+  const split = w.cardSplit[a.id];
+  return (
+    <div className="screen no-nav">
+      <BackBar right={<a className="round" href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" /></a>} />
+      <AccountCard a={a} w={w} big />
+      {isCard ? (
+        <div className="grid2">
+          <div className="card pad col gap4"><span className="muted small">Por pagar en colones</span><strong className="stat-big">{moneyRaw(split?.CRC || 0, 'CRC')}</strong></div>
+          <div className="card pad col gap4"><span className="muted small">Por pagar en dólares</span><strong className="stat-big">{moneyRaw(split?.USD || 0, 'USD')}</strong></div>
         </div>
-        {w.loading && w.accounts.length === 0 ? <Loading /> : w.accounts.length === 0 ? (
-          <a className="card empty center" href="#/cuenta/nueva"><span className="big-emoji">🏦</span><strong>Agregá tus cuentas</strong><span>Ahorros, inversiones (Hapi), CDPs y tarjetas.</span></a>
-        ) : (
-          <div className="card list">
-            {groups.map(([inst, accs]) => (
-              <div key={inst}>
-                <span className="day-label">{inst}</span>
-                {accs.map((a) => {
-                  const s = w.latest[a.id];
-                  const isCard = a.kind === 'credit_card';
-                  const stale = !isCard && (!s || Date.now() - new Date(s.taken_on).getTime() > 10 * 86400000);
-                  const bal = isCard ? -(w.cardDebt[a.id] || 0) : s ? Number(s.balance) : null;
-                  return (
-                    <button key={a.id} className="tx-row" onClick={() => go(`/cuenta/${a.id}`)}>
-                      <Emo e={a.emoji} color={stale ? 'butter' : isCard || a.kind === 'loan' ? 'pink' : a.kind === 'investment' ? 'lilac' : 'mint'} />
-                      <span className="tx-mid">
-                        <span className="tx-name">{a.name}{a.last4 ? ` ••${a.last4}` : ''}</span>
-                        <span className={stale ? 'tx-cat warn-text' : 'tx-cat'}>
-                          {isCard ? cardLine(w.cardSplit[a.id]) : s ? `${stale ? '⏰ ' : ''}Actualizado ${shortDate(s.taken_on + 'T18:00:00Z')}` : '⏰ Sin saldo registrado'}
-                        </span>
-                      </span>
-                      <span className="tx-amt">
-                        <span className={bal !== null && bal < 0 ? 'danger' : ''}>
-                          {bal === null ? '—' : isCard ? money(bal, cur, fx) : moneyRaw(bal, a.currency)}
-                        </span>
-                        {bal !== null && !isCard && a.currency !== cur && <span className="tx-sub">≈ {money(toCrc(bal, a, fx), cur, fx)}</span>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-      <Nav active="accounts" />
+      ) : (
+        <div className="card pad row between">
+          <span className="col gap4">
+            <span className="muted small">{w.latest[a.id] ? `Saldo al ${shortDate(w.latest[a.id]!.taken_on + 'T18:00:00Z')}` : 'Sin saldo registrado'}</span>
+            <strong className="stat-big">{w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</strong>
+            {w.latest[a.id] && a.currency === 'USD' && <span className="muted small">≈ {moneyRaw(Number(w.latest[a.id]!.balance) * fx, 'CRC')}</span>}
+          </span>
+          <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar</a>
+        </div>
+      )}
+      <h2 className="h2 px4">Movimientos</h2>
+      <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} />
     </div>
   );
 }
@@ -320,7 +339,7 @@ export function Saldos() {
 export function AccountEdit({ id }: { id: string }) {
   const { space, spaces, toast, reloadMeta, bump } = useApp();
   const isNew = id === 'nueva';
-  const [acc, setAcc] = useState<Partial<Account>>({ kind: 'savings', currency: 'CRC', emoji: '🐷', name: '', institution: '' });
+  const [acc, setAcc] = useState<Partial<Account>>({ kind: 'savings', currency: 'CRC', emoji: '🐷', name: '', institution: '', color: 'graphite', brand: null });
   const [spaceId, setSpaceId] = useState(space?.id || '');
   const [balance, setBalance] = useState('');
   const [busy, setBusy] = useState(false);
@@ -346,6 +365,8 @@ export function AccountEdit({ id }: { id: string }) {
       currency: acc.currency,
       last4: acc.last4?.trim() || null,
       emoji: acc.emoji || KIND_EMOJI[acc.kind || 'other'],
+      color: acc.color || 'graphite',
+      brand: acc.kind === 'credit_card' || acc.kind === 'debit' ? acc.brand || null : null,
     };
     try {
       let accountId = id;
@@ -383,6 +404,34 @@ export function AccountEdit({ id }: { id: string }) {
         <h1 className="h2">{isNew ? 'Nueva cuenta' : 'Editar cuenta'}</h1>
         <span style={{ width: 48 }} />
       </header>
+      <div className="wcard big preview" style={{ background: accountColor(acc).bg, color: accountColor(acc).fg }} aria-hidden="true">
+        <span className="wc-top">
+          <span className="wc-name">{acc.name || 'Nombre de la cuenta'}</span>
+          <span className="wc-num">{acc.last4 ? `••••${acc.last4}` : acc.institution || ''}</span>
+        </span>
+        <span className="wc-bottom">
+          <span className="wc-sub">{KIND_LABEL[acc.kind || 'other']}</span>
+          {acc.brand && (acc.kind === 'credit_card' || acc.kind === 'debit') ? <span className="wc-brand">{BRANDS[acc.brand]}</span> : <span className="wc-kind">{acc.emoji}</span>}
+        </span>
+      </div>
+      <div className="card pad col gap14">
+        <span className="field-label">Color</span>
+        <div className="swatches left-swatches" role="radiogroup" aria-label="Color de la tarjeta">
+          {Object.entries(ACCOUNT_COLORS).map(([k, c]) => (
+            <button key={k} role="radio" aria-checked={(acc.color || 'graphite') === k} aria-label={c.label} className={(acc.color || 'graphite') === k ? 'swatch on' : 'swatch'} style={{ background: c.bg }} onClick={() => set('color', k)} />
+          ))}
+        </div>
+        {(acc.kind === 'credit_card' || acc.kind === 'debit') && (
+          <>
+            <span className="field-label">Marca</span>
+            <div className="grid4">
+              {([[null, 'Ninguna'], ['amex', 'Amex'], ['visa', 'Visa'], ['mastercard', 'Mastercard']] as const).map(([k, l]) => (
+                <button key={l} className={(acc.brand || null) === k ? 'opt on' : 'opt'} aria-pressed={(acc.brand || null) === k} onClick={() => set('brand', k)}>{l}</button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
       <div className="card pad col gap14">
         <label className="col gap6"><span className="field-label">Nombre</span><input className="input" value={acc.name || ''} onChange={(e) => set('name', e.target.value)} placeholder="Ej. Ahorro colones" /></label>
         <label className="col gap6"><span className="field-label">Institución</span><input className="input" value={acc.institution || ''} onChange={(e) => set('institution', e.target.value)} placeholder="Ej. BAC, Banco Nacional, Hapi" /></label>

@@ -1,44 +1,61 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { periodRange, usePeriod } from '../lib/period';
 import { money } from '../lib/format';
-import { catLabel } from '../lib/cats';
+import { catLabel, familyIds, pickerOrder } from '../lib/cats';
+import { byKind } from '../lib/accounts';
 import { useApp, useTxs } from '../store';
-import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
+import { Icon, Loading } from '../ui';
 import { TxRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
 import { PeriodPicker } from '../ui/PeriodPicker';
 
-type Filter = 'todos' | 'review' | 'rec' | 'gastos' | 'ingresos' | string;
+type Kind = 'todos' | 'review' | 'rec' | 'gastos' | 'ingresos' | string;
 
-export function Movimientos() {
-  const { categories, tags, cur, fx, toast, bump, space } = useApp();
+/**
+ * Every movement of the space with search and filters (period, category, account, type).
+ * Lives inside the home sheet (white) and inside an account's view (dark, with `accountId` fixed).
+ */
+export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov' }: { accountId?: string; autoFocus?: boolean; screen?: string }) {
+  const { categories, accounts, tags, cur, fx, toast, bump, space } = useApp();
   const [aiBusy, setAiBusy] = useState(false);
-  const [pk, setPk] = usePeriod('mov');
+  const [pk, setPk] = usePeriod(screen);
   const period = periodRange(pk, space?.week_start ?? 5);
-  const { txs, loading } = useTxs(period);
-  const [filter, setFilter] = useState<Filter>(() => new URLSearchParams(location.hash.split('?')[1] || '').get('f') || 'todos');
+  const { txs: all, loading } = useTxs(period);
+  const [kind, setKind] = useState<Kind>(() => new URLSearchParams(location.hash.split('?')[1] || '').get('f') || 'todos');
+  const [cat, setCat] = useState('');
+  const [acc, setAcc] = useState(accountId || '');
   const [q, setQ] = useState('');
+  const search = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (autoFocus) search.current?.focus({ preventScroll: true });
+  }, [autoFocus]);
 
+  const txs = useMemo(() => (accountId ? all.filter((t) => t.account_id === accountId || t.to_account_id === accountId) : all), [all, accountId]);
   const reviewCount = txs.filter((t) => t.status === 'review').length;
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const fam = cat && cat !== 'none' ? familyIds(categories, cat) : null;
     return txs.filter((t) => {
-      if (filter === 'review' && t.status !== 'review') return false;
-      if (filter === 'rec' && !t.recurring_id) return false;
-      if (filter === 'gastos' && t.kind !== 'expense' && t.kind !== 'refund') return false;
-      if (filter === 'ingresos' && t.kind !== 'income' && t.kind !== 'contribution') return false;
-      if (filter.startsWith('#') && !tagsOf(t).includes(filter)) return false;
+      if (kind === 'review' && t.status !== 'review') return false;
+      if (kind === 'rec' && !t.recurring_id) return false;
+      if (kind === 'gastos' && t.kind !== 'expense' && t.kind !== 'refund') return false;
+      if (kind === 'ingresos' && t.kind !== 'income' && t.kind !== 'contribution') return false;
+      if (kind.startsWith('#') && !tagsOf(t).includes(kind)) return false;
+      if (cat === 'none' && t.category_id) return false;
+      if (fam && (!t.category_id || !fam.has(t.category_id))) return false;
+      if (!accountId && acc === 'none' && t.account_id) return false;
+      if (!accountId && acc && acc !== 'none' && t.account_id !== acc && t.to_account_id !== acc) return false;
       if (needle) {
-        const cat = catLabel(categories, categories.find((c) => c.id === t.category_id));
-        const hay = [t.merchant, t.raw_merchant, t.note, cat, ...tagsOf(t), String(t.amount)].join(' ').toLowerCase();
+        const c = catLabel(categories, categories.find((x) => x.id === t.category_id));
+        const hay = [t.merchant, t.raw_merchant, t.note, c, ...tagsOf(t), String(t.amount)].join(' ').toLowerCase();
         if (!hay.includes(needle.replace(/[.,]/g, '')) && !hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [txs, filter, q, categories]);
+  }, [txs, kind, cat, acc, q, categories, accountId]);
 
   const groups = groupByDay(filtered);
   const review = txs.filter((t) => t.status === 'review');
@@ -73,39 +90,67 @@ export function Movimientos() {
     setAiBusy(false);
     bump();
   }
+
   const spent = sumSpend(filtered);
   const inflow = sumKind(filtered, 'income') + sumKind(filtered, 'contribution');
-  const showInflow = filter === 'ingresos';
-
-  const chips: [Filter, string][] = [
+  const showInflow = kind === 'ingresos';
+  const chips: [Kind, string][] = [
     ['todos', 'Todos'],
-    ['review', `❓ Por revisar${reviewCount ? ` ${reviewCount}` : ''}`],
-    ['rec', '🔁 Recurrentes'],
-    ['gastos', '💸 Gastos'],
-    ['ingresos', '💰 Ingresos'],
-    ...tags.map((t) => [t.name, t.name] as [Filter, string]),
+    ['review', `Por revisar${reviewCount ? ` · ${reviewCount}` : ''}`],
+    ['gastos', 'Gastos'],
+    ['ingresos', 'Ingresos'],
+    ['rec', 'Recurrentes'],
+    ...tags.map((t) => [t.name, t.name] as [Kind, string]),
   ];
+  const cats = pickerOrder(categories.filter((c) => !c.archived));
+  const accs = accounts.filter((a) => !a.archived).sort(byKind);
+  const active = (kind !== 'todos' ? 1 : 0) + (cat ? 1 : 0) + (!accountId && acc ? 1 : 0) + (q ? 1 : 0);
 
   return (
-    <div className="screen">
-      <TopBar />
-      <h1 className="h1">Movimientos</h1>
-
+    <div className="mb">
       <label className="search">
         <Icon name="search" />
         <span className="sr">Buscar movimientos</span>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar comercio, monto o #tag" />
+        <input ref={search} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar comercio, monto o #tag" />
       </label>
 
-      <div className="hscroll">
+      <div className="mb-filters">
+        <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />
+        <label className={cat ? 'select-pill on' : 'select-pill'}>
+          <span className="sr">Categoría</span>
+          <select value={cat} onChange={(e) => setCat(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {cats.map((c) => (
+              <option key={c.id} value={c.id}>{c.parent_id ? '   ↳ ' : ''}{c.emoji} {c.name}</option>
+            ))}
+            <option value="none">Sin categoría</option>
+          </select>
+          <Icon name="chevDown" size={14} stroke={2.4} />
+        </label>
+        {!accountId && (
+          <label className={acc ? 'select-pill on' : 'select-pill'}>
+            <span className="sr">Cuenta</span>
+            <select value={acc} onChange={(e) => setAcc(e.target.value)}>
+              <option value="">Todas las cuentas</option>
+              {accs.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
+              ))}
+              <option value="none">Efectivo / SINPE</option>
+            </select>
+            <Icon name="chevDown" size={14} stroke={2.4} />
+          </label>
+        )}
+      </div>
+
+      <div className="hscroll mb-chips">
         {chips.map(([k, label]) => (
-          <button key={k} className={filter === k ? 'filter on' : 'filter'} aria-pressed={filter === k} onClick={() => setFilter(k)}>
+          <button key={k} className={kind === k ? 'filter on' : 'filter'} aria-pressed={kind === k} onClick={() => setKind(k)}>
             {label}
           </button>
         ))}
       </div>
 
-      {filter === 'review' && (withSuggestion.length > 0 || unchecked.length > 0) && (
+      {kind === 'review' && (withSuggestion.length > 0 || unchecked.length > 0) && (
         <div className="ai-bar">
           <span className="ai-bar-text">
             <strong>✨ Categorías con IA</strong>
@@ -119,37 +164,31 @@ export function Movimientos() {
         </div>
       )}
 
-      <section className="hero small" aria-label="Total">
-        <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />
-        <span className="muted-label">{showInflow ? 'Ingresos y aportes' : 'Gastos'} · {period.label}</span>
-        <BigMoney crc={showInflow ? inflow : spent} size={48} />
-        <span className="muted-label">{filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}</span>
-      </section>
+      <div className="mb-total" aria-live="polite">
+        <span className="muted">{showInflow ? 'Ingresos' : 'Gastos'} · {period.label}{active ? ' · con filtros' : ''}</span>
+        <strong>{money(showInflow ? inflow : spent, cur, fx)}</strong>
+        <span className="muted">{filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}</span>
+      </div>
 
-      {loading && txs.length === 0 ? (
+      {loading && all.length === 0 ? (
         <Loading />
       ) : groups.length === 0 ? (
-        <div className="card empty center">
-          <span className="big-emoji">{filter === 'review' ? '🎉' : '🗂️'}</span>
-          <strong>{filter === 'review' ? 'Nada por revisar' : 'Sin movimientos'}</strong>
-          <span>{filter === 'review' ? 'Todos los movimientos tienen categoría.' : 'Probá con otro filtro o período.'}</span>
+        <div className="empty center-text">
+          {kind === 'review' ? '🎉 Nada por revisar.' : 'Sin movimientos con estos filtros.'}
         </div>
       ) : (
         groups.map((g) => (
-          <section key={g.label} className="col gap8">
-            <div className="row between">
-              <span className="date-pill">{g.label}</span>
-              {g.total !== 0 && <span className="date-pill">{money(g.total, cur, fx)}</span>}
+          <section key={g.label} className="mb-day">
+            <div className="row between mb-day-head">
+              <span>{g.label}</span>
+              {g.total !== 0 && <span>{money(g.total, cur, fx)}</span>}
             </div>
-            <div className="card list">
-              {g.rows.map((t) => (
-                <TxRow key={t.id} t={t} />
-              ))}
-            </div>
+            {g.rows.map((t) => (
+              <TxRow key={t.id} t={t} />
+            ))}
           </section>
         ))
       )}
-      <Nav active={null} />
     </div>
   );
 }

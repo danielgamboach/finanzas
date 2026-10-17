@@ -1,5 +1,5 @@
 // Network-first service worker: makes the app installable and keeps the shell available offline.
-const CACHE = 'finanzas-v2';
+const CACHE = 'finanzas-v3';
 const SHELL = ['/', '/index.html', '/assets/app.js', '/assets/app.css', '/icon.svg', '/manifest.webmanifest'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

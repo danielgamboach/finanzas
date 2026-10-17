@@ -4,8 +4,8 @@
   "description": "Gastos, presupuestos y patrimonio en colones y dólares.",
   "start_url": "/#/",
   "display": "standalone",
-  "background_color": "#F3F3F1",
-  "theme_color": "#F3F3F1",
+  "background_color": "#262626",
+  "theme_color": "#262626",
   "lang": "es-CR",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },

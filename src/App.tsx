@@ -2,11 +2,9 @@ import { AppProvider, useApp, useRoute } from './store';
 import { Loading, Toast } from './ui';
 import { Ajustes } from './screens/Ajustes';
 import { CategoryEdit, CategoryView } from './screens/CategoryEdit';
-import { Home } from './screens/Home';
 import { Login } from './screens/Login';
-import { Movimientos } from './screens/Movimientos';
-import { AccountEdit, GoalEdit, Patrimonio, Saldos } from './screens/Patrimonio';
-import { Presupuesto } from './screens/Presupuesto';
+import { AccountEdit, AccountView, GoalEdit, Saldos } from './screens/Patrimonio';
+import { Shell } from './screens/Shell';
 import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
 import { NotifPrompt } from './screens/NotifPrompt';
@@ -31,34 +29,32 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
   switch (a) {
     case '':
     case undefined:
-      return <Home />;
     case 'movimientos':
-      return <Movimientos />;
+    case 'analisis':
+    case 'presupuesto':
+    case 'cuentas':
+    case 'patrimonio':
+      return <Shell route={a || ''} />;
     case 'agregar':
       return <TxForm key="new" />;
     case 'mov':
       return <TxForm key={b} id={b} />;
-    case 'presupuesto':
-      return <Presupuesto />;
     case 'categoria':
       return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
     case 'recurrentes':
       return <Recurrentes />;
     case 'recurrente':
       return <RecurringEdit key={b} id={b} />;
-    case 'cuentas':
-    case 'patrimonio':
-      return <Patrimonio />;
     case 'saldos':
       return <Saldos />;
     case 'cuenta':
-      return <AccountEdit key={b} id={b} />;
+      return b === 'nueva' || c === 'editar' ? <AccountEdit key={b} id={b} /> : <AccountView key={b} id={b} />;
     case 'meta':
       return <GoalEdit key={b} id={b} />;
     case 'ajustes':
       return <Ajustes />;
     default:
-      return <Home />;
+      return <Shell route="" />;
   }
 }
 

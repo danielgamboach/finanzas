@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { go, useApp } from '../store';
 import { moneyParts } from '../lib/format';
 import { useDragToClose } from './useDragToClose';
@@ -39,6 +40,16 @@ const paths: Record<string, string> = {
   repeat: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4',
   camera: 'M3 8.5h3.5L8.5 5.5h7l2 3H21V19H3zM12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+  grid: 'M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z',
+  house: 'M4 10.5L12 4l8 6.5V20h-5.5v-5.5h-5V20H4z',
+  cards: 'M3 9h18v11H3zM5 6h14M7.5 3h9M15.5 15.5h2.5',
+  chart: 'M4 4v16h16M7.5 15l4-4.5 3 3L20 8M15.5 8H20v4.5',
+  plusCircle: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8v8M8 12h8',
+  sliders: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 4.5v5M8 14.5v5',
+  user: 'M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8zM4.5 20a7.5 7.5 0 0 1 15 0',
+  gear: 'M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6zM19.4 13.5l1.6 1.2-2 3.4-1.9-.8a7 7 0 0 1-2.1 1.2L14.7 21h-4l-.3-2.1a7 7 0 0 1-2.1-1.2l-1.9.8-2-3.4 1.6-1.2a7 7 0 0 1 0-2.4L4.4 10.3l2-3.4 1.9.8a7 7 0 0 1 2.1-1.2L10.7 4h4l.3 2.5a7 7 0 0 1 2.1 1.2l1.9-.8 2 3.4-1.6 1.2a7 7 0 0 1 0 2z',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4',
+  logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
 };
 
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths | string; size?: number; stroke?: number }) {
@@ -77,96 +88,13 @@ export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
   );
 }
 
-export function Nav({ active }: { active: 'home' | 'budget' | 'rec' | 'accounts' | null }) {
-  const items = [
-    { k: 'home', label: 'Inicio', icon: 'home', href: '/' },
-    { k: 'budget', label: 'Presupuesto', icon: 'pie', href: '/presupuesto' },
-    { k: 'rec', label: 'Recurrentes', icon: 'repeat', href: '/recurrentes' },
-    { k: 'accounts', label: 'Cuentas', icon: 'wallet', href: '/cuentas' },
-  ] as const;
-  return (
-    <div className="nav-wrap">
-      <nav className="nav" aria-label="Navegación principal">
-        {items.map((it) =>
-          it.k === active ? (
-            <a key={it.k} href={`#${it.href}`} className="nav-active" aria-current="page">
-              <Icon name={it.icon} size={20} />
-              {it.label}
-            </a>
-          ) : (
-            <a key={it.k} href={`#${it.href}`} className="nav-item" aria-label={it.label}>
-              <Icon name={it.icon} size={22} />
-            </a>
-          ),
-        )}
-      </nav>
-      <a href="#/agregar" className="nav-plus" aria-label="Agregar movimiento">
-        <Icon name="plus" size={26} stroke={2.6} />
-      </a>
-    </div>
-  );
-}
-
-export function SpacePill() {
-  const { space, spaces, setSpaceId, bump } = useApp();
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [open]);
-  if (!space) return <span />;
-  return (
-    <div className="space-pill-wrap" onClick={(e) => e.stopPropagation()}>
-      <button className="chip-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="chip-emoji">{space.emoji}</span>
-        {space.name}
-        <Icon name="chevDown" size={16} stroke={2.4} />
-      </button>
-      {open && (
-        <div className="menu" role="menu">
-          {spaces.map((s) => (
-            <button
-              key={s.id}
-              role="menuitemradio"
-              aria-checked={s.id === space.id}
-              className={s.id === space.id ? 'menu-item on' : 'menu-item'}
-              onClick={() => {
-                setSpaceId(s.id);
-                bump();
-                setOpen(false);
-              }}
-            >
-              <span className="chip-emoji">{s.emoji}</span>
-              <span className="grow">{s.name}</span>
-              <span className="menu-meta">{s.kind === 'shared' ? 'Compartido' : 'Privado'}</span>
-            </button>
-          ))}
-          <button className="menu-item muted" onClick={() => go('/ajustes')}>
-            <span className="chip-emoji">⚙️</span>
-            <span className="grow">Espacios y ajustes</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function TopBar({ extra }: { extra?: React.ReactNode }) {
-  const { cur, toggleCur, profile } = useApp();
+/** Header for secondary screens: back on the left, optional title and action on the right. */
+export function BackBar({ title, right }: { title?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <header className="topbar">
-      <SpacePill />
-      <div className="row gap8">
-        {extra}
-        <button className="round" onClick={toggleCur} aria-label={cur === 'USD' ? 'Mostrando dólares. Cambiar a colones' : 'Mostrando colones. Cambiar a dólares'}>
-          {cur === 'USD' ? '$' : '₡'}
-        </button>
-        <a href="#/ajustes" className="round dark" aria-label="Perfil y ajustes">
-          {(profile?.name || 'U').charAt(0).toUpperCase()}
-        </a>
-      </div>
+      <button className="round" onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Volver"><Icon name="back" /></button>
+      {title ? <h1 className="h2 topbar-title">{title}</h1> : <span />}
+      {right || <span style={{ width: 48 }} />}
     </header>
   );
 }
@@ -190,7 +118,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   const dragRef = useDragToClose<HTMLDivElement>(onClose, 'self');
-  return (
+  // rendered at the root so it covers the panels and the bottom bar
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div ref={dragRef} className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="grabber" />
@@ -202,7 +131,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
-import { categoryStats, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
+import { categoryStats, cumulative, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
 import { rootId } from '../lib/cats';
-import { crIso, crLocal, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
+import { cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
 import { useApp, useTxs } from '../store';
-import { Emo, Icon, Loading, Nav, Segmented, TopBar } from '../ui';
+import { Emo, Icon, Loading, Segmented } from '../ui';
+import { MonthChart } from '../ui/MonthChart';
 import { MonthNav, useMonth } from './Home';
 
-export function Presupuesto() {
+/** Left panel: the month at a glance, budgets by category and trends. */
+export function Analisis() {
   const { space, categories, cur, fx } = useApp();
   const [tab, setTab] = useState<'limits' | 'analysis'>('limits');
   const [ym, setYm] = useMonth();
@@ -32,15 +34,49 @@ export function Presupuesto() {
   const variableSpent = spent - fixedSpent;
   const projection = isCurrent ? fixedSpent + Math.round((variableSpent / Math.max(t.d, 1)) * daysInMonth) : spent;
 
+  // month chart: this month (up to today) against the previous one
+  const pr = monthRange(ym[0], ym[1] - 1);
+  const pl = crLocal(pr.from);
+  const prevDays = new Date(Date.UTC(pl.getUTCFullYear(), pl.getUTCMonth() + 1, 0)).getUTCDate();
+  const prevTxs = txs.filter((x) => inRange(x, pr));
+  const curSeries = cumulative(inMonth, l.getUTCFullYear(), l.getUTCMonth(), isCurrent ? t.d : daysInMonth);
+  const prevSeries = prevTxs.length ? cumulative(prevTxs, pl.getUTCFullYear(), pl.getUTCMonth(), prevDays) : null;
+  const dayN = isCurrent ? t.d : daysInMonth;
+  const prevSoFar = prevSeries ? prevSeries[Math.min(dayN, prevDays) - 1] : 0;
+  const diff = spent - prevSoFar;
+  const weekSpent = sumSpend(txs.filter((x) => inRange(x, week)));
+  const fmt = (v: number) => money(v, cur, fx);
+
   return (
-    <div className="screen">
-      <TopBar />
-      <h1 className="headline">
-        Llevás <strong>{money(spent, cur, fx)}</strong>
-        {budget > 0 ? <> de {money(budget, cur, fx)}</> : null} en {monthName(ym[1])}
-      </h1>
+    <div className="panel-inner">
+      <header className="panel-head">
+        <h1 className="h1">Análisis</h1>
+      </header>
       <MonthNav ym={ym} setYm={setYm} />
-      <Segmented value={tab} options={[['limits', 'Límites'], ['analysis', 'Análisis']]} onChange={setTab} dark />
+      <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
+        <span className="muted small">Llevás</span>
+        <span className="row gap8 baseline wrap">
+          <strong className="stat-hero">{fmt(spent)}</strong>
+          {budget > 0 && <span className="muted">de {fmt(budget)}</span>}
+        </span>
+        <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(monthName(pl.getUTCMonth()))} fmt={fmt} />
+        <div className="stats3">
+          <div className="stat">
+            <span className="stat-label">{isCurrent ? 'Esta semana' : 'Promedio diario'}</span>
+            <span className="stat-value">{isCurrent ? fmt(weekSpent) : fmt(spent / daysInMonth)}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">vs. {monthShort(pl.getUTCMonth())}</span>
+            {prevSeries ? <span className={diff > 0 ? 'stat-value up' : 'stat-value down'}>{diff > 0 ? '↑ ' : '↓ '}{fmt(Math.abs(diff))}</span> : <span className="stat-value">—</span>}
+            <span className="stat-sub">{prevSeries ? (isCurrent ? 'a esta altura' : 'mes completo') : 'sin datos'}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">{isCurrent ? 'Proyección' : 'Fijos'}</span>
+            <span className={budget && isCurrent && projection > budget ? 'stat-value up' : 'stat-value'}>{isCurrent ? fmt(projection) : fmt(fixedSpent)}</span>
+          </div>
+        </div>
+      </section>
+      <Segmented value={tab} options={[['limits', 'Presupuesto'], ['analysis', 'Tendencias']]} onChange={setTab} dark />
 
       {loading && txs.length === 0 ? (
         <Loading />
@@ -53,7 +89,7 @@ export function Presupuesto() {
                 <span className="muted">{isCurrent ? `Día ${t.d} de ${daysInMonth}` : 'Mes cerrado'}</span>
               </div>
               <div className="bar big">
-                <div className="bar-fill" style={{ width: `${Math.min(usedPct, 100)}%`, background: usedPct >= 100 ? '#C8372D' : usedPct >= 80 ? '#C27C00' : '#111' }} />
+                <div className="bar-fill" style={{ width: `${Math.min(usedPct, 100)}%`, background: usedPct >= 100 ? 'var(--danger)' : usedPct >= 80 ? 'var(--warn)' : 'var(--ink)' }} />
                 {isCurrent && <div className="bar-marker" style={{ left: `${pace}%` }} />}
               </div>
               {isCurrent && <span className="muted small">La línea marca dónde deberías ir a esta altura del mes</span>}
@@ -87,7 +123,6 @@ export function Presupuesto() {
       ) : (
         <Analysis txs={txs} ym={ym} />
       )}
-      <Nav active="budget" />
     </div>
   );
 }
@@ -97,7 +132,7 @@ function CatRow({ s }: { s: CatStat }) {
   const { cur, fx } = useApp();
   const [open, setOpen] = useState(false);
   const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
-  const bar = s.cat.is_fixed ? '#A3A39E' : s.level === 'over' ? '#C8372D' : s.level === 'warn' ? '#C27C00' : '#111';
+  const bar = s.cat.is_fixed ? 'var(--muted)' : s.level === 'over' ? 'var(--danger)' : s.level === 'warn' ? 'var(--warn)' : 'var(--ink)';
   const subs = s.subs.filter((x) => x.spent !== 0 || !x.direct);
   const kids = s.subs.filter((x) => !x.direct).length;
   return (
@@ -144,7 +179,7 @@ function CatRow({ s }: { s: CatStat }) {
                         <span className="sm">{x.direct ? 'Sin detalle' : x.cat.name}</span>
                         <strong className="sm">{money(x.spent, cur, fx)}</strong>
                       </span>
-                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: '#8A8A85' }} /></span>
+                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--muted)' }} /></span>
                     </span>
                   </a>
                 );
@@ -215,9 +250,9 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
             return (
               <div key={i} className="mb-col">
                 <div className="mb-area">
-                  <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? '#F6E3A0' : over ? '#F3B9B2' : '#E2E2DE' }} />
+                  <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? '#FFDF20' : over ? '#FF8A7A' : '#525252' }} />
                   {budget > 0 && <div className="mb-budget" style={{ height: `${(budget / max) * 100}%` }} />}
-                  <span className={over ? 'mb-val danger' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[₡$]/, '')}</span>
+                  <span className={last || over ? 'mb-val on-light' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[₡$]/, '')}</span>
                 </div>
                 <span className="mb-label">{monthShort(m.m)}</span>
               </div>

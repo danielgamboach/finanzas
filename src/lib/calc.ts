@@ -127,3 +127,16 @@ export function tagsOf(t: Tx): string[] {
 export function extractTags(note: string) {
   return Array.from(new Set((note.match(/#[\p{L}\p{N}_-]+/gu) || []).map((s) => s.toLowerCase())));
 }
+
+/** Cumulative spend per day of a month, from day 1 up to `upTo` days. */
+export function cumulative(txs: Tx[], y: number, m: number, upTo: number) {
+  const daily = new Array(Math.max(upTo, 0)).fill(0);
+  for (const t of txs) {
+    const l = crLocal(t.occurred_at);
+    if (l.getUTCFullYear() !== y || l.getUTCMonth() !== m) continue;
+    const d = l.getUTCDate() - 1;
+    if (d < upTo) daily[d] += spend(t);
+  }
+  let acc = 0;
+  return daily.map((v) => (acc += v));
+}
