@@ -1,5 +1,5 @@
 import { go, useApp } from '../store';
-import { money, moneyRaw } from '../lib/format';
+import { money, moneyRaw, relDay } from '../lib/format';
 import { tagsOf } from '../lib/calc';
 import type { Tx } from '../lib/types';
 import { Emo } from '.';
@@ -7,7 +7,7 @@ import { Emo } from '.';
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
 const KIND_LABEL: Record<string, string> = { income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
 
-export function TxRow({ t }: { t: Tx }) {
+export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
   const { categories, accounts, cur, fx, profiles } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const acc = accounts.find((a) => a.id === t.account_id);
@@ -15,7 +15,7 @@ export function TxRow({ t }: { t: Tx }) {
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
   const color = review ? 'butter' : cat?.color || 'gray';
   const who = t.kind === 'contribution' && t.contributor_id ? profiles[t.contributor_id]?.name : null;
-  const label = [review ? 'Sin categoría' : cat?.name || KIND_LABEL[t.kind] || '', who, acc ? (acc.last4 ? `••${acc.last4}` : acc.name) : null]
+  const label = [showDate ? relDay(t.occurred_at) : null, review ? 'Sin categoría' : cat?.name || KIND_LABEL[t.kind] || '', who, acc ? (acc.last4 ? `••${acc.last4}` : acc.name) : null]
     .filter(Boolean)
     .join(' · ');
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';

@@ -285,3 +285,35 @@ select.input { appearance: auto; }
 .ai-bar-text { flex: 1; display: flex; flex-direction: column; gap: 2px; color: #3A2E66; }
 .ai-bar-text strong { font-size: 15px; }
 .ai-bar-text span { font-size: 13px; font-weight: 600; }
+
+/* Home: AI note */
+.ai-note { display: flex; align-items: flex-start; gap: 12px; padding: 16px 14px 16px 16px; border-radius: 26px; background: #DCD3F5; }
+.ai-note.tone-good { background: #CDEBD3; }
+.ai-note.tone-warn { background: #FBE7A1; }
+.ai-note.tone-bad { background: #F6CFDF; }
+.ai-note-emoji { flex: 0 0 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.7); display: grid; place-items: center; font-size: 22px; }
+.ai-note-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ai-note-label { font-size: 12px; font-weight: 800; letter-spacing: .02em; color: rgba(17,17,17,.6); }
+.ai-note-text { font-size: 16px; font-weight: 700; line-height: 1.32; letter-spacing: -0.01em; color: var(--ink); text-wrap: pretty; }
+.ai-note-skel { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.ai-note-skel span { height: 14px; border-radius: 7px; background: rgba(255,255,255,.65); animation: pulse 1.2s ease-in-out infinite; }
+.ai-note-skel span:last-child { width: 60%; }
+.ai-note-refresh { flex: 0 0 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.55); color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.ai-note-refresh:disabled { opacity: .6; }
+.ai-note-refresh.spin svg { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { opacity: .45; } }
+
+/* Home: this week */
+.week-card { gap: 10px; }
+.week-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 6px; }
+.wb { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.wb-track { width: 100%; height: 64px; border-radius: 12px; background: rgba(255,255,255,.5); display: flex; align-items: flex-end; overflow: hidden; }
+.wb-fill { width: 100%; background: rgba(17,17,17,.82); border-radius: 12px; }
+.wb.today .wb-track { outline: 2px solid #111; outline-offset: -2px; }
+.wb.future .wb-track { background: rgba(255,255,255,.28); }
+.wb-day { font-size: 11px; font-weight: 800; color: rgba(17,17,17,.6); }
+.wb.today .wb-day { color: #111; }
+.week-pay { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.6); border-radius: 18px; padding: 12px 12px 12px 14px; margin-top: 4px; }
+.week-pay strong { font-size: 15px; }
+.week-pay span span { font-size: 12px; font-weight: 600; color: rgba(17,17,17,.7); }

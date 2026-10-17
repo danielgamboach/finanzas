@@ -69,6 +69,14 @@ export function dayLabel(iso: string) {
   return cap(base);
 }
 
+/** "Hoy", "Ayer" or "vie 16 oct". */
+export function relDay(iso: string) {
+  const k = dateKey(iso);
+  if (k === dateKey(new Date().toISOString())) return 'Hoy';
+  if (k === dateKey(new Date(Date.now() - 86400000).toISOString())) return 'Ayer';
+  return shortDate(iso);
+}
+
 export function shortDate(iso: string) {
   const l = crLocal(iso);
   return `${DOW[l.getUTCDay()]} ${l.getUTCDate()} ${MONTHS_SHORT[l.getUTCMonth()]}`;

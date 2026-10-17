@@ -17,6 +17,11 @@ export function weekRange(weekStart: number, offsetWeeks = 0, ref = todayCR()): 
   return { from, to, startKey };
 }
 
+/** Monthly budget = sum of category limits (weekly limits count ~4.33 times). */
+export function monthBudget(cats: Category[]) {
+  return cats.reduce((a, c) => a + (c.kind === 'expense' && !c.archived && c.limit_amount ? (c.limit_period === 'weekly' ? Number(c.limit_amount) * 4.33 : Number(c.limit_amount)) : 0), 0);
+}
+
 export const inRange = (t: Tx, r: Range) => t.occurred_at >= r.from && t.occurred_at < r.to;
 
 /** Positive = money spent, negative = money returned. */

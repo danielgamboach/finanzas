@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/api';
-import { categoryStats, inRange, monthRange, sumKind, sumSpend, weekRange, cardOutstanding, spend } from '../lib/calc';
-import { cap, crLocal, dayLabel, money, monthName, todayCR } from '../lib/format';
+import { inRange, monthBudget, monthRange, sumSpend, weekRange, spend } from '../lib/calc';
+import { cap, crLocal, dateKey, dayLabel, money, monthName, monthShort, todayCR } from '../lib/format';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
-import { BigMoney, Icon, Loading, Nav, TopBar, tint } from '../ui';
+import { BigMoney, Icon, Loading, Nav, TopBar } from '../ui';
 import { TxRow } from '../ui/TxRow';
-import { useNetWorth } from './Patrimonio';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
   const t = todayCR();
@@ -49,12 +48,99 @@ export function groupByDay(txs: Tx[]) {
   return out;
 }
 
+interface Insight { emoji: string; text: string; tone: 'good' | 'neutral' | 'warn' | 'bad'; fp: string; at: number }
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+const DAY_LETTERS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+/** Changes whenever something the message talks about changes: a new or edited movement, a limit, or the day. */
+function fingerprint(txs: Tx[], categories: { id: string; limit_amount: number | null; limit_period: string | null }[], today: string) {
+  let h = 5381;
+  const feed = (s: string) => {
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  };
+  feed(today);
+  txs.forEach((t) => feed(`${t.id}${t.category_id}${t.amount_crc}${(t as Tx & { updated_at?: string }).updated_at || ''}`));
+  categories.forEach((c) => feed(`${c.id}${c.limit_amount}${c.limit_period}`));
+  return String(h >>> 0);
+}
+
+function readInsight(spaceId: string): Insight | null {
+  try {
+    const raw = localStorage.getItem(`finanzas.insight.${spaceId}`);
+    return raw ? (JSON.parse(raw) as Insight) : null;
+  } catch {
+    return null;
+  }
+}
+function writeInsight(spaceId: string, v: Insight) {
+  try {
+    localStorage.setItem(`finanzas.insight.${spaceId}`, JSON.stringify(v));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; ready: boolean }) {
+  const [note, setNote] = useState<Insight | null>(() => readInsight(spaceId));
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function load(force = false) {
+    const cached = readInsight(spaceId);
+    if (!force && cached && cached.fp === fp) return setNote(cached);
+    if (!force && cached && Date.now() - cached.at < 20_000) return setNote(cached);
+    setBusy(true);
+    setFailed(false);
+    try {
+      const r = await db.fn<{ ok: boolean; emoji?: string; text?: string; tone?: Insight['tone'] }>('insight', { space_id: spaceId, prev: cached?.text });
+      if (r.ok && r.text) {
+        const v: Insight = { emoji: r.emoji || '✨', text: r.text, tone: r.tone || 'neutral', fp, at: Date.now() };
+        writeInsight(spaceId, v);
+        setNote(v);
+      } else setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    setNote(readInsight(spaceId));
+  }, [spaceId]);
+  useEffect(() => {
+    if (ready && fp) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spaceId, fp, ready]);
+
+  if (!note && failed) return null;
+  return (
+    <section className={`ai-note tone-${note?.tone || 'neutral'}${busy && !note ? ' loading' : ''}`} aria-live="polite" aria-busy={busy}>
+      <span className="ai-note-emoji" aria-hidden="true">{note?.emoji || '✨'}</span>
+      <span className="ai-note-body">
+        <span className="ai-note-label">✨ Tu copiloto</span>
+        {note ? (
+          <span className="ai-note-text">{note.text}</span>
+        ) : (
+          <span className="ai-note-skel" aria-label="Pensando…">
+            <span />
+            <span />
+          </span>
+        )}
+      </span>
+      <button className={busy ? 'ai-note-refresh spin' : 'ai-note-refresh'} onClick={() => load(true)} disabled={busy} aria-label="Otro mensaje">
+        <Icon name="refresh" size={18} />
+      </button>
+    </section>
+  );
+}
+
 export function Home() {
-  const { space, categories, accounts, cur, fx, userId, bump, toast, profiles } = useApp();
-  const [ym, setYm] = useMonth();
+  const { space, categories, accounts, cur, fx, bump, toast, profiles, userId } = useApp();
   const t = todayCR();
-  const isCurrent = ym[0] === t.y && ym[1] === t.m;
-  const month = monthRange(ym[0], ym[1]);
+  const month = monthRange(t.y, t.m);
   const week = weekRange(space?.week_start ?? 5);
   const prevWeek = weekRange(space?.week_start ?? 5, -1);
   const range = useMemo(
@@ -63,55 +149,49 @@ export function Home() {
     [month.from, month.to, prevWeek.from, week.to],
   );
   const { txs, loading } = useTxs(range);
-  const [myContrib, setMyContrib] = useState(0);
-  const worth = useNetWorth(space?.kind === 'personal' ? space.id : null);
-
-  useEffect(() => {
-    if (!space || space.kind !== 'personal' || !userId) return;
-    db.from<Tx>('transactions', 'amount_crc')
-      .eq('kind', 'contribution')
-      .eq('contributor_id', userId)
-      .gte('occurred_at', month.from)
-      .lt('occurred_at', month.to)
-      .then((rows) => setMyContrib(rows.reduce((a, r) => a + Number(r.amount_crc), 0)))
-      .catch(() => setMyContrib(0));
-  }, [space, userId, month.from, month.to]);
 
   if (!space) return <Loading />;
 
+  const shared = space.kind === 'shared';
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
-  const income = sumKind(inMonth, 'income');
-  const contrib = sumKind(inMonth, 'contribution');
-  const shared = space.kind === 'shared';
-  const inflow = shared ? income + contrib : income;
-  const left = inflow - spent - (shared ? 0 : myContrib);
+  const budget = monthBudget(categories);
+  const today = dateKey(new Date().toISOString());
+  const fp = fingerprint(txs.filter((x) => inRange(x, month) || inRange(x, week)), categories, today);
 
-  const stats = categoryStats(categories, txs, month, week, isCurrent);
-  const alerts = stats.filter((s) => s.level === 'warn' || s.level === 'over');
-  const cols = stats
-    .filter((s) => s.limit || s.monthSpent > 0)
-    .sort((a, b) => Number(a.cat.is_fixed) - Number(b.cat.is_fixed) || (b.pct ?? -1) - (a.pct ?? -1) || b.monthSpent - a.monthSpent);
+  // This week, day by day (week_start → +6)
+  const weekTxs = txs.filter((x) => inRange(x, week));
+  const weekSpent = sumSpend(weekTxs);
+  const nowIso = new Date().toISOString();
+  const lastWeekSoFar = sumSpend(txs.filter((x) => x.occurred_at >= prevWeek.from && x.occurred_at < new Date(Date.now() - 7 * 86400000).toISOString()));
+  const hasLastWeek = txs.some((x) => inRange(x, prevWeek));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const from = new Date(new Date(week.from).getTime() + i * 86400000).toISOString();
+    const to = new Date(new Date(week.from).getTime() + (i + 1) * 86400000).toISOString();
+    const local = crLocal(from);
+    return { letter: DAY_LETTERS[local.getUTCDay()], total: sumSpend(weekTxs.filter((x) => inRange(x, { from, to }))), isToday: nowIso >= from && nowIso < to, future: from > nowIso };
+  });
+  const maxDay = Math.max(...days.map((d) => d.total), 1);
+  const startL = crLocal(week.from);
+  const endL = crLocal(new Date(new Date(week.to).getTime() - 1).toISOString());
+  const diff = weekSpent - lastWeekSoFar;
 
   // Friday card payment (shared spaces with a credit card)
   const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
   const cardIds = new Set(cards.map((c) => c.id));
-  const onCards = (r: { from: string; to: string }) => sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, r)));
-  const prevTotal = onCards(prevWeek);
-  const curTotal = onCards(week);
+  const prevOnCards = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
   const prevKey = `card-week:${prevWeek.startKey}`;
   const prevPayment = txs.find((x) => x.external_id === prevKey);
-  const pendingPrev = prevTotal > 0 && !prevPayment;
-  const dueDate = crLocal(week.to);
-  const daysLeft = Math.max(0, Math.round((new Date(week.to).getTime() - Date.now()) / 86400000));
+  const pendingPrev = shared && cards.length > 0 && prevOnCards > 0 && !prevPayment;
   const debit = accounts.find((a) => a.kind === 'debit' && !a.archived);
+  const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
 
   async function markPaid() {
     if (!space || !cards[0]) return;
     await db.insert('transactions', {
       space_id: space.id,
       kind: 'transfer',
-      amount: Math.round(prevTotal * 100) / 100,
+      amount: Math.round(prevOnCards * 100) / 100,
       currency: 'CRC',
       occurred_at: new Date().toISOString(),
       merchant: 'Pago de tarjeta',
@@ -123,167 +203,72 @@ export function Home() {
     toast('✅ Pago registrado');
     bump();
   }
-  async function undoPaid() {
-    if (!prevPayment) return;
-    await db.remove('transactions', { id: prevPayment.id });
-    toast('Pago deshecho');
-    bump();
-  }
 
-  const recent = inMonth.slice(0, 7);
-  const days: { label: string; rows: Tx[] }[] = [];
-  recent.forEach((r) => {
-    const label = dayLabel(r.occurred_at);
-    const g = days[days.length - 1];
-    if (g && g.label === label) g.rows.push(r);
-    else days.push({ label, rows: [r] });
-  });
-
-  const anyCats = cols.length > 0;
-  const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
+  const recent = txs.filter((x) => x.occurred_at <= nowIso && x.kind !== 'transfer').slice(0, 3);
 
   return (
     <div className="screen">
       <TopBar />
 
-      <section className="hero" aria-label="Balance del mes">
-        <MonthNav ym={ym} setYm={setYm} />
-        <span className="muted-label">Te queda en {monthName(ym[1])}</span>
-        <BigMoney crc={left} />
-        <div className="pills">
-          <span className="pill">
-            <span className="dot neg" aria-hidden="true">−</span>
-            <span className="sr">Gastos:</span>
-            {money(spent, cur, fx)}
+      <h1 className="headline">
+        {shared ? 'Llevan' : 'Llevás'} <strong>{money(spent, cur, fx)}</strong>
+        {budget > 0 ? <> de {money(budget, cur, fx)}</> : null} en {monthName(t.m)}
+      </h1>
+
+      <AiNote spaceId={space.id} fp={fp} ready={!loading} />
+
+      <section className="bento cyan week-card" aria-label="Gasto de esta semana">
+        <div className="row between">
+          <span className="bento-title"><span>🗓️</span>Esta semana</span>
+          <span className="badge">
+            {startL.getUTCMonth() === endL.getUTCMonth()
+              ? `${startL.getUTCDate()} al ${endL.getUTCDate()} ${monthShort(endL.getUTCMonth())}`
+              : `${startL.getUTCDate()} ${monthShort(startL.getUTCMonth())} al ${endL.getUTCDate()} ${monthShort(endL.getUTCMonth())}`}
           </span>
-          <span className="pill">
-            <span className="dot pos" aria-hidden="true">+</span>
-            <span className="sr">{shared ? 'Aportes e ingresos:' : 'Ingresos:'}</span>
-            {money(inflow, cur, fx)}
-          </span>
-          {!shared && myContrib > 0 && (
-            <span className="pill">
-              <span className="dot xfer" aria-hidden="true">→</span>
-              <span className="sr">Aportado a espacios compartidos:</span>
-              {money(myContrib, cur, fx)}
-            </span>
-          )}
         </div>
-      </section>
-
-      <div className="hscroll">
-        <a className="action" href="#/agregar?tipo=gasto"><span>💸</span>Gasto</a>
-        <a className="action" href="#/agregar?tipo=ingreso"><span>💰</span>Ingreso</a>
-        <a className="action" href="#/agregar?tipo=transferir"><span>🔄</span>Transferir</a>
-        {shared && <a className="action" href="#/agregar?tipo=aporte"><span>🤝</span>Aporte</a>}
-      </div>
-
-      {shared && cards.length > 0 && isCurrent && (
-        <section className="bento butter" aria-label="Pago del viernes">
-          <div className="row between">
-            <span className="bento-title"><span>🗓️</span>Pago del viernes</span>
-            <span className="badge">{pendingPrev ? 'Toca pagar' : daysLeft <= 1 ? 'Mañana' : `Faltan ${daysLeft} días`}</span>
-          </div>
-          {pendingPrev ? (
-            <>
-              <BigMoney crc={prevTotal} size={40} />
-              <span className="bento-sub">Semana anterior · se paga hoy desde {debit?.name || 'la cuenta compartida'}</span>
-              <button className="btn-dark" onClick={markPaid}>Marcar como pagado</button>
-            </>
-          ) : (
-            <>
-              <BigMoney crc={curTotal} size={40} />
-              <span className="bento-sub">
-                Lo que va de esta semana · se paga el vie {dueDate.getUTCDate()}
-                {others.length > 0 ? ` · ${others.join(', ')} transfiere` : ''}
+        <BigMoney crc={weekSpent} size={44} />
+        <span className="bento-sub">
+          {hasLastWeek && lastWeekSoFar > 0
+            ? diff > 0
+              ? `${money(diff, cur, fx)} más que la semana pasada a esta altura`
+              : diff < 0
+                ? `${money(-diff, cur, fx)} menos que la semana pasada a esta altura`
+                : 'Igual que la semana pasada a esta altura'
+            : `${plural(weekTxs.filter((x) => x.kind === 'expense').length, 'compra', 'compras')}${shared && cards.length ? ' · la tarjeta se paga el viernes' : ''}`}
+        </span>
+        <div className="week-bars" aria-hidden="true">
+          {days.map((d, i) => (
+            <span key={i} className={`wb${d.isToday ? ' today' : ''}${d.future ? ' future' : ''}`}>
+              <span className="wb-track">
+                <span className="wb-fill" style={{ height: d.total > 0 ? `${Math.max(8, Math.round((d.total / maxDay) * 100))}%` : 0 }} />
               </span>
-              {prevPayment && (
-                <button className="btn-light" onClick={undoPaid}>✅ Semana anterior pagada · Deshacer</button>
-              )}
-            </>
-          )}
-        </section>
-      )}
-
-      {!shared && (
-        <a className="bento cyan" href="#/patrimonio">
-          <div className="row between">
-            <span className="bento-title"><span>💎</span>Patrimonio neto</span>
-            <span className="round-dark-sm" aria-hidden="true"><Icon name="arrowUpRight" size={18} /></span>
-          </div>
-          <BigMoney crc={worth.net} size={40} />
-          <span className="bento-sub">{worth.count} cuentas · {worth.stale > 0 ? `${worth.stale} por actualizar` : 'al día'}</span>
-        </a>
-      )}
-
-      {alerts.length > 0 && (
-        <a href="#/presupuesto" className={alerts.some((a) => a.level === 'over') ? 'alert over' : 'alert warn'}>
-          <span className="alert-emoji">{alerts.some((a) => a.level === 'over') ? '🚨' : '⚠️'}</span>
-          <span className="grow col">
-            <strong>
-              {alerts.filter((a) => a.level === 'over').length > 0
-                ? `${alerts.filter((a) => a.level === 'over').length} excedida${alerts.filter((a) => a.level === 'over').length > 1 ? 's' : ''}`
-                : `${alerts.length} cerca del límite`}
-            </strong>
-            <span>{alerts.map((a) => `${a.cat.name} al ${a.pct}%`).join(' · ')}</span>
-          </span>
-          <Icon name="chevRight" size={18} />
-        </a>
-      )}
-
-      <section className="col gap12">
-        <div className="section-head">
-          <h2 className="h2">Categorías</h2>
-          <a href="#/presupuesto" className="link">Ver todo</a>
+              <span className="wb-day">{d.letter}</span>
+            </span>
+          ))}
         </div>
-        {anyCats ? (
-          <div className="hscroll">
-            {cols.map((s) => {
-              const fillH = s.limit ? Math.max(6, Math.round(Math.min(s.spent / s.limit, 1.25) * 150)) : 0;
-              return (
-                <a key={s.cat.id} href={`#/categoria/${s.cat.id}`} className="col-bar" style={{ background: tint(s.cat.color, false) }} aria-label={`${s.cat.name}: ${s.pct ?? '-'}%`}>
-                  <span className="col-name">{s.cat.name}</span>
-                  {s.limit ? (
-                    <>
-                      <span className="col-fill" style={{ height: fillH, background: s.level === 'over' ? '#F3B9B2' : tint(s.cat.color) }} />
-                      <span className="col-limit" />
-                    </>
-                  ) : (
-                    <span className="col-fill" style={{ height: 40, background: tint(s.cat.color) }} />
-                  )}
-                  <span className="col-info">
-                    <span className="col-emoji">{s.cat.emoji}</span>
-                    <span className="col-amt">{money(s.spent, cur, fx)}</span>
-                    <span className={`col-pct lvl-${s.level}`}>{s.pct !== null ? `${s.pct}%` : 'Sin límite'}</span>
-                  </span>
-                </a>
-              );
-            })}
+        {pendingPrev && (
+          <div className="week-pay">
+            <span className="grow col">
+              <strong>Toca pagar {money(prevOnCards, cur, fx)}</strong>
+              <span>Tarjeta de la semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
+            </span>
+            <button className="btn-dark sm" onClick={markPaid}>Pagado</button>
           </div>
-        ) : (
-          <div className="card empty">Todavía no hay gastos este mes.</div>
         )}
       </section>
 
       <section className="col gap12">
         <div className="section-head">
-          <h2 className="h2">Movimientos</h2>
+          <h2 className="h2">Últimos movimientos</h2>
           <a href="#/movimientos" className="link">Ver todos</a>
         </div>
         <div className="card list">
           {loading && txs.length === 0 ? (
             <Loading />
-          ) : days.length === 0 ? (
-            <div className="empty">Sin movimientos en {monthName(ym[1])}. Tocá + para agregar uno.</div>
+          ) : recent.length === 0 ? (
+            <div className="empty">Todavía no hay movimientos. Tocá + para agregar uno.</div>
           ) : (
-            days.map((d) => (
-              <div key={d.label}>
-                <span className="day-label">{d.label}</span>
-                {d.rows.map((r) => (
-                  <TxRow key={r.id} t={r} />
-                ))}
-              </div>
-            ))
+            recent.map((r) => <TxRow key={r.id} t={r} showDate />)
           )}
         </div>
       </section>

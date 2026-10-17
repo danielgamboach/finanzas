@@ -33,6 +33,7 @@ const paths: Record<string, string> = {
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
   back: 'M15 18l-6-6 6-6',
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  refresh: 'M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7',
 };
 
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths | string; size?: number; stroke?: number }) {
