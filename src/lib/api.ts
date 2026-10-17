@@ -216,4 +216,15 @@ export const db = {
   async rpc<T = any>(fn: string, args: object = {}): Promise<T> {
     return rest('POST', `rpc/${fn}`, args);
   },
+  async fn<T = any>(name: string, body: object): Promise<T> {
+    await ensureFresh();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(data?.error || `Error ${res.status}`, res.status);
+    return data as T;
+  },
 };

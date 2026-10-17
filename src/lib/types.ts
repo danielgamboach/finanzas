@@ -70,6 +70,10 @@ export interface Tx {
   status: 'posted' | 'review';
   source: 'manual' | 'email' | 'import' | 'recurring' | 'system';
   external_id: string | null;
+  category_source?: 'auto' | 'ai' | 'manual' | null;
+  suggested_category_id?: string | null;
+  ai_confidence?: number | null;
+  ai_checked_at?: string | null;
   transaction_tags?: { tags: { name: string } | null }[];
 }
 

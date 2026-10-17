@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { db } from '../lib/api';
 import { monthRange, spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { money, monthName } from '../lib/format';
 import { useApp, useTxs } from '../store';
@@ -9,7 +10,8 @@ import { groupByDay, MonthNav, useMonth } from './Home';
 type Filter = 'todos' | 'review' | 'rec' | 'gastos' | 'ingresos' | string;
 
 export function Movimientos() {
-  const { categories, tags, cur, fx } = useApp();
+  const { categories, tags, cur, fx, toast, bump } = useApp();
+  const [aiBusy, setAiBusy] = useState(false);
   const [ym, setYm] = useMonth();
   const month = monthRange(ym[0], ym[1]);
   const { txs, loading } = useTxs(month);
@@ -36,6 +38,38 @@ export function Movimientos() {
   }, [txs, filter, q, categories]);
 
   const groups = groupByDay(filtered);
+  const review = txs.filter((t) => t.status === 'review');
+  const withSuggestion = review.filter((t) => t.suggested_category_id);
+  const unchecked = review.filter((t) => !t.ai_checked_at && (t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund'));
+
+  async function askAi() {
+    setAiBusy(true);
+    try {
+      const r = await db.fn<{ ok: boolean; processed?: number; reason?: string; results?: { applied: boolean }[] }>('categorize', { tx_ids: unchecked.map((t) => t.id) });
+      if (!r.ok) toast(r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude' : 'No se pudo consultar la IA');
+      else {
+        const applied = (r.results || []).filter((x) => x.applied).length;
+        toast(`✨ ${applied} categorizados · ${(r.processed || 0) - applied} con sugerencia`);
+      }
+      bump();
+    } catch {
+      toast('No se pudo consultar la IA');
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  async function acceptAll() {
+    setAiBusy(true);
+    await Promise.all(
+      withSuggestion.map((t) =>
+        db.update('transactions', { id: t.id }, { category_id: t.suggested_category_id, status: 'posted', category_source: 'ai', suggested_category_id: null }),
+      ),
+    );
+    toast(`✅ ${withSuggestion.length} sugerencias aceptadas`);
+    setAiBusy(false);
+    bump();
+  }
   const spent = sumSpend(filtered);
   const inflow = sumKind(filtered, 'income') + sumKind(filtered, 'contribution');
   const showInflow = filter === 'ingresos';
@@ -67,6 +101,20 @@ export function Movimientos() {
           </button>
         ))}
       </div>
+
+      {filter === 'review' && (withSuggestion.length > 0 || unchecked.length > 0) && (
+        <div className="ai-bar">
+          <span className="ai-bar-text">
+            <strong>✨ Categorías con IA</strong>
+            <span>{withSuggestion.length > 0 ? `${withSuggestion.length} con sugerencia lista` : `${unchecked.length} sin analizar`}</span>
+          </span>
+          {withSuggestion.length > 0 ? (
+            <button className="btn-dark sm" disabled={aiBusy} onClick={acceptAll}>Aceptar todas</button>
+          ) : (
+            <button className="btn-dark sm" disabled={aiBusy} onClick={askAi}>{aiBusy ? 'Pensando…' : 'Sugerir'}</button>
+          )}
+        </div>
+      )}
 
       <section className="hero small" aria-label="Total">
         <MonthNav ym={ym} setYm={setYm} />

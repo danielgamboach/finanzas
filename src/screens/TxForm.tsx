@@ -71,7 +71,7 @@ export function TxForm({ id }: { id?: string }) {
       setSpaceId(t.space_id);
       setCur(t.currency);
       setAmount(rawAmount(String(t.amount).replace('.', ',')));
-      setCategoryId(t.category_id);
+      setCategoryId(t.category_id || t.suggested_category_id || null);
       setAccountId(t.account_id);
       setToAccountId(t.to_account_id);
       setContributor(t.contributor_id || userId);
@@ -112,7 +112,7 @@ export function TxForm({ id }: { id?: string }) {
   const spaceMembers = members.filter((m) => m.space_id === spaceId);
   const selectedCat = cats.find((c) => c.id === categoryId);
   const fromEmail = orig && (orig.source === 'email' || orig.source === 'import') && orig.raw_merchant;
-  const categoryChanged = orig && categoryId && categoryId !== orig.category_id;
+  const categoryChanged = orig && categoryId && (categoryId !== orig.category_id || orig.status === 'review');
 
   const canSave = num > 0 && spaceId && (type !== 'transferir' || (accountId || toAccountId));
 
@@ -140,6 +140,10 @@ export function TxForm({ id }: { id?: string }) {
         contributor_id: type === 'aporte' ? contributor : null,
         status: (type === 'gasto' || type === 'ingreso') && !categoryId ? 'review' : 'posted',
       };
+      if (id && orig) {
+        if (categoryId && (categoryId !== orig.category_id || orig.status === 'review')) row.category_source = 'manual';
+        if (categoryId) row.suggested_category_id = null;
+      }
       let txId = id;
       if (id) {
         await db.update('transactions', { id }, row);
@@ -265,6 +269,9 @@ export function TxForm({ id }: { id?: string }) {
         {(type === 'gasto' || type === 'ingreso') && (
           <div className="col gap10">
             <span className="field-label">Categoría</span>
+            {orig?.status === 'review' && orig.suggested_category_id && categoryId === orig.suggested_category_id && (
+              <span className="hint">✨ Sugerida por IA{orig.ai_confidence ? ` · ${Math.round(Number(orig.ai_confidence) * 100)}% de confianza` : ''}. Confirmala o elegí otra.</span>
+            )}
             <div className="cat-grid">
               {shownCats.map((c) => (
                 <button

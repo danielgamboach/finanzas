@@ -23,15 +23,18 @@ export function TxRow({ t }: { t: Tx }) {
   const showOriginal = t.currency === 'USD' && cur === 'CRC';
   const main = showOriginal ? moneyRaw(Number(t.amount), 'USD', { sign: inflow ? '+' : '' }) : money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const tags = tagsOf(t);
+  const suggested = review && t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
   return (
     <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
       <Emo e={emoji} color={color} />
       <span className="tx-mid">
         <span className="tx-cat">{label}</span>
         <span className="tx-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
-        {(review || t.recurring_id || tags.length > 0) && (
+        {(review || t.recurring_id || tags.length > 0 || t.category_source === 'ai') && (
           <span className="chips">
-            {review && <span className="chip warn">Por revisar</span>}
+            {review && !suggested && <span className="chip warn">Por revisar</span>}
+            {suggested && <span className="chip ai">✨ ¿{suggested.emoji} {suggested.name}?</span>}
+            {!review && t.category_source === 'ai' && <span className="chip ai">✨ IA</span>}
             {t.recurring_id && <span className="chip">🔁 Recurrente</span>}
             {tags.map((g) => (
               <span key={g} className="chip">{g}</span>
