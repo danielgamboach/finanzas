@@ -63,17 +63,16 @@ const BUBBLES: [number, number, number][] = [
   [15, 0, 22],
 ];
 
-export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch: () => void }) {
+/** Everything the home summary shows; shared by the phone and desktop homes. */
+export function useHomeSummary() {
   const { space, categories, accounts, cur, fx, photos } = useApp();
   const t = todayCR();
   const month = monthRange(t.y, t.m);
   const prevMonth = monthRange(t.y, t.m - 1);
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
-  const { txs } = useTxs(range);
-  const topRef = useRef<HTMLDivElement>(null);
-
-  if (!space) return <Loading />;
+  const { txs, loading } = useTxs(range);
+  if (!space) return null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
@@ -132,11 +131,28 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
     seen.add(key);
     merchants.push({ key, tx: x });
   }
-  const shown = merchants.slice(0, BUBBLES.length);
-  const more = merchants.length - shown.length;
 
   const peek = accounts.filter((a) => !a.archived).sort(byKind).slice(0, 3);
   const recent = txs.filter((x) => x.occurred_at <= nowIso).slice(0, 14);
+  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, merchants, peek, recent, loading };
+}
+
+/** A merchant's face: its photo, or the emoji of its category on the category color. */
+export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
+  const { photos, categories } = useApp();
+  const ph = photoFor(photos, tx.merchant, tx.raw_merchant);
+  const cat = categories.find((c) => c.id === tx.category_id);
+  return ph ? <img src={photoUrl(ph)} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
+}
+
+export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch: () => void }) {
+  const { categories, cur, fx, photos } = useApp();
+  const topRef = useRef<HTMLDivElement>(null);
+  const h = useHomeSummary();
+  if (!h) return <Loading />;
+  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, merchants, peek, recent } = h;
+  const shown = merchants.slice(0, BUBBLES.length);
+  const more = merchants.length - shown.length;
 
   return (
     <div className="home">

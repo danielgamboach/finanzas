@@ -7,6 +7,7 @@ import { go, navigate, useApp } from '../store';
 import { BackBar, Emo, Icon, Loading, tint } from '../ui';
 import { ACCOUNT_COLORS, accountColor, BRANDS, byKind } from '../lib/accounts';
 import { MovementsBrowser } from './Movimientos';
+import { useDesktop } from '../lib/useDesktop';
 
 const ASSET_KINDS = ['savings', 'investment', 'cdp', 'cash', 'debit', 'other'];
 const KIND_LABEL: Record<string, string> = {
@@ -179,9 +180,84 @@ export function Cuentas() {
     db.from<Goal>('goals', '*,goal_accounts(account_id)').eq('space_id', space.id).order('created_at').then(setGoals).catch(() => setGoals([]));
   }, [space, version]);
 
+  const desk = useDesktop();
   if (!space) return <Loading />;
   const accs = [...w.accounts].sort(byKind);
   const hasAssets = accs.some((a) => a.kind !== 'credit_card');
+
+  const groups = w.loading && accs.length === 0 ? (
+    <Loading />
+  ) : accs.length === 0 ? (
+    <a className="card empty center" href="#/cuenta/nueva"><span className="big-emoji">💳</span><strong>Agregá tus cuentas</strong><span>Tarjetas, ahorros, inversiones.</span></a>
+  ) : (
+    GROUPS.map((g) => {
+      const list = accs.filter((a) => g.kinds.includes(a.kind));
+      if (!list.length) return null;
+      return (
+        <section key={g.title} className="col gap10">
+          <h2 className="h2 px4">{g.title}</h2>
+          <div className={desk ? 'wgrid' : 'wstack'}>
+            {list.map((a, i) => (
+              <AccountCard key={a.id} a={a} w={w} onClick={() => navigate(`/cuenta/${a.id}`)} style={desk ? undefined : { zIndex: i }} />
+            ))}
+          </div>
+        </section>
+      );
+    })
+  );
+  const goalList = goals.length === 0 ? (
+    <a className="card empty center" href="#/meta/nueva"><span className="big-emoji">🎯</span><strong>Creá tu primera meta</strong><span>Ej. 🏡 Casa, y asociale cuentas.</span></a>
+  ) : (
+    goals.map((gl) => {
+      const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
+      const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
+      const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
+      const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
+      return (
+        <a key={gl.id} href={`#/meta/${gl.id}`} className="card pad col gap8 goal-row">
+          <div className="row between">
+            <strong className="sm">{gl.emoji} {gl.name}</strong>
+            <span className="muted small">{pct}%</span>
+          </div>
+          <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--ink)' }} /></div>
+          <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
+        </a>
+      );
+    })
+  );
+
+  if (desk) {
+    // desktop: cards side by side, net worth and goals in a column on the right
+    return (
+      <div className="dpage">
+        <header className="dpage-head">
+          <h1 className="dtitle">Cuentas</h1>
+          <div className="row gap8">
+            <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar saldos{w.stale ? ` · ${w.stale}` : ''}</a>
+            <a className="pill-btn light" href="#/cuenta/nueva"><Icon name="plus" size={16} stroke={2.4} />Nueva cuenta</a>
+          </div>
+        </header>
+        <div className="dgrid cuentas-grid">
+          <div className="dcol">{groups}</div>
+          <aside className="dcol">
+            {hasAssets && (
+              <section className="card pad col gap4">
+                <span className="muted small">Patrimonio neto</span>
+                <strong className="stat-hero">{money(w.net, cur, fx)}</strong>
+                <span className="muted small">Ahorro {money(w.savings, cur, fx)} · Inversión {money(w.investments, cur, fx)}</span>
+                <span className="muted small">Tarjetas por pagar {money(w.cards, cur, fx)}</span>
+              </section>
+            )}
+            <div className="section-head">
+              <h2 className="h2">Metas</h2>
+              <a className="link" href="#/meta/nueva">Nueva</a>
+            </div>
+            {goalList}
+          </aside>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="panel-inner">
@@ -200,52 +276,14 @@ export function Cuentas() {
         </section>
       )}
 
-      {w.loading && accs.length === 0 ? (
-        <Loading />
-      ) : accs.length === 0 ? (
-        <a className="card empty center" href="#/cuenta/nueva"><span className="big-emoji">💳</span><strong>Agregá tus cuentas</strong><span>Tarjetas, ahorros, inversiones.</span></a>
-      ) : (
-        GROUPS.map((g) => {
-          const list = accs.filter((a) => g.kinds.includes(a.kind));
-          if (!list.length) return null;
-          return (
-            <section key={g.title} className="col gap10">
-              <h2 className="h2 px4">{g.title}</h2>
-              <div className="wstack">
-                {list.map((a, i) => (
-                  <AccountCard key={a.id} a={a} w={w} onClick={() => navigate(`/cuenta/${a.id}`)} style={{ zIndex: i }} />
-                ))}
-              </div>
-            </section>
-          );
-        })
-      )}
+      {groups}
 
       <section className="col gap10">
         <div className="section-head">
           <h2 className="h2">Metas</h2>
           <a className="link" href="#/meta/nueva">Nueva</a>
         </div>
-        {goals.length === 0 ? (
-          <a className="card empty center" href="#/meta/nueva"><span className="big-emoji">🎯</span><strong>Creá tu primera meta</strong><span>Ej. 🏡 Casa, y asociale cuentas.</span></a>
-        ) : (
-          goals.map((gl) => {
-            const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
-            const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
-            const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
-            const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
-            return (
-              <a key={gl.id} href={`#/meta/${gl.id}`} className="card pad col gap8 goal-row">
-                <div className="row between">
-                  <strong className="sm">{gl.emoji} {gl.name}</strong>
-                  <span className="muted small">{pct}%</span>
-                </div>
-                <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--ink)' }} /></div>
-                <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
-              </a>
-            );
-          })
-        )}
+        {goalList}
       </section>
     </div>
   );
@@ -255,29 +293,54 @@ export function Cuentas() {
 export function AccountView({ id }: { id: string }) {
   const { space, accounts, fx } = useApp();
   const w = useNetWorth(space?.id || null);
+  const desk = useDesktop();
   const a = w.accounts.find((x) => x.id === id) || accounts.find((x) => x.id === id);
   if (!a) return <Loading />;
   const isCard = a.kind === 'credit_card';
   const split = w.cardSplit[a.id];
+  const figures = isCard ? (
+    <div className="grid2">
+      <div className="card pad col gap4"><span className="muted small">Por pagar en colones</span><strong className="stat-big">{moneyRaw(split?.CRC || 0, 'CRC')}</strong></div>
+      <div className="card pad col gap4"><span className="muted small">Por pagar en dólares</span><strong className="stat-big">{moneyRaw(split?.USD || 0, 'USD')}</strong></div>
+    </div>
+  ) : (
+    <div className="card pad row between">
+      <span className="col gap4">
+        <span className="muted small">{w.latest[a.id] ? `Saldo al ${shortDate(w.latest[a.id]!.taken_on + 'T18:00:00Z')}` : 'Sin saldo registrado'}</span>
+        <strong className="stat-big">{w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</strong>
+        {w.latest[a.id] && a.currency === 'USD' && <span className="muted small">≈ {moneyRaw(Number(w.latest[a.id]!.balance) * fx, 'CRC')}</span>}
+      </span>
+      <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar</a>
+    </div>
+  );
+  if (desk) {
+    return (
+      <div className="dpage">
+        <header className="dpage-head">
+          <div className="row gap12">
+            <a className="round" href="#/cuentas" aria-label="Volver a cuentas"><Icon name="back" /></a>
+            <h1 className="dtitle">{a.name}</h1>
+          </div>
+          <a className="pill-btn" href={`#/cuenta/${a.id}/editar`}><Icon name="pencil" size={16} />Editar cuenta</a>
+        </header>
+        <div className="dgrid account-grid">
+          <div className="dcol dsticky">
+            <AccountCard a={a} w={w} big />
+            {figures}
+          </div>
+          <section className="dcard dmov">
+            <h2 className="h2 dmov-head">Movimientos</h2>
+            <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} table />
+          </section>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="screen no-nav">
       <BackBar right={<a className="round" href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" /></a>} />
       <AccountCard a={a} w={w} big />
-      {isCard ? (
-        <div className="grid2">
-          <div className="card pad col gap4"><span className="muted small">Por pagar en colones</span><strong className="stat-big">{moneyRaw(split?.CRC || 0, 'CRC')}</strong></div>
-          <div className="card pad col gap4"><span className="muted small">Por pagar en dólares</span><strong className="stat-big">{moneyRaw(split?.USD || 0, 'USD')}</strong></div>
-        </div>
-      ) : (
-        <div className="card pad row between">
-          <span className="col gap4">
-            <span className="muted small">{w.latest[a.id] ? `Saldo al ${shortDate(w.latest[a.id]!.taken_on + 'T18:00:00Z')}` : 'Sin saldo registrado'}</span>
-            <strong className="stat-big">{w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</strong>
-            {w.latest[a.id] && a.currency === 'USD' && <span className="muted small">≈ {moneyRaw(Number(w.latest[a.id]!.balance) * fx, 'CRC')}</span>}
-          </span>
-          <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar</a>
-        </div>
-      )}
+      {figures}
       <h2 className="h2 px4">Movimientos</h2>
       <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} />
     </div>

@@ -7,7 +7,7 @@ import { catLabel, familyIds, pickerOrder } from '../lib/cats';
 import { byKind } from '../lib/accounts';
 import { useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { TxRow } from '../ui/TxRow';
+import { TxRow, TxTableRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
 import { PeriodPicker } from '../ui/PeriodPicker';
 
@@ -17,7 +17,7 @@ type Kind = 'todos' | 'review' | 'rec' | 'gastos' | 'ingresos' | string;
  * Every movement of the space with search and filters (period, category, account, type).
  * Lives inside the home sheet (white) and inside an account's view (dark, with `accountId` fixed).
  */
-export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov' }: { accountId?: string; autoFocus?: boolean; screen?: string }) {
+export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov', table = false, limit }: { accountId?: string; autoFocus?: boolean; screen?: string; table?: boolean; limit?: number }) {
   const { categories, accounts, tags, cur, fx, toast, bump, space } = useApp();
   const [aiBusy, setAiBusy] = useState(false);
   const [pk, setPk] = usePeriod(screen);
@@ -27,6 +27,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov' 
   const [cat, setCat] = useState('');
   const [acc, setAcc] = useState(accountId || '');
   const [q, setQ] = useState('');
+  const [shown, setShown] = useState(limit || 150);
   const search = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (autoFocus) search.current?.focus({ preventScroll: true });
@@ -107,7 +108,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov' 
   const active = (kind !== 'todos' ? 1 : 0) + (cat ? 1 : 0) + (!accountId && acc ? 1 : 0) + (q ? 1 : 0);
 
   return (
-    <div className="mb">
+    <div className={table ? 'mb mb-table' : 'mb'}>
       <label className="search">
         <Icon name="search" />
         <span className="sr">Buscar movimientos</span>
@@ -172,6 +173,26 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov' 
 
       {loading && all.length === 0 ? (
         <Loading />
+      ) : table ? (
+        filtered.length === 0 ? (
+          <div className="empty center-text">{kind === 'review' ? '🎉 Nada por revisar.' : 'Sin movimientos con estos filtros.'}</div>
+        ) : (
+          <div className="ttable" role="table" aria-label="Movimientos">
+            <div className={accountId ? 'ttr thead no-acc' : 'ttr thead'} role="row">
+              <span role="columnheader">Fecha</span>
+              <span role="columnheader">Comercio</span>
+              <span role="columnheader">Categoría</span>
+              {!accountId && <span role="columnheader">Cuenta</span>}
+              <span role="columnheader" className="tt-amt">Monto</span>
+            </div>
+            {filtered.slice(0, shown).map((t) => (
+              <TxTableRow key={t.id} t={t} hideAccount={!!accountId} />
+            ))}
+            {filtered.length > shown && (
+              <button className="tt-more" onClick={() => setShown((n) => n + 150)}>Mostrar {Math.min(150, filtered.length - shown)} más · quedan {filtered.length - shown}</button>
+            )}
+          </div>
+        )
       ) : groups.length === 0 ? (
         <div className="empty center-text">
           {kind === 'review' ? '🎉 Nada por revisar.' : 'Sin movimientos con estos filtros.'}

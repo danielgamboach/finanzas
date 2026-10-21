@@ -8,12 +8,14 @@ import { MonthChart } from '../ui/MonthChart';
 import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
+import { useDesktop } from '../lib/useDesktop';
 
 /** Left panel: the month at a glance, budgets by category and trends. */
 export function Analisis() {
   const { space, categories, cur, fx } = useApp();
   const [tab, setTab] = useState<'limits' | 'analysis'>('limits');
   const [ym, setYm] = useMonth();
+  const desk = useDesktop();
   const t = todayCR();
   const isCurrent = ym[0] === t.y && ym[1] === t.m;
   const month = monthRange(ym[0], ym[1]);
@@ -52,83 +54,111 @@ export function Analisis() {
   const weekSpent = sumSpend(txs.filter((x) => inRange(x, week)));
   const fmt = (v: number) => money(v, cur, fx);
 
+  const ai = <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />;
+  const chart = (
+    <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
+      <span className="muted small">Llevás</span>
+      <span className="row gap8 baseline wrap">
+        <strong className="stat-hero">{fmt(spent)}</strong>
+        {budget > 0 && <span className="muted">de {fmt(budget)}</span>}
+      </span>
+      <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(monthName(pl.getUTCMonth()))} fmt={fmt} />
+      <div className="stats3">
+        <div className="stat">
+          <span className="stat-label">{isCurrent ? 'Esta semana' : 'Promedio diario'}</span>
+          <span className="stat-value">{isCurrent ? fmt(weekSpent) : fmt(spent / daysInMonth)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">vs. {monthShort(pl.getUTCMonth())}</span>
+          {prevSeries ? <span className={diff > 0 ? 'stat-value up' : 'stat-value down'}>{diff > 0 ? '↑ ' : '↓ '}{fmt(Math.abs(diff))}</span> : <span className="stat-value">—</span>}
+          <span className="stat-sub">{prevSeries ? (isCurrent ? 'a esta altura' : 'mes completo') : 'sin datos'}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">{isCurrent ? 'Proyección' : 'Fijos'}</span>
+          <span className={budget && isCurrent && projection > budget ? 'stat-value up' : 'stat-value'}>{isCurrent ? fmt(projection) : fmt(fixedSpent)}</span>
+        </div>
+      </div>
+    </section>
+  );
+  const limits = (
+    <>
+      {budget > 0 && (
+        <div className="card pad col gap10">
+          <div className="row between small-strong">
+            <span>{usedPct}% usado</span>
+            <span className="muted">{isCurrent ? `Día ${t.d} de ${daysInMonth}` : 'Mes cerrado'}</span>
+          </div>
+          <div className="bar big">
+            <div className="bar-fill" style={{ width: `${Math.min(usedPct, 100)}%`, background: usedPct >= 100 ? 'var(--danger)' : usedPct >= 80 ? 'var(--warn)' : 'var(--ink)' }} />
+            {isCurrent && <div className="bar-marker" style={{ left: `${pace}%` }} />}
+          </div>
+          {isCurrent && <span className="muted small">La línea marca dónde deberías ir a esta altura del mes</span>}
+        </div>
+      )}
+
+      <div className="grid2">
+        <div className="bento butter tight">
+          <span className="bento-emoji">⚠️</span>
+          <span className="bento-num">{warnCount}</span>
+          <span className="bento-sub">categorías cerca o pasadas del límite</span>
+        </div>
+        <div className={budget && projection > budget ? 'bento pink tight' : 'bento mint tight'}>
+          <span className="bento-emoji">📈</span>
+          <span className="bento-num sm">{money(projection, cur, fx)}</span>
+          <span className="bento-sub">
+            {isCurrent ? 'proyección de cierre' : 'cierre del mes'}
+            {budget ? (projection > budget ? ` · ${money(projection - budget, cur, fx)} sobre` : ' · dentro del total') : ''}
+          </span>
+        </div>
+      </div>
+
+      <div className="section-head">
+        <h2 className="h2">Categorías</h2>
+        <a href="#/categoria/nueva" className="btn-dark sm"><Icon name="plus" size={16} stroke={2.6} />Nueva</a>
+      </div>
+      <div className="col gap8 cat-list">
+        {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
+      </div>
+    </>
+  );
+
+  if (desk) {
+    // desktop: everything at once, budget on the left and trends on the right
+    return (
+      <div className="dpage">
+        <header className="dpage-head">
+          <h1 className="dtitle">Análisis</h1>
+          <MonthNav ym={ym} setYm={setYm} />
+        </header>
+        {loading && txs.length === 0 ? (
+          <Loading />
+        ) : (
+          <div className="dgrid analisis-grid">
+            <div className="dcol">
+              {ai}
+              {chart}
+              {limits}
+            </div>
+            <div className="dcol">
+              <h2 className="h2 px4">Tendencias</h2>
+              <Analysis txs={txs} ym={ym} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="panel-inner">
       <header className="panel-head">
         <h1 className="h1">Análisis</h1>
       </header>
-      <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />
+      {ai}
       <MonthNav ym={ym} setYm={setYm} />
-      <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
-        <span className="muted small">Llevás</span>
-        <span className="row gap8 baseline wrap">
-          <strong className="stat-hero">{fmt(spent)}</strong>
-          {budget > 0 && <span className="muted">de {fmt(budget)}</span>}
-        </span>
-        <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(monthName(pl.getUTCMonth()))} fmt={fmt} />
-        <div className="stats3">
-          <div className="stat">
-            <span className="stat-label">{isCurrent ? 'Esta semana' : 'Promedio diario'}</span>
-            <span className="stat-value">{isCurrent ? fmt(weekSpent) : fmt(spent / daysInMonth)}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">vs. {monthShort(pl.getUTCMonth())}</span>
-            {prevSeries ? <span className={diff > 0 ? 'stat-value up' : 'stat-value down'}>{diff > 0 ? '↑ ' : '↓ '}{fmt(Math.abs(diff))}</span> : <span className="stat-value">—</span>}
-            <span className="stat-sub">{prevSeries ? (isCurrent ? 'a esta altura' : 'mes completo') : 'sin datos'}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">{isCurrent ? 'Proyección' : 'Fijos'}</span>
-            <span className={budget && isCurrent && projection > budget ? 'stat-value up' : 'stat-value'}>{isCurrent ? fmt(projection) : fmt(fixedSpent)}</span>
-          </div>
-        </div>
-      </section>
+      {chart}
       <Segmented value={tab} options={[['limits', 'Presupuesto'], ['analysis', 'Tendencias']]} onChange={setTab} dark />
-
-      {loading && txs.length === 0 ? (
-        <Loading />
-      ) : tab === 'limits' ? (
-        <>
-          {budget > 0 && (
-            <div className="card pad col gap10">
-              <div className="row between small-strong">
-                <span>{usedPct}% usado</span>
-                <span className="muted">{isCurrent ? `Día ${t.d} de ${daysInMonth}` : 'Mes cerrado'}</span>
-              </div>
-              <div className="bar big">
-                <div className="bar-fill" style={{ width: `${Math.min(usedPct, 100)}%`, background: usedPct >= 100 ? 'var(--danger)' : usedPct >= 80 ? 'var(--warn)' : 'var(--ink)' }} />
-                {isCurrent && <div className="bar-marker" style={{ left: `${pace}%` }} />}
-              </div>
-              {isCurrent && <span className="muted small">La línea marca dónde deberías ir a esta altura del mes</span>}
-            </div>
-          )}
-
-          <div className="grid2">
-            <div className="bento butter tight">
-              <span className="bento-emoji">⚠️</span>
-              <span className="bento-num">{warnCount}</span>
-              <span className="bento-sub">categorías cerca o pasadas del límite</span>
-            </div>
-            <div className={budget && projection > budget ? 'bento pink tight' : 'bento mint tight'}>
-              <span className="bento-emoji">📈</span>
-              <span className="bento-num sm">{money(projection, cur, fx)}</span>
-              <span className="bento-sub">
-                {isCurrent ? 'proyección de cierre' : 'cierre del mes'}
-                {budget ? (projection > budget ? ` · ${money(projection - budget, cur, fx)} sobre` : ' · dentro del total') : ''}
-              </span>
-            </div>
-          </div>
-
-          <div className="section-head">
-            <h2 className="h2">Categorías</h2>
-            <a href="#/categoria/nueva" className="btn-dark sm"><Icon name="plus" size={16} stroke={2.6} />Nueva</a>
-          </div>
-          <div className="col gap8">
-            {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
-          </div>
-        </>
-      ) : (
-        <Analysis txs={txs} ym={ym} />
-      )}
+      {loading && txs.length === 0 ? <Loading /> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
     </div>
   );
 }
