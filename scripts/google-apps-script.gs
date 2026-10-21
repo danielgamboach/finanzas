@@ -11,6 +11,12 @@
  *     o mejor: Configuración del proyecto → Propiedades del script → FINANZAS_TOKEN.
  *  3. Ejecutar `instalar` y aceptar los permisos (Gmail, Sheets y conexiones externas).
  *     La primera vez también importa el historial del Sheet.
+ *
+ * Segunda persona (ej. Kimmy), con su propia cuenta de Google:
+ *  1. Entrar a la app con SU usuario y generar SU token en Ajustes → Vouchers automáticos.
+ *  2. Mismos pasos 1 y 2 de arriba, pero ejecutar `instalarSoloVouchers` en vez de `instalar`.
+ *     Solo lee sus correos del BAC; el tipo de cambio y el historial ya los maneja el script principal.
+ *     Si un voucher también llega al otro correo, la app lo reconoce y no lo duplica.
  */
 
 const SUPABASE_URL = 'https://vzgnujopgryuskixcnnx.supabase.co';
@@ -64,6 +70,15 @@ function instalar() {
   }
   procesarVouchers();
   Logger.log('Listo: vouchers cada 10 min, tipo de cambio y recurrentes cada día.');
+}
+
+/** Para una segunda persona: solo revisa sus vouchers cada 10 minutos. */
+function instalarSoloVouchers() {
+  ScriptApp.getProjectTriggers().forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('procesarVouchers').timeBased().everyMinutes(10).create();
+  GmailApp.getUserLabelByName(LABEL) || GmailApp.createLabel(LABEL);
+  procesarVouchers();
+  Logger.log('Listo: tus vouchers del BAC se revisan cada 10 minutos.');
 }
 
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
