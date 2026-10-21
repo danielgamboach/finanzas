@@ -18,8 +18,9 @@
  *     Solo lee sus correos del BAC; el tipo de cambio y el historial ya los maneja el script principal.
  *     Si un voucher también llega al otro correo, la app lo reconoce y no lo duplica.
  *
- * Historial (una sola vez, cualquiera de los dos): ejecutar `importarHistorialCorreos`.
+ * Historial (una vez, cada persona en su cuenta): ejecutar `importarHistorialCorreos`.
  * Lee todos los vouchers viejos desde HISTORIAL_DESDE, por tandas, y se reprograma solo hasta terminar.
+ * Les pone la etiqueta Finanzas/Historial; para repetirlo desde cero, quitá esa etiqueta.
  * Las fechas que ya cubre un estado de cuenta importado se saltan para no duplicar.
  */
 
@@ -78,17 +79,25 @@ function instalar() {
 
 // Historial de correos: desde cuándo leer vouchers viejos (formato de Gmail AAAA/MM/DD).
 const HISTORIAL_DESDE = '2025/01/01';
+// Etiqueta propia del historial: no depende de "Procesado", que el revisor automático
+// también les pone a los vouchers que se salta por fecha.
+const LABEL_HISTORIAL = 'Finanzas/Historial';
 const LABEL_ERROR = 'Finanzas/Error';
 
-/** Carga los vouchers viejos del correo como historial. Corre por tandas y se reprograma hasta terminar. */
-function importarHistorialCorreos() {
+/**
+ * Carga los vouchers viejos del correo como historial. Corre por tandas y se reprograma hasta terminar.
+ * Se puede correr de nuevo sin miedo: la app reconoce los vouchers que ya tiene y no los duplica.
+ */
+function importarHistorialCorreos(e) {
   const inicio = Date.now();
   const props = PropertiesService.getScriptProperties();
-  const label = GmailApp.getUserLabelByName(LABEL) || GmailApp.createLabel(LABEL);
+  const label = GmailApp.getUserLabelByName(LABEL_HISTORIAL) || GmailApp.createLabel(LABEL_HISTORIAL);
   const labelError = GmailApp.getUserLabelByName(LABEL_ERROR) || GmailApp.createLabel(LABEL_ERROR);
   const tok = token_();
   const q = 'from:(baccredomatic.cr) subject:"Notificación de transacción" after:' + HISTORIAL_DESDE +
-    ' -label:' + LABEL.replace('/', '-') + ' -label:' + LABEL_ERROR.replace('/', '-');
+    ' -label:' + LABEL_HISTORIAL.replace('/', '-') + ' -label:' + LABEL_ERROR.replace('/', '-');
+  // corrido a mano empieza la cuenta de cero; la continuación automática la sigue
+  if (!e || !e.triggerUid) props.deleteProperty('HISTORIAL_CORREOS');
   const st = JSON.parse(props.getProperty('HISTORIAL_CORREOS') ||
     '{"correos":0,"nuevos":0,"repetidos":0,"cubiertos":0,"sinCuenta":0,"ilegibles":0,"errores":0}');
   let quedan = true;
@@ -100,7 +109,8 @@ function importarHistorialCorreos() {
       thread.getMessages().forEach((msg) => {
         st.correos++;
         const v = parseVoucher_(msg.getPlainBody() || msg.getBody().replace(/<[^>]+>/g, '\n'));
-        if (!v) { st.ilegibles++; return; }
+        // sin fecha legible no se carga: quedaría con la fecha de hoy
+        if (!v || !v.fechaOk) { st.ilegibles++; Logger.log('Sin datos de compra: ' + msg.getSubject()); return; }
         try {
           const r = rpc_('ingest_bac_voucher_bulk', {
             p_token: tok, p_message_id: msg.getId(), p_last4: v.last4, p_merchant: v.merchant,
@@ -110,10 +120,10 @@ function importarHistorialCorreos() {
           else if (r === 'duplicate') st.repetidos++;
           else if (r === 'covered_by_statement') st.cubiertos++;
           else if (r === 'unmatched') st.sinCuenta++;
-        } catch (e) {
+        } catch (err) {
           ok = false;
           st.errores++;
-          Logger.log('Error con ' + msg.getSubject() + ': ' + e);
+          Logger.log('Error con ' + msg.getSubject() + ': ' + err);
         }
       });
       thread.addLabel(ok ? label : labelError);
@@ -161,7 +171,7 @@ function parseVoucher_(body) {
   const fecha = field('Fecha');
   const tipo = field('Tipo de Transacci[oó]n') || 'COMPRA';
   const monto = field('Monto');
-  const card = text.match(/(?:AMEX|VISA|MASTER\s?CARD|MC|TARJETA)[^:\n]*:\s*\|?\s*[*xX\s]*(\d{4})\b/i);
+  const card = text.match(/(?:AMEX|VISA|MASTER(?:\s?CARD)?|MC|TARJETA)[^:\n]*:\s*\|?\s*[*xX\s]*(\d{4})\b/i);
   const auth = field('Autorizaci[oó]n');
 
   const amt = monto.match(/(CRC|USD|\$|₡)\s*([\d.,]+)/i);
@@ -171,13 +181,13 @@ function parseVoucher_(body) {
   if (!(amount > 0)) return null;
 
   // "Oct 16, 2026, 21:54"
-  const d = fecha.match(/([A-Za-z]{3})[a-z]*\s+(\d{1,2}),\s*(\d{4}),?\s*(\d{1,2}):(\d{2})/);
+  const d = fecha.match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})\s*,\s*(\d{4})\s*,?\s*(\d{1,2}):(\d{2})/);
   let occurredAt = new Date().toISOString();
   if (d) {
     const mm = MONTHS[d[1].toLowerCase()] || 1;
     occurredAt = d[3] + '-' + pad_(mm) + '-' + pad_(d[2]) + 'T' + pad_(d[4]) + ':' + d[5] + ':00-06:00';
   }
-  return { merchant: merchant, currency: currency, amount: amount, last4: card[1], tipo: tipo, auth: auth || null, occurredAt: occurredAt };
+  return { merchant: merchant, currency: currency, amount: amount, last4: card[1], tipo: tipo, auth: auth || null, occurredAt: occurredAt, fechaOk: !!d };
 }
 
 function pad_(n) { return String(n).padStart(2, '0'); }
