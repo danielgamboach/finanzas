@@ -6,6 +6,7 @@ import { useApp, useTxs } from '../store';
 import { Emo, Icon, Loading, Segmented } from '../ui';
 import { MonthChart } from '../ui/MonthChart';
 import { AiNote, fingerprint } from '../ui/AiNote';
+import { KaiAskBar } from '../ui/Kai';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 import { useDesktop } from '../lib/useDesktop';
@@ -54,7 +55,12 @@ export function Analisis() {
   const weekSpent = sumSpend(txs.filter((x) => inRange(x, week)));
   const fmt = (v: number) => money(v, cur, fx);
 
-  const ai = <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />;
+  const ai = (
+    <div className="kai-block">
+      <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />
+      <KaiAskBar />
+    </div>
+  );
   const chart = (
     <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
       <span className="muted small">Llevás</span>

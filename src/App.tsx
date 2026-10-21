@@ -13,6 +13,7 @@ import { Analisis } from './screens/Presupuesto';
 import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
 import { useDesktop } from './lib/useDesktop';
+import { KaiHost } from './ui/Kai';
 
 const MODAL = new Set(['agregar', 'mov']);
 
@@ -122,6 +123,7 @@ export function App() {
   return (
     <AppProvider>
       <Router />
+      <KaiHost />
       <Toast />
     </AppProvider>
   );

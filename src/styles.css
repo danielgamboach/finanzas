@@ -707,3 +707,40 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
   .account-grid .dsticky .grid2 { grid-template-columns: minmax(0, 1fr); }
   .cuentas-grid { grid-template-columns: minmax(0, 1fr) 280px; }
 }
+
+/* ── Kai: one question, one answer ── */
+.kai-block { display: flex; flex-direction: column; gap: 8px; }
+.kai-mark { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; background: #DED3F8; color: #2A1F4A; display: grid; place-items: center; }
+.kai-bar { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px 0 9px; border-radius: 24px; border: none; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-size: 14px; font-weight: 500; text-align: left; }
+.kai-bar .kai-mark { width: 30px; height: 30px; }
+.kai-bar-hint { font-size: 12px; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+@media (max-width: 400px) { .kai-bar-hint { display: none; } }
+.kai-chip { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border-radius: 17px; border: none; background: #DED3F8; color: #2A1F4A; font-size: 13px; font-weight: 650; }
+.dkai { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; margin-top: -4px; border-radius: 12px; border: none; background: color-mix(in srgb, #DED3F8 14%, transparent); color: #DED3F8; font: inherit; font-size: 14px; font-weight: 600; text-align: left; transition: background .15s; }
+.dkai:hover { background: color-mix(in srgb, #DED3F8 22%, transparent); }
+.dkai kbd { margin-left: auto; }
+
+.kai-scope { margin: -8px 0 0; font-size: 13px; font-weight: 500; color: var(--muted); }
+.kai-form { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 6px 6px 10px; border-radius: 28px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--border); }
+.kai-form:focus-within { box-shadow: inset 0 0 0 2px #8B74D6; }
+.kai-form input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font: inherit; font-size: 16px; font-weight: 500; color: var(--ink); }
+.kai-form input::placeholder { color: var(--muted); }
+.kai-send { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: none; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; transition: opacity .15s; }
+.kai-send:disabled { opacity: .25; }
+.kai-sugs { display: flex; flex-direction: column; gap: 8px; }
+.kai-sug { text-align: left; min-height: 44px; padding: 10px 16px; border-radius: 22px; border: 1.5px solid var(--border); background: var(--raise); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; }
+.kai-sug:hover { background: var(--card); }
+.kai-answer { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 18px; border-radius: 22px; background: color-mix(in srgb, #DED3F8 38%, var(--bg)); }
+.kai-q { margin: 0; font-size: 13px; font-weight: 600; color: #5B4A8C; }
+.kai-text { display: flex; flex-direction: column; gap: 8px; font-size: 16px; line-height: 1.45; font-weight: 500; color: var(--ink); text-wrap: pretty; animation: kai-in .35s ease-out; }
+.kai-text p { margin: 0; }
+.kai-text p:first-child { font-size: 17px; font-weight: 600; }
+.kai-text ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.kai-error { margin: 0; font-size: 15px; font-weight: 500; color: var(--danger); }
+.kai-skel { display: flex; flex-direction: column; gap: 9px; padding: 4px 0; }
+.kai-skel span { height: 13px; border-radius: 7px; background: color-mix(in srgb, #8B74D6 22%, transparent); animation: pulse 1.2s ease-in-out infinite; }
+.kai-skel span:nth-child(2) { width: 85%; animation-delay: .15s; }
+.kai-skel span:last-child { width: 55%; animation-delay: .3s; }
+.kai-foot { margin: 0; font-size: 12px; font-weight: 500; color: var(--muted); text-align: center; }
+@keyframes kai-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .kai-text { animation: none; } }

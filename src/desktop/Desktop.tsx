@@ -7,6 +7,7 @@ import { Icon, tint } from '../ui';
 import { photoFor } from '../lib/photos';
 import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
+import { openKai } from '../ui/Kai';
 
 const NAV = [
   { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
@@ -27,12 +28,16 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
     main.current?.scrollTo({ top: 0 });
   }, [route]);
 
-  // keyboard: N for a new movement, / to search movements
+  // keyboard: N for a new movement, / to search movements, K to ask Kai
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       if (e.metaKey || e.ctrlKey || e.altKey || el.closest('input, textarea, select, [contenteditable]')) return;
-      if (e.key === 'n' || e.key === 'N') {
+      if (document.querySelector('.sheet-backdrop')) return;
+      if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        openKai();
+      } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         go('/agregar');
       } else if (e.key === '/') {
@@ -53,6 +58,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
         <div className="dbrand"><span className="dbrand-mark" aria-hidden="true">₡</span>Finanzas</div>
         <SpaceSwitch />
         <a href="#/agregar" className="dnew"><Icon name="plus" size={18} stroke={2.4} />Nuevo movimiento<kbd>N</kbd></a>
+        <button className="dkai" onClick={() => openKai()}><Icon name="sparkle" size={18} />Preguntale a Kai<kbd>K</kbd></button>
         <nav className="dnav">
           {NAV.map((n) => (
             <a key={n.label} href={`#/${n.k}`} className={isOn(n) ? 'dnav-item on' : 'dnav-item'} aria-current={isOn(n) ? 'page' : undefined}>

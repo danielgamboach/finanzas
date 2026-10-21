@@ -50,6 +50,8 @@ const paths: Record<string, string> = {
   gear: 'M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6zM19.4 13.5l1.6 1.2-2 3.4-1.9-.8a7 7 0 0 1-2.1 1.2L14.7 21h-4l-.3-2.1a7 7 0 0 1-2.1-1.2l-1.9.8-2-3.4 1.6-1.2a7 7 0 0 1 0-2.4L4.4 10.3l2-3.4 1.9.8a7 7 0 0 1 2.1-1.2L10.7 4h4l.3 2.5a7 7 0 0 1 2.1 1.2l1.9-.8 2 3.4-1.6 1.2a7 7 0 0 1 0 2z',
   bell: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  sparkle: 'M11 3.5l1.9 5.1 5.1 1.9-5.1 1.9L11 17.5l-1.9-5.1L4 10.5l5.1-1.9zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z',
+  arrowUp: 'M12 19V5M6 11l6-6 6 6',
 };
 
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths | string; size?: number; stroke?: number }) {

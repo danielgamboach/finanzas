@@ -8,6 +8,7 @@ import { go, useApp, useTxs } from '../store';
 import { Emo, Icon, Loading, tint } from '../ui';
 import { TxSheet } from '../ui/TxSheet';
 import { ProfileButton } from '../ui/ProfileMenu';
+import { openKai } from '../ui/Kai';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
   const t = todayCR();
@@ -159,9 +160,15 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
       <div className="home-top">
         <header className="home-bar">
           <ProfileButton />
-          <button className="icon-btn" onClick={onSearch} aria-label="Buscar movimientos">
-            <Icon name="search" size={18} />
-          </button>
+          <span className="row">
+            <button className="kai-chip" onClick={() => openKai()} aria-label="Preguntale a Kai">
+              <Icon name="sparkle" size={16} />
+              Kai
+            </button>
+            <button className="icon-btn" onClick={onSearch} aria-label="Buscar movimientos">
+              <Icon name="search" size={18} />
+            </button>
+          </span>
         </header>
 
         <section className="balance" aria-label="Resumen del mes">
