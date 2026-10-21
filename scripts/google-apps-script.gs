@@ -17,6 +17,10 @@
  *  2. Mismos pasos 1 y 2 de arriba, pero ejecutar `instalarSoloVouchers` en vez de `instalar`.
  *     Solo lee sus correos del BAC; el tipo de cambio y el historial ya los maneja el script principal.
  *     Si un voucher también llega al otro correo, la app lo reconoce y no lo duplica.
+ *
+ * Historial (una sola vez, cualquiera de los dos): ejecutar `importarHistorialCorreos`.
+ * Lee todos los vouchers viejos desde HISTORIAL_DESDE, por tandas, y se reprograma solo hasta terminar.
+ * Las fechas que ya cubre un estado de cuenta importado se saltan para no duplicar.
  */
 
 const SUPABASE_URL = 'https://vzgnujopgryuskixcnnx.supabase.co';
@@ -70,6 +74,65 @@ function instalar() {
   }
   procesarVouchers();
   Logger.log('Listo: vouchers cada 10 min, tipo de cambio y recurrentes cada día.');
+}
+
+// Historial de correos: desde cuándo leer vouchers viejos (formato de Gmail AAAA/MM/DD).
+const HISTORIAL_DESDE = '2025/01/01';
+const LABEL_ERROR = 'Finanzas/Error';
+
+/** Carga los vouchers viejos del correo como historial. Corre por tandas y se reprograma hasta terminar. */
+function importarHistorialCorreos() {
+  const inicio = Date.now();
+  const props = PropertiesService.getScriptProperties();
+  const label = GmailApp.getUserLabelByName(LABEL) || GmailApp.createLabel(LABEL);
+  const labelError = GmailApp.getUserLabelByName(LABEL_ERROR) || GmailApp.createLabel(LABEL_ERROR);
+  const tok = token_();
+  const q = 'from:(baccredomatic.cr) subject:"Notificación de transacción" after:' + HISTORIAL_DESDE +
+    ' -label:' + LABEL.replace('/', '-') + ' -label:' + LABEL_ERROR.replace('/', '-');
+  const st = JSON.parse(props.getProperty('HISTORIAL_CORREOS') ||
+    '{"correos":0,"nuevos":0,"repetidos":0,"cubiertos":0,"sinCuenta":0,"ilegibles":0,"errores":0}');
+  let quedan = true;
+  while (Date.now() - inicio < 4.5 * 60 * 1000) {
+    const threads = GmailApp.search(q, 0, 50);
+    if (!threads.length) { quedan = false; break; }
+    threads.forEach((thread) => {
+      let ok = true;
+      thread.getMessages().forEach((msg) => {
+        st.correos++;
+        const v = parseVoucher_(msg.getPlainBody() || msg.getBody().replace(/<[^>]+>/g, '\n'));
+        if (!v) { st.ilegibles++; return; }
+        try {
+          const r = rpc_('ingest_bac_voucher_bulk', {
+            p_token: tok, p_message_id: msg.getId(), p_last4: v.last4, p_merchant: v.merchant,
+            p_amount: v.amount, p_currency: v.currency, p_occurred_at: v.occurredAt, p_tx_type: v.tipo, p_auth: v.auth,
+          });
+          if (r === 'inserted') st.nuevos++;
+          else if (r === 'duplicate') st.repetidos++;
+          else if (r === 'covered_by_statement') st.cubiertos++;
+          else if (r === 'unmatched') st.sinCuenta++;
+        } catch (e) {
+          ok = false;
+          st.errores++;
+          Logger.log('Error con ' + msg.getSubject() + ': ' + e);
+        }
+      });
+      thread.addLabel(ok ? label : labelError);
+    });
+  }
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'importarHistorialCorreos')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+  const resumen = st.correos + ' correos: ' + st.nuevos + ' nuevos, ' + st.repetidos + ' ya estaban, ' +
+    st.cubiertos + ' cubiertos por estados de cuenta, ' + st.sinCuenta + ' de tarjetas sin registrar, ' +
+    st.ilegibles + ' sin datos de compra, ' + st.errores + ' con error.';
+  if (quedan) {
+    props.setProperty('HISTORIAL_CORREOS', JSON.stringify(st));
+    ScriptApp.newTrigger('importarHistorialCorreos').timeBased().after(60 * 1000).create();
+    Logger.log('Faltan correos; sigue solo en un minuto. Hasta ahora: ' + resumen);
+  } else {
+    props.deleteProperty('HISTORIAL_CORREOS');
+    Logger.log('Historial listo. ' + resumen);
+  }
 }
 
 /** Para una segunda persona: solo revisa sus vouchers cada 10 minutos. */
