@@ -747,14 +747,15 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
 
 /* ── Movement detail: drawer on phones, side sheet on desktop ── */
 .txd-backdrop { position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; animation: fade-in .18s ease-out; }
-.txd { width: min(560px, 100%); max-height: 94dvh; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); border-radius: 32px 32px 0 0; padding: 10px 16px calc(28px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 16px; animation: txd-up .3s cubic-bezier(.2,.8,.2,1); box-shadow: 0 -10px 30px rgba(0,0,0,.2); }
+.txd { width: min(560px, 100%); max-height: 94dvh; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); border-radius: 32px 32px 0 0; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 16px; animation: txd-up .3s cubic-bezier(.2,.8,.2,1); box-shadow: 0 -10px 30px rgba(0,0,0,.2); }
 .txd-backdrop.side { align-items: stretch; justify-content: flex-end; background: rgba(0,0,0,.35); }
-.txd.side { width: 460px; max-width: calc(100vw - 40px); max-height: none; height: 100%; border-radius: 20px 0 0 20px; padding: 18px 22px 28px; animation: txd-left .26s cubic-bezier(.2,.8,.2,1); box-shadow: -20px 0 60px rgba(0,0,0,.35); }
+.txd.side { width: 460px; max-width: calc(100vw - 40px); max-height: none; height: 100%; border-radius: 20px 0 0 20px; padding: 0 22px 28px; animation: txd-left .26s cubic-bezier(.2,.8,.2,1); box-shadow: -20px 0 60px rgba(0,0,0,.35); }
 @keyframes txd-up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes txd-left { from { transform: translateX(100%); } to { transform: none; } }
-.txd .grabber { margin-bottom: -6px; }
-.txd-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin: 0 -16px; padding: 6px 16px; background: var(--bg); }
-.txd.side .txd-bar { margin: -18px -22px 0; padding: 16px 22px 8px; }
+.txd-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin: 0 -16px; padding: 22px 16px 8px; background: var(--bg); }
+.txd-bar.scrolled { box-shadow: 0 1px 0 var(--line); }
+.txd-bar .grabber { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
+.txd.side .txd-bar { margin: 0 -22px; padding: 18px 22px 10px; }
 .txd-edit { height: 40px; padding: 0 16px; border-radius: 20px; border: none; background: var(--ink); color: var(--on-ink); display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 650; }
 .txd-edit:disabled { opacity: .4; }
 .txd-edit kbd { margin-left: 4px; }

@@ -37,6 +37,7 @@ export function TxDetail({ id }: { id: string }) {
   const [missing, setMissing] = useState(false);
   const dragRef = useDragToClose<HTMLDivElement>(close, 'self');
   const panel = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -76,9 +77,9 @@ export function TxDetail({ id }: { id: string }) {
 
   return createPortal(
     <div className={desk ? 'txd-backdrop side' : 'txd-backdrop'} onClick={close}>
-      <div ref={setPanel} className={desk ? 'txd side' : 'txd'} role="dialog" aria-modal="true" aria-label="Detalle del movimiento" onClick={(e) => e.stopPropagation()}>
-        {!desk && <div className="grabber" />}
-        <div className="txd-bar">
+      <div ref={setPanel} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)} className={desk ? 'txd side' : 'txd'} role="dialog" aria-modal="true" aria-label="Detalle del movimiento" onClick={(e) => e.stopPropagation()}>
+        <div className={scrolled ? 'txd-bar scrolled' : 'txd-bar'}>
+          {!desk && <div className="grabber" />}
           <button className="round light" onClick={close} aria-label="Cerrar">
             <Icon name="close" size={18} stroke={2.4} />
           </button>
