@@ -211,6 +211,12 @@ export const db = {
     const q = Object.entries(match).map(([k, v]) => `${k}=eq.${enc(v)}`).join('&');
     return rest('PATCH', `${table}?${q}`, patch, 'return=representation');
   },
+  /** Same patch on many rows by id, in chunks so the URL stays short. */
+  async updateIds(table: string, ids: string[], patch: object) {
+    for (let i = 0; i < ids.length; i += 80) {
+      await rest('PATCH', `${table}?id=in.(${ids.slice(i, i + 80).map((v) => enc(v)).join(',')})`, patch, 'return=minimal');
+    }
+  },
   async remove(table: string, match: Record<string, Val>) {
     const q = Object.entries(match).map(([k, v]) => `${k}=eq.${enc(v)}`).join('&');
     return rest('DELETE', `${table}?${q}`);

@@ -7,7 +7,7 @@ import { catLabel, familyIds, pickerOrder } from '../lib/cats';
 import { byKind } from '../lib/accounts';
 import { useApp, useTxs } from '../store';
 import { Icon, Loading, Segmented, Sheet } from '../ui';
-import { TxRow, TxTableRow } from '../ui/TxRow';
+import { canCategorize, TxRow, TxTableRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
 
 type Kind = 'todos' | 'gastos' | 'ingresos';
@@ -30,6 +30,15 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   const [q, setQ] = useState('');
   const [sheet, setSheet] = useState(false);
   const [shown, setShown] = useState(limit || 150);
+  // selecting several movements to change their category at once (null = not selecting)
+  const [sel, setSel] = useState<Set<string> | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  useEffect(() => {
+    if (!sel) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setSel(null);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [sel]);
   const search = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (autoFocus) search.current?.focus({ preventScroll: true });
@@ -61,6 +70,32 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   const filtered = useMemo(() => apply(txs, f), [txs, f, q, categories, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = groupByDay(filtered);
+  const selectable = filtered.filter(canCategorize);
+  const toggle = (id: string) => setSel((cur) => {
+    const n = new Set(cur || []);
+    if (n.has(id)) n.delete(id);
+    else n.add(id);
+    return n;
+  });
+  const pickOf = (t: (typeof filtered)[number]) => (sel && canCategorize(t) ? { selected: sel.has(t.id), onToggle: () => toggle(t.id) } : undefined);
+  const dim = (t: (typeof filtered)[number]) => !!sel && !canCategorize(t);
+
+  async function bulkSet(catId: string) {
+    if (!sel || !sel.size || !catId) return;
+    const ids = [...sel];
+    const c = categories.find((x) => x.id === catId);
+    setBulkBusy(true);
+    try {
+      await db.updateIds('transactions', ids, { category_id: catId, status: 'posted', category_source: 'manual', suggested_category_id: null });
+      toast(`${c?.emoji || '✅'} ${ids.length === 1 ? '1 movimiento' : `${ids.length} movimientos`} → ${c?.name || 'categoría'}`);
+      setSel(null);
+      bump();
+    } catch {
+      toast('No se pudo cambiar la categoría');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   const review = txs.filter((t) => t.status === 'review');
   const withSuggestion = review.filter((t) => t.suggested_category_id);
   const unchecked = review.filter((t) => !t.ai_checked_at && (t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund'));
@@ -154,10 +189,13 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       )}
 
       {filtered.length > 0 && (
-        <p className="mb-sum" aria-live="polite">
-          {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
-          {total > 0 && <> · <strong>{money(total, cur, fx)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
-        </p>
+        <div className="mb-sum-row">
+          <p className="mb-sum" aria-live="polite">
+            {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
+            {total > 0 && <> · <strong>{money(total, cur, fx)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
+          </p>
+          {selectable.length > 1 && !sel && <button className="mb-select-btn" onClick={() => setSel(new Set())}>Seleccionar</button>}
+        </div>
       )}
 
       {loading && all.length === 0 ? (
@@ -178,7 +216,11 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             {!accountId && <span role="columnheader">Cuenta</span>}
             <span role="columnheader" className="tt-amt">Monto</span>
           </div>
-          {filtered.slice(0, shown).map((t) => <TxTableRow key={t.id} t={t} hideAccount={!!accountId} />)}
+          {filtered.slice(0, shown).map((t) => (
+            <div key={t.id} className={dim(t) ? 'sel-dim' : undefined}>
+              <TxTableRow t={t} hideAccount={!!accountId} pick={pickOf(t)} />
+            </div>
+          ))}
           {filtered.length > shown && (
             <button className="tt-more" onClick={() => setShown((n) => n + 150)}>Mostrar más</button>
           )}
@@ -187,9 +229,21 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         groups.map((g) => (
           <section key={g.label} className="mb-day">
             <div className="mb-day-head">{g.label}</div>
-            {g.rows.map((t) => <TxRow key={t.id} t={t} />)}
+            {g.rows.map((t) => (dim(t) ? <div key={t.id} className="sel-dim"><TxRow t={t} /></div> : <TxRow key={t.id} t={t} pick={pickOf(t)} />))}
           </section>
         ))
+      )}
+
+      {sel && (
+        <BulkBar
+          ids={sel}
+          all={selectable.map((t) => t.id)}
+          kinds={new Set(selectable.filter((t) => sel.has(t.id)).map((t) => (t.kind === 'income' ? 'income' : 'expense')))}
+          busy={bulkBusy}
+          onAll={(on) => setSel(new Set(on ? selectable.map((t) => t.id) : []))}
+          onPick={bulkSet}
+          onClose={() => setSel(null)}
+        />
       )}
 
       {sheet && (
@@ -333,3 +387,36 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
 }
 
 export { spend };
+
+/** Floating bar while selecting: how many, select all, and the category to give them. */
+function BulkBar({ ids, all, kinds, busy, onAll, onPick, onClose }: { ids: Set<string>; all: string[]; kinds: Set<string>; busy: boolean; onAll: (on: boolean) => void; onPick: (id: string) => void; onClose: () => void }) {
+  const { categories } = useApp();
+  const n = ids.size;
+  const allOn = n > 0 && n === all.length;
+  const group = (kind: 'expense' | 'income') => pickerOrder(categories.filter((c) => !c.archived && c.kind === kind));
+  const opt = (c: ReturnType<typeof group>[number]) => <option key={c.id} value={c.id}>{c.parent_id ? '    ' : ''}{c.emoji} {c.name}</option>;
+  const showIncome = kinds.has('income');
+  const showExpense = kinds.has('expense') || kinds.size === 0;
+  return (
+    <div className="mb-bulk" role="toolbar" aria-label="Cambiar categoría a varios">
+      <button className="icon-btn" onClick={onClose} aria-label="Cancelar selección"><Icon name="close" size={18} /></button>
+      <span className="mb-bulk-n" aria-live="polite">{n === 0 ? 'Elegí movimientos' : `${n} de ${all.length}`}</span>
+      <button className="mb-bulk-all" onClick={() => onAll(!allOn)}>{allOn ? 'Ninguno' : 'Todos'}</button>
+      <label className={n && !busy ? 'mb-bulk-cat' : 'mb-bulk-cat off'}>
+        <span>{busy ? 'Guardando…' : 'Categoría'}</span>
+        <Icon name="chevDown" size={14} stroke={2.4} />
+        <select value="" disabled={!n || busy} onChange={(e) => onPick(e.target.value)} aria-label="Categoría para los seleccionados">
+          <option value="" disabled>Elegir categoría</option>
+          {showExpense && showIncome ? (
+            <>
+              <optgroup label="Gastos">{group('expense').map(opt)}</optgroup>
+              <optgroup label="Ingresos">{group('income').map(opt)}</optgroup>
+            </>
+          ) : (
+            group(showIncome ? 'income' : 'expense').map(opt)
+          )}
+        </select>
+      </label>
+    </div>
+  );
+}
