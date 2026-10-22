@@ -10,6 +10,7 @@ import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
 import { PendingPayments } from '../ui/PendingPayments';
 import { TxTableRow } from '../ui/TxRow';
+import { greeting } from '../lib/greetings';
 
 const NAV = [
   { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
@@ -156,7 +157,7 @@ function SpaceSwitch() {
 
 /** Desktop home: the month in three cards, then the latest movements as a table. */
 export function DesktopHome() {
-  const { cur, fx, photos, categories } = useApp();
+  const { cur, fx, photos, categories, profile } = useApp();
   const h = useHomeSummary();
   if (!h) return null;
   const { label, value, negative, delta, vsLabel, cardLabel, cardValue, spent, budget, merchants, peek, recent } = h;
@@ -167,7 +168,7 @@ export function DesktopHome() {
   return (
     <div className="dpage">
       <header className="dpage-head">
-        <h1 className="dtitle">Inicio</h1>
+        <h1 className="dtitle">{greeting(profile?.name) || 'Inicio'}</h1>
       </header>
 
       <div className="dhome-top">
