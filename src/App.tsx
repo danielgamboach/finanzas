@@ -14,6 +14,7 @@ import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
 import { useDesktop } from './lib/useDesktop';
 import { KaiHost } from './ui/Kai';
+import { TxDetail } from './ui/TxDetail';
 
 const MODAL = new Set(['agregar', 'mov']);
 
@@ -24,6 +25,8 @@ function Router() {
   const bg = useRef('/');
   const [, a, b, c] = path.split('/');
   const modal = MODAL.has(a || '');
+  // /mov/:id is the read-only detail (drawer or side sheet over the page); /mov/:id/editar is the form
+  const detail = a === 'mov' && !!b && c !== 'editar';
   if (!modal) bg.current = path;
   if (!session) return <Login />;
   if (!ready) return <Loading />;
@@ -37,7 +40,20 @@ function Router() {
         <DesktopLayout route={ba || ''}>
           <DesktopScreen a={ba} b={bb} c={bc} />
         </DesktopLayout>
-        {modal && <DesktopModal>{a === 'agregar' ? <TxForm key="new" /> : <TxForm key={b} id={b} />}</DesktopModal>}
+        {modal && !detail && <DesktopModal>{a === 'agregar' ? <TxForm key="new" /> : <TxForm key={b} id={b} />}</DesktopModal>}
+        {detail && <TxDetail id={b!} />}
+        <NotifPrompt />
+      </>
+    );
+  }
+
+  if (detail) {
+    // the page underneath stays mounted (same position in the tree), the detail slides over it
+    const [, ba, bb, bc] = bg.current.split('/');
+    return (
+      <>
+        <Screen a={ba} b={bb} c={bc} />
+        <TxDetail id={b!} />
         <NotifPrompt />
       </>
     );

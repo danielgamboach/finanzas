@@ -79,6 +79,9 @@ export interface Tx {
   suggested_category_id?: string | null;
   ai_confidence?: number | null;
   ai_checked_at?: string | null;
+  merchant_key?: string | null;
+  created_by?: string | null;
+  created_at?: string;
   transaction_tags?: { tags: { name: string } | null }[];
 }
 

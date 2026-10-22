@@ -94,6 +94,8 @@ export function Shell({ route }: { route: string }) {
 
   // keep the address in sync without re-rendering the router, so back from a detail lands here
   useEffect(() => {
+    // a detail or form opened over the shell owns the address; leave it alone
+    if (!['', 'analisis', 'presupuesto', 'cuentas', 'patrimonio', 'movimientos'].includes(routeOfHash())) return;
     const h = idx === 1 && open ? '#/movimientos' : HASH[idx];
     if (location.hash !== h && !(h === '#/' && (location.hash === '' || location.hash === '#'))) history.replaceState(null, '', h);
   }, [idx, open]);

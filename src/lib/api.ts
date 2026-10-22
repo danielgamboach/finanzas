@@ -185,6 +185,8 @@ class Query<T = any> implements PromiseLike<T[]> {
   lt(c: string, v: Val) { this.filters.push(`${c}=lt.${enc(v)}`); return this; }
   in(c: string, vs: Val[]) { this.filters.push(`${c}=in.(${vs.map((v) => enc(v)).join(',')})`); return this; }
   is(c: string, v: null | boolean) { this.filters.push(`${c}=is.${v}`); return this; }
+  /** PostgREST or-filter, e.g. or('merchant.eq."X"', 'merchant_key.eq."Y"'). */
+  or(...conds: string[]) { this.filters.push(`or=${encodeURIComponent(`(${conds.join(',')})`)}`); return this; }
   order(c: string, asc = true) { this.extra.push(`order=${c}.${asc ? 'asc' : 'desc'}`); return this; }
   limit(n: number) { this.extra.push(`limit=${n}`); return this; }
   private url() {
