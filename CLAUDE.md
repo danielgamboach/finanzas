@@ -44,7 +44,7 @@ scripts/
 ## Secciones del app
 
 - **Inicio**: disponible del mes, botón Gasto, tarjeta de gastado con comercios recientes, abanico de cuentas. Abajo, una hoja con pagos pendientes y últimos movimientos; al subirla se vuelve el buscador de movimientos.
-- **Movimientos**: buscador, un botón de filtros (hoja con período, tipo, categoría, cuenta, etiqueta) y los filtros activos como chips removibles. "Por revisar" es un selector de categoría en la misma fila. "Seleccionar" permite cambiar la categoría de varios a la vez. En escritorio es una tabla.
+- **Movimientos**: buscador, un botón de filtros (hoja con período, tipo, categoría, cuenta, etiqueta) y los filtros activos como chips removibles. "Por revisar" es un selector de categoría en la misma fila; elegir una categoriza todos los movimientos pendientes del mismo comercio (con deshacer). "Seleccionar" permite cambiar la categoría de varios a la vez. En escritorio es una tabla.
 - **Detalle de movimiento**: drawer en móvil, panel lateral derecho en escritorio. Abajo, los otros movimientos del mismo comercio.
 - **Análisis**: nota de la IA (con enlace a Kai), gráfico del mes con una línea de comparación, pestañas Presupuesto (categorías con límites) y Tendencias (gasto por mes, mes vs. anterior, top comercios por monto o por compras).
 - **Cuentas**: patrimonio neto, tarjetas de crédito, débito y ahorro, metas. Cada cuenta tiene su vista con sus movimientos.
