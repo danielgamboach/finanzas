@@ -71,11 +71,6 @@ export function MonthChart({ current, previous, days, budget, curLabel, prevLabe
           {hPrev !== null && <span><i className="sw prev" />{prevLabel} {fmt(hPrev)}</span>}
         </div>
       )}
-      <div className="mc-legend">
-        <span><i className="sw cur" />{curLabel}</span>
-        {prev && <span><i className="sw prev" />{prevLabel}</span>}
-        {budget > 0 && <span><i className="sw budget" />Presupuesto</span>}
-      </div>
     </div>
   );
 }

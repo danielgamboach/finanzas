@@ -9,6 +9,7 @@ import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
 import { PendingPayments } from '../ui/PendingPayments';
+import { TxTableRow } from '../ui/TxRow';
 
 const NAV = [
   { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
@@ -158,20 +159,15 @@ export function DesktopHome() {
   const { cur, fx, photos, categories } = useApp();
   const h = useHomeSummary();
   if (!h) return null;
-  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, merchants, peek } = h;
+  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, spent, budget, merchants, peek, recent } = h;
   const used = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
   const faces = merchants.slice(0, 8);
   const more = merchants.length - faces.length;
-  const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Costa_Rica' }).format(new Date()));
-  const hello = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
     <div className="dpage">
       <header className="dpage-head">
-        <div className="col">
-          <span className="muted">{hello}</span>
-          <h1 className="dtitle">Inicio</h1>
-        </div>
+        <h1 className="dtitle">Inicio</h1>
       </header>
 
       <div className="dhome-top">
@@ -179,18 +175,16 @@ export function DesktopHome() {
           <span className="balance-label">{label}</span>
           <div className="balance-row">
             <span className={negative ? 'dhero-num neg' : 'dhero-num'}>{negative ? '−' : ''}{money(value, cur, fx)}</span>
-            {delta && <span className={delta.good ? 'balance-delta good' : 'balance-delta bad'}>{delta.text}</span>}
+            {delta && <span className={delta.good ? 'balance-delta good' : 'balance-delta bad'} title={`Comparado con el ${vsLabel.slice(4)}`}>{delta.text}</span>}
           </div>
-          {delta && <span className="balance-vs">{vsLabel}</span>}
           <div className="balance-actions">
             <a href="#/agregar" className="pill-btn light"><Icon name="plusCircle" size={16} />Nuevo gasto</a>
-            <a href="#/analisis" className="pill-btn"><Icon name="chart" size={16} />Ver análisis</a>
           </div>
         </section>
 
         <a className="dcard dspend" href="#/analisis" aria-label={`${cardLabel}: ${money(cardValue, cur, fx)}`}>
           <span className="spend-label">{cardLabel}</span>
-          <span className="dspend-value">{money(cardValue, cur, fx)}{cardSub && <span className="spend-sub"> {cardSub}</span>}</span>
+          <span className="dspend-value">{money(cardValue, cur, fx)}</span>
           {budget > 0 && (
             <span className="bar"><span className="bar-fill" style={{ width: `${used}%`, background: used >= 100 ? 'var(--danger)' : used >= 80 ? 'var(--warn)' : 'var(--ink)' }} /></span>
           )}
@@ -224,9 +218,11 @@ export function DesktopHome() {
       <section className="dcard dmov">
         <div className="row between dmov-head">
           <h2 className="h2">Movimientos</h2>
-          <a className="link" href="#/movimientos">Ver todos <kbd>/</kbd></a>
+          <a className="link" href="#/movimientos">Ver todos</a>
         </div>
-        <MovementsBrowser table limit={25} screen="home-desk" />
+        <div className="ttable" role="table" aria-label="Últimos movimientos">
+          {recent.slice(0, 10).map((t) => <TxTableRow key={t.id} t={t} />)}
+        </div>
       </section>
     </div>
   );
@@ -238,7 +234,6 @@ export function DesktopMovements() {
     <div className="dpage">
       <header className="dpage-head">
         <h1 className="dtitle">Movimientos</h1>
-        <a href="#/agregar" className="pill-btn light"><Icon name="plus" size={16} stroke={2.4} />Nuevo movimiento</a>
       </header>
       <section className="dcard dmov">
         <MovementsBrowser table screen="mov" autoFocus={false} />

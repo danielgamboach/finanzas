@@ -146,12 +146,12 @@ export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
   return ph ? <img src={photoUrl(ph)} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
 }
 
-export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch: () => void }) {
+export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
   const { categories, cur, fx, photos } = useApp();
   const topRef = useRef<HTMLDivElement>(null);
   const h = useHomeSummary();
   if (!h) return <Loading />;
-  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, merchants, peek, recent } = h;
+  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, merchants, peek, recent } = h;
   const shown = merchants.slice(0, BUBBLES.length);
   const more = merchants.length - shown.length;
 
@@ -160,15 +160,9 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
       <div className="home-top">
         <header className="home-bar">
           <ProfileButton />
-          <span className="row">
-            <button className="kai-chip" onClick={() => openKai()} aria-label="Preguntale a Kai">
-              <Icon name="sparkle" size={16} />
-              Kai
-            </button>
-            <button className="icon-btn" onClick={onSearch} aria-label="Buscar movimientos">
-              <Icon name="search" size={18} />
-            </button>
-          </span>
+          <button className="kai-chip round" onClick={() => openKai()} aria-label="Preguntale a Kai">
+            <Icon name="sparkle" size={18} />
+          </button>
         </header>
 
         <section className="balance" aria-label="Resumen del mes">
@@ -181,10 +175,8 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
               </span>
             )}
           </div>
-          {delta && <span className="balance-vs">{vsLabel}</span>}
           <div className="balance-actions">
             <a href="#/agregar" className="pill-btn light"><Icon name="plusCircle" size={16} />Gasto</a>
-            <button className="pill-btn" onClick={() => goPanel(0)}><Icon name="chart" size={16} />Análisis</button>
           </div>
         </section>
 
@@ -199,7 +191,7 @@ export function Home({ open, setOpen, goPanel, focus, onSearch }: { open: boolea
         <div ref={topRef} className="spend-card-wrap">
           <button className="spend-card" onClick={() => goPanel(0)} aria-label={`${cardLabel}: ${money(cardValue, cur, fx)}. Ver análisis`}>
             <span className="spend-label">{cardLabel}</span>
-            <span className="spend-value">{money(cardValue, cur, fx)}{cardSub && <span className="spend-sub"> {cardSub}</span>}</span>
+            <span className="spend-value">{money(cardValue, cur, fx)}</span>
           </button>
           {shown.length > 0 && (
             <div className="bubbles" aria-hidden="true">

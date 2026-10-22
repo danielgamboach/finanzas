@@ -244,8 +244,6 @@ export function Cuentas() {
               <section className="card pad col gap4">
                 <span className="muted small">Patrimonio neto</span>
                 <strong className="stat-hero">{money(w.net, cur, fx)}</strong>
-                <span className="muted small">Ahorro {money(w.savings, cur, fx)} · Inversión {money(w.investments, cur, fx)}</span>
-                <span className="muted small">Tarjetas por pagar {money(w.cards, cur, fx)}</span>
               </section>
             )}
             <div className="section-head">
@@ -291,27 +289,15 @@ export function Cuentas() {
 
 /** One account: its card, the key number and its movements with filters. */
 export function AccountView({ id }: { id: string }) {
-  const { space, accounts, fx } = useApp();
+  const { space, accounts } = useApp();
   const w = useNetWorth(space?.id || null);
   const desk = useDesktop();
   const a = w.accounts.find((x) => x.id === id) || accounts.find((x) => x.id === id);
   if (!a) return <Loading />;
   const isCard = a.kind === 'credit_card';
-  const split = w.cardSplit[a.id];
-  const figures = isCard ? (
-    <div className="grid2">
-      <div className="card pad col gap4"><span className="muted small">Por pagar en colones</span><strong className="stat-big">{moneyRaw(split?.CRC || 0, 'CRC')}</strong></div>
-      <div className="card pad col gap4"><span className="muted small">Por pagar en dólares</span><strong className="stat-big">{moneyRaw(split?.USD || 0, 'USD')}</strong></div>
-    </div>
-  ) : (
-    <div className="card pad row between">
-      <span className="col gap4">
-        <span className="muted small">{w.latest[a.id] ? `Saldo al ${shortDate(w.latest[a.id]!.taken_on + 'T18:00:00Z')}` : 'Sin saldo registrado'}</span>
-        <strong className="stat-big">{w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</strong>
-        {w.latest[a.id] && a.currency === 'USD' && <span className="muted small">≈ {moneyRaw(Number(w.latest[a.id]!.balance) * fx, 'CRC')}</span>}
-      </span>
-      <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar</a>
-    </div>
+  // the card already shows what's owed or the balance; only the action to update it stays
+  const figures = isCard ? null : (
+    <a className="pill-btn acc-update" href="#/saldos"><Icon name="refresh" size={16} />Actualizar saldo</a>
   );
   if (desk) {
     return (

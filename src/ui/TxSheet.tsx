@@ -16,8 +16,7 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
   const body = useRef<HTMLDivElement>(null);
   const [rest, setRest] = useState(420); // collapsed offset from the sheet's natural (expanded) top
   const [drag, setDrag] = useState<number | null>(null);
-  const [localFocus, setLocalFocus] = useState(0);
-  const focusKey = focus + localFocus;
+  const focusKey = focus;
 
   // collapsed position: just under the summary card
   useLayoutEffect(() => {
@@ -112,13 +111,8 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
       <div ref={head} className="tx-sheet-head">
         <button className="tx-sheet-grab" onClick={() => setOpen(!open)} aria-label={open ? 'Cerrar movimientos' : 'Ver todos los movimientos'} aria-expanded={open} />
         <div className="tx-sheet-bar">
-          <button className="icon-btn" onClick={() => { setLocalFocus((n) => n + 1); setOpen(true); }} aria-label="Buscar movimientos"><Icon name="search" size={18} /></button>
           <button className="tx-sheet-title" onClick={() => setOpen(!open)}>Movimientos</button>
-          {open ? (
-            <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Cerrar"><Icon name="chevDown" size={20} /></button>
-          ) : (
-            <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Filtrar movimientos"><Icon name="sliders" size={18} /></button>
-          )}
+          {open && <button className="icon-btn tx-sheet-close" onClick={() => setOpen(false)} aria-label="Cerrar"><Icon name="chevDown" size={20} /></button>}
         </div>
       </div>
       <div ref={body} className="tx-sheet-body">

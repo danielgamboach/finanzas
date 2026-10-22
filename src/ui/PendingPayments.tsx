@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { addPeriod, dueLabel, isManual, justPaid, needsConfirm, payRecurring, recState, shortDay, skipRecurring, undoPayRecurring, useRecurring } from '../lib/recurring';
+import { dueLabel, isManual, justPaid, needsConfirm, payRecurring, recState, shortDay, undoPayRecurring, useRecurring } from '../lib/recurring';
 import { money, moneyRaw } from '../lib/format';
 import { photoFor, photoUrl } from '../lib/photos';
 import type { Recurring } from '../lib/types';
@@ -42,7 +42,7 @@ export function PendingPayments({ variant = 'sheet' }: { variant?: 'sheet' | 'ca
       {(pending.length > 0 || done.length > 0) && (
         <div className="pp-head">
           <span>Pagos pendientes</span>
-          {pending.length > 0 ? <span className="pp-count">{pending.length}</span> : <span className="pp-ok"><Icon name="check" size={14} stroke={2.8} />Al día</span>}
+          {pending.length > 0 && <span className="pp-count">{pending.length}</span>}
         </div>
       )}
       {card && <CardPayment />}
@@ -56,33 +56,22 @@ function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {
   return r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx);
 }
 
+/** One line: who, when, how much, and a check to confirm it was paid. Skipping lives in Recurrentes. */
 function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null) => void }) {
-  const { categories, accounts, photos, cur, fx, userId, toast, bump } = useApp();
+  const { categories, photos, cur, fx, userId, toast, bump } = useApp();
   const [busy, setBusy] = useState(false);
   const photo = photoFor(photos, r.merchant, r.match_pattern);
-  const acc = accounts.find((a) => a.id === r.account_id);
   const overdue = recState(r) === 'overdue';
-  const from = acc ? `desde ${acc.name}${acc.last4 ? ` ••${acc.last4}` : ''}` : r.method === 'cash' ? 'en efectivo' : 'por transferencia';
 
   async function paid() {
     setBusy(true);
     try {
       const txId = await payRecurring(r, fx, userId);
       onPaid(txId);
-      toast(`✅ ${r.merchant} completado`);
+      toast(`✅ ${r.merchant} pagado`);
       bump();
     } catch {
       toast('No se pudo registrar el pago');
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function skip() {
-    setBusy(true);
-    try {
-      await skipRecurring(r);
-      toast(`Saltado · el próximo es el ${shortDay(addPeriod(r.next_due, r.frequency))}`);
-      bump();
     } finally {
       setBusy(false);
     }
@@ -91,20 +80,17 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
   return (
     <div className={overdue ? 'pp-row overdue' : 'pp-row'}>
       <button className="pp-main" onClick={() => go(`/recurrente/${r.id}`)}>
-        <Emo e={recEmoji(r, categories)} color={overdue ? 'pink' : categories.find((c) => c.id === r.category_id)?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={44} />
+        <Emo e={recEmoji(r, categories)} color={categories.find((c) => c.id === r.category_id)?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={40} />
         <span className="pp-mid">
           <span className="pp-name">{r.merchant}</span>
-          <span className="pp-sub">{dueLabel(r.next_due)} · {from}</span>
+          <span className="pp-sub">{dueLabel(r.next_due)}</span>
         </span>
         <span className="pp-amt">{amountOf(r, cur, fx)}</span>
       </button>
-      <div className="pp-actions">
-        <button className="pp-skip" onClick={skip} disabled={busy}>{r.frequency === 'monthly' ? 'Saltar este mes' : 'Saltar esta vez'}</button>
-        <button className="btn-dark sm" onClick={paid} disabled={busy}>
-          <Icon name="check" size={16} stroke={2.6} />
-          Ya lo pagué
-        </button>
-      </div>
+      <button className="pp-pay" onClick={paid} disabled={busy} aria-label={`Ya pagué ${r.merchant}`}>
+        <Icon name="check" size={18} stroke={2.6} />
+        <span className="pp-pay-label">Ya lo pagué</span>
+      </button>
     </div>
   );
 }
@@ -129,20 +115,16 @@ function DoneRow({ r, undo, onUndone }: { r: Recurring; undo?: { before: Recurri
     <div className="pp-row done">
       <div className="pp-main">
         <span className="pp-emo-done">
-          <Emo e={recEmoji(r, categories)} color="gray" img={photo ? photoUrl(photo) : null} size={44} />
+          <Emo e={recEmoji(r, categories)} color="gray" img={photo ? photoUrl(photo) : null} size={40} />
           <span className="pp-check" aria-hidden="true"><Icon name="check" size={12} stroke={3} /></span>
         </span>
         <span className="pp-mid">
           <span className="pp-name">{r.merchant}</span>
-          <span className="pp-sub pos">Completado · {r.last_paid_on ? shortDay(r.last_paid_on) : 'hoy'}</span>
+          <span className="pp-sub pos">Pagado · {r.last_paid_on ? shortDay(r.last_paid_on) : 'hoy'}</span>
         </span>
         <span className="pp-amt muted">{amountOf(r, cur, fx)}</span>
       </div>
-      {undo && (
-        <div className="pp-actions">
-          <button className="pp-skip" onClick={revert} disabled={busy}>Deshacer</button>
-        </div>
-      )}
+      {undo && <button className="pp-undo" onClick={revert} disabled={busy}>Deshacer</button>}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { db } from '../lib/api';
 import type { Tx } from '../lib/types';
 import { Icon } from '.';
+import { openKai } from './Kai';
 
 interface Insight { emoji: string; text: string; tone: 'good' | 'neutral' | 'warn' | 'bad'; fp: string; at: number }
 
@@ -71,11 +72,17 @@ export function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; re
   return (
     <section className={`ai-card tone-${note?.tone || 'neutral'}`} aria-live="polite" aria-busy={busy}>
       <span className="ai-card-emoji" aria-hidden="true">{note?.emoji || '✨'}</span>
-      {note ? (
-        <p className={busy ? 'ai-card-text busy' : 'ai-card-text'}>{note.text}</p>
-      ) : (
-        <span className="ai-card-skel" aria-label="Pensando…"><span /><span /></span>
-      )}
+      <span className="ai-card-body">
+        {note ? (
+          <p className={busy ? 'ai-card-text busy' : 'ai-card-text'}>{note.text}</p>
+        ) : (
+          <span className="ai-card-skel" aria-label="Pensando…"><span /><span /></span>
+        )}
+        <button className="ai-card-ask" onClick={() => openKai()}>
+          <Icon name="sparkle" size={14} />
+          Preguntale a Kai
+        </button>
+      </span>
       <button className={busy ? 'ai-card-refresh spin' : 'ai-card-refresh'} onClick={() => load(true)} disabled={busy} aria-label="Otro mensaje">
         <Icon name="refresh" size={16} />
       </button>
