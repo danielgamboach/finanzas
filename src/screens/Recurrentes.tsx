@@ -23,12 +23,12 @@ export function recEmoji(r: Recurring, categories: Category[]) {
 
 /** One recurring payment as a row; transfers/cash that are due get "ya pagué / todavía no". */
 export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean }) {
-  const { categories, cur, fx, userId, bump, toast, photos } = useApp();
+  const { categories, accounts, cur, fx, userId, bump, toast, photos } = useApp();
   const photo = photoFor(photos, r.merchant, r.match_pattern);
   const [busy, setBusy] = useState(false);
   const cat = categories.find((c) => c.id === r.category_id);
   const state = recState(r);
-  const ask = needsConfirm(r);
+  const ask = needsConfirm(r, accounts);
   const crc = r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount);
 
   async function paid() {
@@ -82,7 +82,7 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
 }
 
 /** Shared spaces pay last week's card charges every Friday from the debit account. */
-function CardPayment() {
+export function CardPayment() {
   const { space, accounts, profiles, userId, cur, fx, toast, bump } = useApp();
   const prevWeek = weekRange(space?.week_start ?? 5, -1);
   const { txs } = useTxs(space?.kind === 'shared' ? { from: prevWeek.from, to: new Date(Date.now() + 86400000).toISOString() } : null);
@@ -123,7 +123,7 @@ function CardPayment() {
 }
 
 export function Recurrentes() {
-  const { space, cur, fx, categories, toast, bump } = useApp();
+  const { space, cur, fx, categories, accounts, toast, bump } = useApp();
   const { items, loading } = useRecurring(space?.id);
   const [sugs, setSugs] = useState<RecurringSuggestion[]>([]);
   const { version } = useApp();
@@ -137,8 +137,8 @@ export function Recurrentes() {
   const active = items.filter((r) => r.active);
   const paused = items.filter((r) => !r.active);
   const monthly = active.reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency], 0);
-  const toConfirm = active.filter(needsConfirm);
-  const rest = active.filter((r) => !needsConfirm(r));
+  const toConfirm = active.filter((r) => needsConfirm(r, accounts));
+  const rest = active.filter((r) => !needsConfirm(r, accounts));
 
   async function addSuggestion(s: RecurringSuggestion) {
     if (!space) return;
@@ -206,7 +206,7 @@ export function Recurrentes() {
 
       {toConfirm.length > 0 && (
         <section className="col gap8">
-          <h2 className="h3 px4">⏰ Por confirmar</h2>
+          <h2 className="h3 px4">⏰ Pagos pendientes</h2>
           <div className="card list">{toConfirm.map((r) => <RecRow key={r.id} r={r} />)}</div>
         </section>
       )}
@@ -349,8 +349,8 @@ export function RecurringEdit({ id }: { id: string }) {
         <Segmented value={(r.method || 'card') as PayMethod} options={[['card', 'Tarjeta'], ['transfer', 'Transferencia'], ['cash', 'Efectivo']]} onChange={(v) => set('method', v)} dark={false} />
         <span className="hint">
           {r.method === 'card'
-            ? 'Se marca como pagado solo cuando llega el voucher de la tarjeta.'
-            : 'Te vamos a preguntar si ya lo pagaste cuando se acerque la fecha.'}
+            ? 'Cobro automático: se marca como pagado solo cuando llega el voucher de la tarjeta (crédito o débito).'
+            : 'Pago manual: aparece en Pagos pendientes en el inicio desde unos días antes, y se queda ahí hasta que confirmés que lo pagaste.'}
         </span>
         {r.method === 'card' && (
           <label className="col gap6"><span className="field-label">Cómo aparece en el voucher</span>

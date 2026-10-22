@@ -3,6 +3,7 @@ import type { Tx } from '../lib/types';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { Icon } from '.';
 import { TxRow } from './TxRow';
+import { PendingPayments } from './PendingPayments';
 
 /**
  * The white sheet on the home screen. Collapsed it shows the latest movements under the summary;
@@ -123,12 +124,17 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
       <div ref={body} className="tx-sheet-body">
         {open ? (
           <MovementsBrowser autoFocus={focusKey > 0} key={focusKey} />
-        ) : recent.length === 0 ? (
-          <div className="empty center-text">Todavía no hay movimientos. Tocá “Gasto” para agregar uno.</div>
         ) : (
-          <div className="tx-sheet-recent">
-            {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}
-          </div>
+          <>
+            <PendingPayments />
+            {recent.length === 0 ? (
+              <div className="empty center-text">Todavía no hay movimientos. Tocá “Gasto” para agregar uno.</div>
+            ) : (
+              <div className="tx-sheet-recent">
+                {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}
+              </div>
+            )}
+          </>
         )}
       </div>
       {!open && <div className="tx-sheet-fade" aria-hidden="true" />}

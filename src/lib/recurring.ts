@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from './api';
 import { crLocal, dateKey } from './format';
-import type { Frequency, PayMethod, Recurring } from './types';
+import type { Account, Frequency, PayMethod, Recurring } from './types';
 import { useApp } from '../store';
 
 export const FREQ_LABEL: Record<Frequency, string> = {
@@ -80,7 +80,24 @@ export function paidRecently(r: Recurring) {
   return since >= 0 && since < PERIOD_DAYS[r.frequency] - leadDays(r.frequency) && recState(r) === 'upcoming';
 }
 
-export const needsConfirm = (r: Recurring) => r.active && r.method !== 'card' && recState(r) !== 'upcoming';
+/**
+ * Paid by hand: transfers (SINPE, bank app) and cash. Card charges, credit or debit, send a BAC voucher
+ * and get matched on their own, so they never need confirming.
+ */
+export function isManual(r: Recurring, _accounts?: Pick<Account, 'id' | 'kind'>[]) {
+  return r.method !== 'card';
+}
+
+/** A manual payment that is due (within its lead days) or overdue and hasn't been confirmed. */
+export const needsConfirm = (r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[]) =>
+  r.active && isManual(r, accounts) && recState(r) !== 'upcoming';
+
+/** A manual payment confirmed in the last few days: shown as completed for a little while. */
+export function justPaid(r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[], days = 3) {
+  if (!r.active || !r.last_paid_on || !isManual(r, accounts)) return false;
+  const since = -daysUntil(r.last_paid_on);
+  return since >= 0 && since < days && recState(r) === 'upcoming';
+}
 
 /** Pattern to look for in the voucher text: the first meaningful word(s) of the merchant. */
 export function patternFrom(raw: string | null | undefined) {
@@ -112,8 +129,8 @@ export function useRecurring(spaceId: string | null | undefined) {
 }
 
 /** Records the payment; the database moves next_due forward. */
-export async function payRecurring(r: Recurring, fx: number, userId: string | null) {
-  await db.insert('transactions', {
+export async function payRecurring(r: Recurring, fx: number, userId: string | null): Promise<string | null> {
+  const rows = await db.insert<{ id: string }>('transactions', {
     space_id: r.space_id,
     kind: r.kind,
     amount: r.amount,
@@ -129,6 +146,13 @@ export async function payRecurring(r: Recurring, fx: number, userId: string | nu
     category_source: r.category_id ? 'manual' : null,
     created_by: userId,
   });
+  return rows[0]?.id ?? null;
+}
+
+/** Takes back a payment confirmed by mistake: removes the movement and restores the schedule as it was. */
+export async function undoPayRecurring(before: Recurring, txId: string) {
+  await db.remove('transactions', { id: txId });
+  await db.update('recurring', { id: before.id }, { next_due: before.next_due, last_paid_on: before.last_paid_on });
 }
 
 export async function skipRecurring(r: Recurring) {

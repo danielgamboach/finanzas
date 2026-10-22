@@ -8,6 +8,7 @@ import { photoFor } from '../lib/photos';
 import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
+import { PendingPayments } from '../ui/PendingPayments';
 
 const NAV = [
   { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
@@ -18,10 +19,10 @@ const NAV = [
 
 /** Desktop frame: a fixed sidebar and a scrolling content area. No swipes, sheets or floating bars. */
 export function DesktopLayout({ route, children }: { route: string; children: React.ReactNode }) {
-  const { space, cur, toggleCur } = useApp();
+  const { space, cur, toggleCur, accounts } = useApp();
   const main = useRef<HTMLElement>(null);
   const { items } = useRecurring(space?.id);
-  const pending = items.filter(needsConfirm).length;
+  const pending = items.filter((r) => needsConfirm(r, accounts)).length;
 
   // a new page starts at the top
   useEffect(() => {
@@ -217,6 +218,8 @@ export function DesktopHome() {
           </span>
         </a>
       </div>
+
+      <PendingPayments variant="card" />
 
       <section className="dcard dmov">
         <div className="row between dmov-head">

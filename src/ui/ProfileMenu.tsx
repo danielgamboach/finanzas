@@ -5,10 +5,10 @@ import { Icon, Segmented, Sheet } from '.';
 
 /** "🦥 Dani G ⌄" with the current space underneath; opens the profile menu. */
 export function ProfileButton() {
-  const { profile, space } = useApp();
+  const { profile, space, accounts } = useApp();
   const [open, setOpen] = useState(false);
   const { items } = useRecurring(space?.id);
-  const pending = items.filter(needsConfirm).length;
+  const pending = items.filter((r) => needsConfirm(r, accounts)).length;
   return (
     <>
       <button className="profile-btn" onClick={() => setOpen(true)} aria-haspopup="dialog">
