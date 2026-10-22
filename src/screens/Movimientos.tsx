@@ -202,7 +202,11 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
             {total > 0 && <> · <strong>{money(total, cur, fx)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
           </p>
-          {selectable.length > 1 && !sel && <button className="mb-select-btn" onClick={() => setSel(new Set())}>Seleccionar</button>}
+          {selectable.length > 1 && (
+            <button className="mb-select-btn" onClick={() => setSel(sel ? null : new Set())} aria-pressed={!!sel}>
+              {sel ? 'Dejar de seleccionar' : 'Seleccionar'}
+            </button>
+          )}
         </div>
       )}
 

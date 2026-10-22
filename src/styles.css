@@ -944,3 +944,5 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
 .toast-undo { border: none; background: none; color: inherit; font: inherit; font-weight: 700; padding: 8px 10px; border-radius: 14px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .toast-undo:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
 .toast-x { border: none; background: none; color: inherit; opacity: .6; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+.mb-select-btn { white-space: nowrap; flex-shrink: 0; }
+.mb-sum-row .mb-sum { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
