@@ -7,6 +7,7 @@ import { catLabel, familyIds, pickerOrder } from '../lib/cats';
 import { byKind } from '../lib/accounts';
 import { useApp, useTxs } from '../store';
 import { Icon, Loading, Segmented, Sheet } from '../ui';
+import { restoreCategories, snapCategories } from '../lib/undo';
 import { canCategorize, TxRow, TxTableRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
 
@@ -84,10 +85,11 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
     if (!sel || !sel.size || !catId) return;
     const ids = [...sel];
     const c = categories.find((x) => x.id === catId);
+    const before = snapCategories(txs.filter((t) => sel.has(t.id)));
     setBulkBusy(true);
     try {
       await db.updateIds('transactions', ids, { category_id: catId, status: 'posted', category_source: 'manual', suggested_category_id: null });
-      toast(`${c?.emoji || '✅'} ${ids.length === 1 ? '1 movimiento' : `${ids.length} movimientos`} → ${c?.name || 'categoría'}`);
+      toast(`${c?.emoji || '✅'} ${ids.length === 1 ? '1 movimiento' : `${ids.length} movimientos`} → ${c?.name || 'categoría'}`, () => restoreCategories(before));
       setSel(null);
       bump();
     } catch {
@@ -118,10 +120,16 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   }
   async function acceptAll() {
     setAiBusy(true);
-    await Promise.all(
-      withSuggestion.map((t) => db.update('transactions', { id: t.id }, { category_id: t.suggested_category_id, status: 'posted', category_source: 'ai', suggested_category_id: null })),
-    );
-    toast(`✅ ${withSuggestion.length} sugerencias aceptadas`);
+    const before = snapCategories(withSuggestion);
+    try {
+      // one request per suggested category instead of one per movement
+      const byCat = new Map<string, string[]>();
+      withSuggestion.forEach((t) => byCat.set(t.suggested_category_id!, [...(byCat.get(t.suggested_category_id!) || []), t.id]));
+      for (const [cat, ids] of byCat) await db.updateIds('transactions', ids, { category_id: cat, status: 'posted', category_source: 'ai', suggested_category_id: null });
+      toast(`✅ ${withSuggestion.length} sugerencias aceptadas`, () => restoreCategories(before));
+    } catch {
+      toast('No se pudieron aceptar todas');
+    }
     setAiBusy(false);
     bump();
   }

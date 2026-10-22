@@ -139,11 +139,27 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Toast() {
-  const { toastMsg } = useApp();
+  const { toastMsg, toastUndo, toast, clearToast, bump } = useApp();
+  const [busy, setBusy] = useState(false);
   if (!toastMsg) return null;
+  async function undo() {
+    if (!toastUndo) return;
+    setBusy(true);
+    try {
+      await toastUndo();
+      bump();
+      toast('Listo, se deshizo');
+    } catch {
+      toast('No se pudo deshacer');
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <div className="toast" role="status">
-      {toastMsg}
+    <div className={toastUndo ? 'toast has-undo' : 'toast'} role="status">
+      <span>{toastMsg}</span>
+      {toastUndo && <button className="toast-undo" onClick={undo} disabled={busy}>Deshacer</button>}
+      {toastUndo && <button className="toast-x" onClick={clearToast} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.6} /></button>}
     </div>
   );
 }

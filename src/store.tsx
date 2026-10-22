@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { auth, db, getSession, onAuthChange, type Session } from './lib/api';
 import type { Account, Category, Currency, Member, Profile, Space, Tag, Tx } from './lib/types';
 import type { Range } from './lib/calc';
@@ -24,8 +24,11 @@ interface Ctx {
   bump: () => void;
   reloadMeta: () => Promise<void>;
   ready: boolean;
-  toast: (msg: string) => void;
+  /** A short message; with `undo` it stays ~6 s and offers "Deshacer". */
+  toast: (msg: string, undo?: () => Promise<unknown> | unknown) => void;
   toastMsg: string | null;
+  toastUndo: (() => Promise<unknown> | unknown) | null;
+  clearToast: () => void;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -53,6 +56,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [version, setVersion] = useState(0);
   const [ready, setReady] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastUndo, setToastUndo] = useState<{ fn: () => Promise<unknown> | unknown } | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     auth.consumeUrlTokens();
@@ -112,9 +117,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([loadBase(), loadSpaceMeta()]);
   }, [loadBase, loadSpaceMeta]);
 
-  const toast = useCallback((msg: string) => {
+  const clearToast = useCallback(() => {
+    window.clearTimeout(toastTimer.current);
+    setToastMsg(null);
+    setToastUndo(null);
+  }, []);
+  const toast = useCallback((msg: string, undo?: () => Promise<unknown> | unknown) => {
+    window.clearTimeout(toastTimer.current);
     setToastMsg(msg);
-    window.setTimeout(() => setToastMsg((m) => (m === msg ? null : m)), 2600);
+    setToastUndo(undo ? { fn: undo } : null);
+    toastTimer.current = window.setTimeout(() => {
+      setToastMsg(null);
+      setToastUndo(null);
+    }, undo ? 6000 : 2600);
   }, []);
 
   const value = useMemo<Ctx>(() => ({
@@ -146,7 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ready,
     toast,
     toastMsg,
-  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, photos, cur, fx, version, reloadMeta, ready, toast, toastMsg]);
+    toastUndo: toastUndo?.fn ?? null,
+    clearToast,
+  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, photos, cur, fx, version, reloadMeta, ready, toast, toastMsg, toastUndo, clearToast]);
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

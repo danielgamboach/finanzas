@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { db } from '../lib/api';
 import { pickerOrder } from '../lib/cats';
+import { restoreCategories, snapCategories } from '../lib/undo';
 import type { Tx } from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from '.';
@@ -19,10 +20,11 @@ export function CatPick({ t }: { t: Tx }) {
   async function pick(id: string) {
     if (!id) return;
     setBusy(true);
+    const before = snapCategories([t]);
     try {
       await db.update('transactions', { id: t.id }, { category_id: id, status: 'posted', category_source: id === suggested?.id ? 'ai' : 'manual', suggested_category_id: null });
       const c = categories.find((x) => x.id === id);
-      toast(`${c?.emoji || '✅'} ${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}`);
+      toast(`${c?.emoji || '✅'} ${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}`, () => restoreCategories(before));
       bump();
     } catch {
       toast('No se pudo guardar la categoría');
