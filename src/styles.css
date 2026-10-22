@@ -816,3 +816,6 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
 .pp-card .pp-main { flex: 1; min-width: 0; }
 .pp-card .pp-actions { padding-left: 0; flex-shrink: 0; }
 .pp-card .pp-skip { margin-right: 0; }
+.rec-filters { margin: 0 -16px; padding: 0 16px; }
+.filter-n { margin-left: 6px; font-size: 12px; font-weight: 600; opacity: .55; }
+.filter.on .filter-n { opacity: .7; }

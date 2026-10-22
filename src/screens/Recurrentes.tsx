@@ -4,7 +4,7 @@ import { photoFor, photoUrl } from '../lib/photos';
 import { db } from '../lib/api';
 import { money, moneyRaw, parseAmount } from '../lib/format';
 import {
-  addPeriod, dueLabel, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
+  addPeriod, daysUntil, dueLabel, isManual, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
 } from '../lib/recurring';
 import type { Category, Currency, Frequency, PayMethod, Recurring, RecurringSuggestion } from '../lib/types';
 import { go, useApp } from '../store';
@@ -126,6 +126,21 @@ export function Recurrentes() {
   const { space, cur, fx, categories, accounts, toast, bump } = useApp();
   const { items, loading } = useRecurring(space?.id);
   const [sugs, setSugs] = useState<RecurringSuggestion[]>([]);
+  const [filter, setFilter] = useState<RecFilter>(() => {
+    try {
+      return (sessionStorage.getItem('finanzas.rec.filter') as RecFilter) || 'todos';
+    } catch {
+      return 'todos';
+    }
+  });
+  const pick = (f: RecFilter) => {
+    setFilter(f);
+    try {
+      sessionStorage.setItem('finanzas.rec.filter', f);
+    } catch {
+      /* storage unavailable */
+    }
+  };
   const { version } = useApp();
 
   useEffect(() => {
@@ -139,6 +154,35 @@ export function Recurrentes() {
   const monthly = active.reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency], 0);
   const toConfirm = active.filter((r) => needsConfirm(r, accounts));
   const rest = active.filter((r) => !needsConfirm(r, accounts));
+
+  // filter chips: only the ones that would show something, with their count
+  const tests: Record<RecFilter, (r: Recurring) => boolean> = {
+    todos: () => true,
+    proximos: (r) => r.active && daysUntil(r.next_due) <= 30,
+    pendientes: (r) => needsConfirm(r, accounts),
+    weekly: (r) => r.active && r.frequency === 'weekly',
+    biweekly: (r) => r.active && r.frequency === 'biweekly',
+    monthly: (r) => r.active && r.frequency === 'monthly',
+    bimonthly: (r) => r.active && r.frequency === 'bimonthly',
+    quarterly: (r) => r.active && r.frequency === 'quarterly',
+    semiannual: (r) => r.active && r.frequency === 'semiannual',
+    yearly: (r) => r.active && r.frequency === 'yearly',
+    tarjeta: (r) => r.active && !isManual(r),
+    manual: (r) => r.active && isManual(r),
+    pausados: (r) => !r.active,
+  };
+  const chips = (Object.keys(FILTER_LABEL) as RecFilter[])
+    .map((k) => [k, items.filter(tests[k]).length] as const)
+    .filter(([k, n]) => k === 'todos' || n > 0);
+  const current = chips.some(([k]) => k === filter) ? filter : 'todos';
+  const shown = items.filter(tests[current]).sort((a, b) => Number(b.active) - Number(a.active) || a.next_due.localeCompare(b.next_due));
+  const perMonth = (r: Recurring) => (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency];
+  const yearlyOnly = current === 'yearly';
+  // due-soon filters add up what's actually coming; the rest compare as a monthly (or yearly) cost
+  const dueSum = current === 'proximos' || current === 'pendientes';
+  const one = (r: Recurring) => (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount));
+  const headerTotal = current === 'todos' ? monthly : shown.filter((r) => r.active).reduce((a, r) => a + (dueSum ? one(r) : yearlyOnly ? perMonth(r) * 12 : perMonth(r)), 0);
+  const headerLabel = current === 'todos' ? 'Total al mes' : dueSum ? `${FILTER_LABEL[current]} · a pagar` : yearlyOnly ? 'Anuales · al año' : `${FILTER_LABEL[current]} · al mes`;
 
   async function addSuggestion(s: RecurringSuggestion) {
     if (!space) return;
@@ -170,13 +214,31 @@ export function Recurrentes() {
       <BackBar title="Recurrentes" />
       <CardPayment />
       <section className="col gap6 px4">
-        <span className="muted-label">Total al mes</span>
-        <BigMoney crc={monthly} size={52} />
-        <span className="muted small">{active.length === 1 ? '1 pago activo' : `${active.length} pagos activos`}</span>
+        <span className="muted-label">{headerLabel}</span>
+        <BigMoney crc={headerTotal} size={52} />
+        <span className="muted small">
+          {current === 'todos' ? (active.length === 1 ? '1 pago activo' : `${active.length} pagos activos`) : shown.length === 1 ? '1 pago' : `${shown.length} pagos`}
+        </span>
       </section>
+
+      {items.length > 0 && (
+        <div className="hscroll rec-filters" role="toolbar" aria-label="Filtrar recurrentes">
+          {chips.map(([k, n]) => (
+            <button key={k} className={current === k ? 'filter on' : 'filter'} aria-pressed={current === k} onClick={() => pick(k)}>
+              {FILTER_LABEL[k]}{k !== 'todos' && <span className="filter-n">{n}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       <a className="action dark self-start" href="#/recurrente/nueva"><span>➕</span>Nuevo recurrente</a>
 
+      {current !== 'todos' ? (
+        <section className="col gap8">
+          <div className="card list">{shown.map((r) => <RecRow key={r.id} r={r} />)}</div>
+        </section>
+      ) : (
+      <>
       {sugs.length > 0 && (
         <section className="col gap8">
           <h2 className="h3 px4">✨ ¿Son suscripciones?</h2>
@@ -232,9 +294,28 @@ export function Recurrentes() {
           <div className="card list">{paused.map((r) => <RecRow key={r.id} r={r} />)}</div>
         </section>
       )}
+      </>
+      )}
     </div>
   );
 }
+
+type RecFilter = 'todos' | 'proximos' | 'pendientes' | Frequency | 'tarjeta' | 'manual' | 'pausados';
+const FILTER_LABEL: Record<RecFilter, string> = {
+  todos: 'Todos',
+  proximos: 'Próximos 30 días',
+  pendientes: 'Pendientes',
+  weekly: 'Semanales',
+  biweekly: 'Quincenales',
+  monthly: 'Mensuales',
+  bimonthly: 'Cada 2 meses',
+  quarterly: 'Trimestrales',
+  semiannual: 'Semestrales',
+  yearly: 'Anuales',
+  tarjeta: 'Con tarjeta',
+  manual: 'Pago manual',
+  pausados: 'Pausados',
+};
 
 /** 350000 → "350.000" while typing (dots for thousands, comma for decimals). */
 function fmtInput(v: string) {
