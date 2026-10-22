@@ -187,6 +187,13 @@ Deno.serve(async (req) => {
 
     const [space] = await get(`spaces?select=name,kind,week_start&id=eq.${spaceId}`);
     if (!space) return reply({ ok: false, reason: 'not a member' }, 403);
+    // daily limit per person, so nobody can run up the Anthropic bill
+    const quota = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consume_ai_quota`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_kind: 'insight', p_limit: 60 }),
+    });
+    if (!quota.ok || (await quota.json()) !== true) return reply({ ok: false, reason: 'quota' });
     const l = new Date(Date.now() - 6 * 3600 * 1000);
     const from = crIso(l.getUTCFullYear(), l.getUTCMonth() - 1, 1); // start of last month (always before last week's start)
     const [members, cats, txs] = await Promise.all([

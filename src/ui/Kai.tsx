@@ -48,7 +48,15 @@ function KaiSheet({ seed, onClose }: { seed?: string; onClose: () => void }) {
     let out: Result;
     try {
       const r = await db.fn<{ ok: boolean; answer?: string; reason?: string }>('ask', { space_id: space.id, question: text });
-      out = r.ok && r.answer ? { q: text, a: r.answer } : { q: text, a: null, error: r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude.' : 'Kai no pudo responder. Probá de nuevo.' };
+      out = r.ok && r.answer
+        ? { q: text, a: r.answer }
+        : {
+            q: text,
+            a: null,
+            error: r.reason === 'quota'
+              ? 'Ya hiciste muchas preguntas hoy. Kai vuelve a responder en unas horas.'
+              : r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude.' : 'Kai no pudo responder. Probá de nuevo.',
+          };
     } catch {
       out = { q: text, a: null, error: 'Kai no pudo responder. Revisá tu conexión y probá de nuevo.' };
     }

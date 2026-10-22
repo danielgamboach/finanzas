@@ -67,7 +67,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
     setAiBusy(true);
     try {
       const r = await db.fn<{ ok: boolean; processed?: number; reason?: string; results?: { applied: boolean }[] }>('categorize', { tx_ids: unchecked.map((t) => t.id) });
-      if (!r.ok) toast(r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude' : 'No se pudo consultar la IA');
+      if (!r.ok) toast(r.reason === 'quota' ? 'Llegaste al límite de consultas a la IA por hoy' : r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude' : 'No se pudo consultar la IA');
       else {
         const applied = (r.results || []).filter((x) => x.applied).length;
         toast(`✨ ${applied} categorizados · ${(r.processed || 0) - applied} con sugerencia`);

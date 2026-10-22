@@ -11,6 +11,8 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SPACE_DAILY_CAP = 300; // movements per space per day, whoever asks
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 const MODEL = Deno.env.get('ANTHROPIC_MODEL') || 'claude-haiku-5-5';
 const THRESHOLD = 0.75;
@@ -172,17 +174,31 @@ Deno.serve(async (req) => {
     new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
   try {
     const body = await req.json().catch(() => ({}));
+    // internal callers (database trigger, cron) send the shared secret; the app sends the user's session
+    const [sec]: { value: string }[] = await rest('app_secrets?select=value&key=eq.notify_secret');
+    const internal = !!sec && req.headers.get('x-notify-secret') === sec.value;
     if (body.mode === 'refine') {
-      const [sec]: { value: string }[] = await rest('app_secrets?select=value&key=eq.notify_secret');
-      if (!sec || req.headers.get('x-notify-secret') !== sec.value) return reply({ ok: false, reason: 'unauthorized' }, 401);
+      if (!internal) return reply({ ok: false, reason: 'unauthorized' }, 401);
       if (!ANTHROPIC_API_KEY) return reply({ ok: false, reason: 'ANTHROPIC_API_KEY not configured' });
       if (!UUID.test(String(body.parent_id))) return reply({ ok: false, reason: 'parent_id' }, 400);
       const r = await refine(String(body.parent_id), Math.min(Number(body.limit) || 40, 60), Number(body.offset) || 0, !!body.dry);
       return reply({ ok: true, ...r });
     }
-    const ids: string[] = (Array.isArray(body.tx_ids) ? body.tx_ids : []).filter((x: unknown) => typeof x === 'string' && UUID.test(x)).slice(0, 50);
+    let ids: string[] = (Array.isArray(body.tx_ids) ? body.tx_ids : []).filter((x: unknown) => typeof x === 'string' && UUID.test(x)).slice(0, 50);
     if (!ids.length) return reply({ ok: true, processed: 0 });
     if (!ANTHROPIC_API_KEY) return reply({ ok: false, reason: 'ANTHROPIC_API_KEY not configured' });
+
+    if (!internal) {
+      // only movements the caller can see, read with their own session (row level security decides)
+      const auth = req.headers.get('Authorization') || '';
+      const user = { apikey: ANON_KEY, Authorization: auth, 'Content-Type': 'application/json' };
+      const seen = await fetch(`${SUPABASE_URL}/rest/v1/transactions?select=id&id=in.(${ids.join(',')})`, { headers: user });
+      if (!seen.ok) return reply({ ok: false, reason: 'unauthorized' }, 401);
+      ids = ((await seen.json()) as { id: string }[]).map((x) => x.id);
+      if (!ids.length) return reply({ ok: true, processed: 0 });
+      const quota = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consume_ai_quota`, { method: 'POST', headers: user, body: JSON.stringify({ p_kind: 'categorize', p_limit: 30 }) });
+      if (!quota.ok || (await quota.json()) !== true) return reply({ ok: false, reason: 'quota' });
+    }
 
     const txs: Tx[] = await rest(
       `transactions?select=id,space_id,kind,raw_merchant,merchant,amount,currency,occurred_at,source&id=in.(${ids.join(',')})&category_id=is.null&ai_checked_at=is.null&kind=in.(expense,income,refund)`,
@@ -194,6 +210,10 @@ Deno.serve(async (req) => {
     const results: unknown[] = [];
 
     for (const [spaceId, items] of bySpace) {
+      // a hard ceiling per space, so even a flood of new movements can't run up the bill
+      const since = new Date(Date.now() - 86400000).toISOString();
+      const recent: unknown[] = await rest(`transactions?select=id&space_id=eq.${spaceId}&ai_checked_at=gte.${encodeURIComponent(since)}&limit=${SPACE_DAILY_CAP}`);
+      if (recent.length >= SPACE_DAILY_CAP) continue;
       const cats: Cat[] = await rest(`categories?select=id,name,emoji,kind,parent_id&space_id=eq.${spaceId}&archived=is.false`);
       const history: { raw_merchant: string | null; merchant: string | null; category_id: string }[] = await rest(
         `transactions?select=raw_merchant,merchant,category_id&space_id=eq.${spaceId}&status=eq.posted&category_id=not.is.null&order=occurred_at.desc&limit=400`,
