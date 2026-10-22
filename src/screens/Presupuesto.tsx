@@ -10,6 +10,7 @@ import { KaiAskBar } from '../ui/Kai';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 import { useDesktop } from '../lib/useDesktop';
+import { photoFor, photoUrl, type MerchantPhoto } from '../lib/photos';
 
 /** Left panel: the month at a glance, budgets by category and trends. */
 export function Analisis() {
@@ -235,7 +236,22 @@ function CatRow({ s }: { s: CatStat }) {
 }
 
 function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [number, number] }) {
-  const { categories, cur, fx } = useApp();
+  const { categories, cur, fx, photos } = useApp();
+  const [topBy, setTopBy] = useState<'amt' | 'n'>(() => {
+    try {
+      return localStorage.getItem('finanzas.topBy') === 'n' ? 'n' : 'amt';
+    } catch {
+      return 'amt';
+    }
+  });
+  const pickTop = (v: 'amt' | 'n') => {
+    setTopBy(v);
+    try {
+      localStorage.setItem('finanzas.topBy', v);
+    } catch {
+      /* storage unavailable */
+    }
+  };
   const t = todayCR();
   const isCurrent = ym[0] === t.y && ym[1] === t.m;
   const months = Array.from({ length: 6 }, (_, i) => {
@@ -268,15 +284,19 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
   const fixed = sumSpend(inMonth.filter((x) => categories.find((c) => c.id === rootId(categories, x.category_id))?.is_fixed));
   const fixedPct = total ? Math.round((fixed / total) * 100) : 0;
 
-  const shops = new Map<string, { n: number; amt: number; cat?: string }>();
+  // a merchant with a photo groups all its branches ("McDonald's Sabana", "McDonald's Zapote"…)
+  const shops = new Map<string, { n: number; amt: number; cat?: string; photo: MerchantPhoto | null }>();
   inMonth.filter((x) => x.kind === 'expense').forEach((x) => {
-    const k = x.merchant || 'Sin nombre';
-    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined };
+    const photo = photoFor(photos, x.merchant, x.raw_merchant);
+    const k = photo ? photo.pattern : x.merchant || 'Sin nombre';
+    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined, photo };
     s.n += 1;
     s.amt += spend(x);
     shops.set(k, s);
   });
-  const top = [...shops.entries()].sort((a, b) => b[1].amt - a[1].amt).slice(0, 5);
+  const top = [...shops.entries()]
+    .sort((a, b) => (topBy === 'n' ? b[1].n - a[1].n || b[1].amt - a[1].amt : b[1].amt - a[1].amt))
+    .slice(0, 5);
 
   return (
     <>
@@ -340,7 +360,14 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
       </div>
 
       <section className="card list">
-        <h2 className="h3 pad-top">Top comercios</h2>
+        <div className="row between pad-top top-head">
+          <h2 className="h3">Top comercios</h2>
+          <div className="mini-seg" role="radiogroup" aria-label="Ordenar comercios">
+            {([['amt', 'Por monto'], ['n', 'Por compras']] as const).map(([v, label]) => (
+              <button key={v} role="radio" aria-checked={topBy === v} className={topBy === v ? 'on' : ''} onClick={() => pickTop(v)}>{label}</button>
+            ))}
+          </div>
+        </div>
         {top.length === 0 ? (
           <span className="empty">Sin gastos este mes.</span>
         ) : (
@@ -349,12 +376,14 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
             return (
               <div key={name} className="row gap12 list-row">
                 <span className="rank">{i + 1}</span>
-                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} />
+                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo ? photoUrl(s.photo) : null} />
                 <span className="grow col">
                   <strong className="sm">{name}</strong>
-                  <span className="muted small">{s.n} {s.n === 1 ? 'compra' : 'compras'}{c ? ` · ${c.name}` : ''}</span>
+                  <span className="muted small">
+                    {topBy === 'n' ? money(s.amt, cur, fx) : `${s.n} ${s.n === 1 ? 'compra' : 'compras'}`}{c ? ` · ${c.name}` : ''}
+                  </span>
                 </span>
-                <strong className="sm">{money(s.amt, cur, fx)}</strong>
+                <strong className="sm">{topBy === 'n' ? `${s.n} ${s.n === 1 ? 'compra' : 'compras'}` : money(s.amt, cur, fx)}</strong>
               </div>
             );
           })

@@ -823,3 +823,8 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
 .filter-n { margin-left: 6px; font-size: 12px; font-weight: 600; opacity: .55; }
 .filter.on .filter-n { opacity: .7; }
 .cat-tile { font-size: 11.5px; letter-spacing: -0.01em; padding: 6px 3px; overflow-wrap: break-word; }
+.top-head { gap: 10px; flex-wrap: wrap; padding-right: 16px; }
+.top-head .h3 { margin: 0; }
+.mini-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 16px; background: var(--raise); }
+.mini-seg button { border: none; background: none; height: 28px; padding: 0 10px; border-radius: 13px; font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.mini-seg button.on { background: var(--ink); color: var(--on-ink); }
