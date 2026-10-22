@@ -4,6 +4,7 @@ import type { Tx } from '../lib/types';
 import { catLabel } from '../lib/cats';
 import { photoFor, photoUrl } from '../lib/photos';
 import { Emo } from '.';
+import { CatPick } from './CatPick';
 
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
 const KIND_LABEL: Record<string, string> = { income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
@@ -23,6 +24,22 @@ export function TxRow({ t, showDate = false }: { t: Tx; showDate?: boolean }) {
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const photo = t.kind === 'transfer' ? null : photoFor(photos, t.merchant, t.raw_merchant);
+  // to review: the category line is a selector; the name still opens the detail (stretched over the row)
+  if (review && t.kind !== 'transfer') {
+    return (
+      <div className="tx-row pick">
+        <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
+        <span className="tx-mid">
+          <button className="tx-name tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>
+          <span className="tx-pick-line">
+            {showDate && <span className="tx-cat">{relDay(t.occurred_at)}</span>}
+            <CatPick t={t} />
+          </span>
+        </span>
+        <span className={inflow ? 'tx-amt pos' : 'tx-amt'}>{main}</span>
+      </div>
+    );
+  }
   return (
     <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
       <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
@@ -57,8 +74,8 @@ export function TxTableRow({ t, hideAccount = false }: { t: Tx; hideAccount?: bo
         <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
       </span>
-      <span role="cell" className={review ? 'tt-cat warn' : 'tt-cat muted'}>
-        {review ? 'Por revisar' : t.kind === 'contribution' ? 'Aporte' : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || ''}
+      <span role="cell" className={review ? 'tt-cat' : 'tt-cat muted'}>
+        {review && t.kind !== 'transfer' ? <CatPick t={t} /> : t.kind === 'contribution' ? 'Aporte' : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || ''}
       </span>
       {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : t.kind === 'transfer' ? '' : 'Efectivo / SINPE'}</span>}
       <span role="cell" className={inflow ? 'tt-amt pos' : neutral ? 'tt-amt muted' : 'tt-amt'}>{main}</span>
