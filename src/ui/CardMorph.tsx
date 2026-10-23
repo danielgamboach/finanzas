@@ -4,9 +4,6 @@ type Box = { x: number; y: number; w: number; h: number };
 interface Item { src: HTMLElement; dst: HTMLElement; ghost: HTMLDivElement; content: HTMLElement; a: Box; b: Box; ra: number; rb: number }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
-// gentle curves: the pager already decelerates when it snaps, a steep in-out on top feels jumpy
-const smooth = (t: number) => t * t * (3 - 2 * t);
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /**
@@ -50,6 +47,8 @@ export function CardMorph({ pager }: { pager: React.RefObject<HTMLDivElement | n
         ghost.style.background = cs.backgroundColor;
         ghost.style.color = cs.color;
         ghost.style.zIndex = String(i);
+        ghost.style.width = `${rb.width}px`;
+        ghost.style.height = `${rb.height}px`;
         const content = dst.cloneNode(true) as HTMLElement;
         content.removeAttribute('data-acc');
         content.classList.add('morph-content');
@@ -71,26 +70,20 @@ export function CardMorph({ pager }: { pager: React.RefObject<HTMLDivElement | n
       if (reduced || t <= 0.004 || t >= 0.996) return clear();
       if (!items) items = build(s, W);
       if (!items) return;
-      const n = items.length;
-      const step = 0.05;
       const left = 2 * W - s; // where the Cuentas panel starts on screen
-      items.forEach((it, k) => {
-        // the front card leads, the ones behind follow a beat later
-        const tk = clamp((t - (n - 1 - k) * step) / (1 - (n - 1) * step));
-        // sideways the card rides with the Cuentas panel and lines up early, so it never crosses into Inicio;
-        // then it drops and grows into its slot
-        const ex = easeOut(clamp(tk * 1.6));
-        const e = smooth(tk);
-        const x = left + lerp(it.a.x - W, it.b.x, ex);
-        const y = lerp(it.a.y, it.b.y, e);
-        const w = lerp(it.a.w, it.b.w, e);
-        const h = lerp(it.a.h, it.b.h, e);
+      for (const it of items) {
+        // linear and glued to the finger: the pager's own momentum is the only easing
+        // sideways it lines up with the panel by mid-gesture, so it barely overlaps Inicio
+        const x = left + lerp(it.a.x - W, it.b.x, Math.min(1, t * 2));
+        const y = lerp(it.a.y, it.b.y, t);
+        const w = lerp(it.a.w, it.b.w, t);
+        const h = lerp(it.a.h, it.b.h, t);
+        const r = lerp(it.ra, it.rb, t);
+        // the ghost keeps its final size; only transform and the clip change, so nothing re-lays out
         it.ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-        it.ghost.style.width = `${w}px`;
-        it.ghost.style.height = `${h}px`;
-        it.ghost.style.borderRadius = `${lerp(it.ra, it.rb, e)}px`;
-        it.content.style.opacity = String(clamp((e - 0.55) / 0.4));
-      });
+        it.ghost.style.clipPath = `inset(0 ${it.b.w - w}px ${it.b.h - h}px 0 round ${r}px)`;
+        it.content.style.opacity = String(clamp((t - 0.6) / 0.35));
+      }
     };
 
     const onScroll = () => {
