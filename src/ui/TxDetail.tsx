@@ -126,15 +126,14 @@ function Body({ t }: { t: Tx }) {
         {conv && <span className="txd-conv">{conv}</span>}
         <span className="chips center">
           {t.hold === 'pending' && <span className="chip warn">Por confirmar</span>}
-          {t.hold === 'void' && <span className="chip">No se cobró</span>}
-          {review && !suggested && <span className="chip warn">Por revisar</span>}
+              {review && !suggested && <span className="chip warn">Por revisar</span>}
           {review && suggested && <span className="chip ai">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</span>}
           {t.recurring_id && <span className="chip">🔁 Recurrente</span>}
           {tags.map((g) => <span key={g} className="chip">{g}</span>)}
         </span>
       </header>
 
-      {t.hold && <HoldBox t={t} />}
+      {t.hold === 'pending' && <HoldBox t={t} />}
 
       <section className="field-card txd-fields" aria-label="Detalles">
         <Row label="Fecha">{cap(fullDate.format(d))}</Row>
@@ -213,19 +212,11 @@ function HoldBox({ t }: { t: Tx }) {
       setBusy(false);
     }
   }
-  if (t.hold === 'void') {
-    return (
-      <section className="hold-box" aria-label="Cobro">
-        <p>Marcado como no cobrado. No cuenta en el gasto ni en el saldo de la tarjeta.</p>
-        <button className="hold-btn" disabled={busy} onClick={() => set(null, 'Marcado como cobrado')}>Sí se cobró</button>
-      </section>
-    );
-  }
   return (
     <section className="hold-box" aria-label="Cobro">
-      <p>Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; {settlesIn(t)} si no la marcás.</p>
+      <p>Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; {settlesIn(t)} si no la marcás. Si no se cobró, se elimina.</p>
       <div className="hold-btns">
-        <button className="hold-btn" disabled={busy} onClick={() => set('void', 'Marcado como no cobrado')}>No se cobró</button>
+        <button className="hold-btn" disabled={busy} onClick={() => set('void', `${t.merchant || 'Movimiento'}: eliminado, no se cobró`)}>No se cobró</button>
         <button className="hold-btn dark" disabled={busy} onClick={() => set(null, 'Confirmado')}>Se cobró</button>
       </div>
     </section>

@@ -5,10 +5,13 @@ import { TX_SELECT, useApp } from '../store';
 
 export type Hold = 'pending' | 'void' | null;
 
-/** Uber and Didi reserve money before the ride. Someone says whether it was charged (null) or not ('void'). */
+/**
+ * Uber and Didi reserve money before the ride. Someone says whether it was charged (null) or not ('void').
+ * A voided one disappears from the app; 'pending' brings it back (undo).
+ */
 export async function setHold(ids: string[], hold: Hold) {
   if (!ids.length) return;
-  await db.updateIds('transactions', ids, { hold, hold_resolved_at: hold === 'pending' ? null : new Date().toISOString() });
+  await db.rpc('set_holds', { p_ids: ids, p_hold: hold });
 }
 
 /** Authorizations still waiting for an answer in this space, newest first. */

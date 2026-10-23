@@ -27,7 +27,7 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
     try {
       await setHold(ids, hold);
       const one = ts.length === 1 ? ts[0].merchant || 'Movimiento' : `${ts.length} movimientos`;
-      toast(hold === 'void' ? `${one}: no se cobró` : `${one}: confirmado`, async () => {
+      toast(hold === 'void' ? `${one}: eliminado, no se cobró` : `${one}: confirmado`, async () => {
         await setHold(ids, 'pending');
         bump();
       });
@@ -46,7 +46,7 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
         <span>Por confirmar</span>
         <span className="pp-count">{rows.length}</span>
       </div>
-      <p className="hold-hint">Uber y Didi reservan el monto antes del viaje. No cuentan hasta que confirmés si se cobró, o solos a las 48 h.</p>
+      <p className="hold-hint">Uber y Didi reservan el monto antes del viaje. Si no se cobró, quitalo con ✕. Los demás se confirman solos a las 48 h.</p>
       <div className="pp-list">
         {list.map((t) => (
           <HoldRow key={t.id} t={t} busy={busy} onResolve={(h) => resolve([t], h)} />
