@@ -410,12 +410,11 @@ html:has(.pager), html:has(.pager) body { overflow: hidden; height: 100%; }
 .topbar-title { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .pnav { position: fixed; z-index: 30; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: 232px; height: 55px; padding: 4px; border-radius: 999px; background: #262626; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 5px 16px rgba(0,0,0,.28); display: flex; align-items: center; justify-content: space-between; }
-.pnav-track { position: absolute; left: 4px; right: 4px; top: 4px; bottom: 4px; pointer-events: none; }
-.pnav-pill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(100% / 3); border-radius: 999px; background: #FAFAFA; will-change: transform; }
+.pnav-track { position: absolute; left: 4px; right: 4px; top: 4px; bottom: 4px; pointer-events: none; z-index: 1; }
+.pnav-pill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(100% / 3); border-radius: 999px; background: #FAFAFA; overflow: hidden; will-change: transform; }
+.pnav-pill-icons { position: absolute; left: 0; top: 0; bottom: 0; width: 300%; display: flex; color: #171717; will-change: transform; }
+.pnav-pill-icons > span { flex: 1; display: flex; align-items: center; justify-content: center; }
 .pnav-item { position: relative; flex: 1; height: 47px; border: none; border-radius: 999px; background: transparent; color: #FAFAFA; display: flex; align-items: center; justify-content: center; }
-/* white icons turn dark exactly where the pill passes under them */
-.pnav-item svg { mix-blend-mode: difference; }
-.pnav { isolation: isolate; }
 
 /* ───────── home ───────── */
 .home { position: relative; height: 100%; max-width: 520px; margin: 0 auto; overflow: hidden; }
@@ -946,3 +945,23 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px #383838; }
 .toast-x { border: none; background: none; color: inherit; opacity: .6; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
 .mb-select-btn { white-space: nowrap; flex-shrink: 0; }
 .mb-sum-row .mb-sum { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Card holds (Uber, Didi): pending until someone confirms ── */
+.hold-hint { margin: -2px 4px 2px; font-size: 12.5px; font-weight: 500; line-height: 1.35; color: var(--muted); }
+.hold-row .pp-pay, .pp-card .hold-row .pp-pay { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+.hold-row .hold-no, .pp-card .hold-row .hold-no { background: transparent; color: var(--ink); border: 1.5px solid var(--border); }
+.hold-row .hold-no:hover, .hold-row .hold-no:active { background: var(--raise); color: var(--ink); border-color: var(--border); }
+.hold-row .pp-mid { min-width: 0; }
+.hold-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 10px 14px; border-top: 1px solid var(--line); }
+.hold-all { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 18px; border: none; background: var(--ink); color: var(--on-ink); font: inherit; font-size: 13.5px; font-weight: 650; }
+.hold-all:disabled { opacity: .5; }
+.tx-cat.hold { color: var(--warn); }
+.tx-amt.void, .tt-amt.void, .txd-amt.void { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.tt-hold { flex-shrink: 0; margin-left: 8px; font-size: 11.5px; font-weight: 650; color: var(--warn); }
+.hold-box { background: var(--card); border-radius: 22px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.hold-box p { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink2); }
+.hold-btns { display: flex; gap: 8px; }
+.hold-btn { flex: 1; height: 42px; border-radius: 21px; border: 1.5px solid var(--border); background: transparent; color: var(--ink); font: inherit; font-size: 14px; font-weight: 650; }
+.hold-box > .hold-btn { flex: none; align-self: flex-start; padding: 0 18px; }
+.hold-btn.dark { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.hold-btn:disabled { opacity: .5; }

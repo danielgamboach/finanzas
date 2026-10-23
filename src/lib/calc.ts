@@ -27,6 +27,7 @@ export const inRange = (t: Tx, r: Range) => t.occurred_at >= r.from && t.occurre
 
 /** Positive = money spent, negative = money returned. */
 export function spend(t: Tx) {
+  if (t.hold) return 0; // authorizations count once they're charged
   if (t.kind === 'expense') return Number(t.amount_crc);
   if (t.kind === 'refund') return -Number(t.amount_crc);
   return 0;
@@ -37,7 +38,7 @@ export function sumSpend(txs: Tx[]) {
 }
 
 export function sumKind(txs: Tx[], kind: Tx['kind']) {
-  return txs.filter((t) => t.kind === kind).reduce((a, t) => a + Number(t.amount_crc), 0);
+  return txs.filter((t) => t.kind === kind && !t.hold).reduce((a, t) => a + Number(t.amount_crc), 0);
 }
 
 export type Level = 'ok' | 'warn' | 'over' | 'none';

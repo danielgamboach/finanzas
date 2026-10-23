@@ -125,7 +125,7 @@ export function useHomeSummary() {
   const seen = new Set<string>();
   const merchants: { key: string; tx: Tx }[] = [];
   for (const x of inMonth) {
-    if (x.kind !== 'expense' || x.occurred_at > nowIso) continue;
+    if (x.kind !== 'expense' || x.hold === 'void' || x.occurred_at > nowIso) continue;
     const ph = photoFor(photos, x.merchant, x.raw_merchant);
     const key = ph ? `p:${ph.id}` : normWords(x.merchant || x.raw_merchant || x.id).trim();
     if (seen.has(key)) continue;

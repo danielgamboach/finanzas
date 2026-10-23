@@ -6,6 +6,11 @@ import { Home } from './Home';
 import { Cuentas } from './Patrimonio';
 
 const HASH = ['#/analisis', '#/', '#/cuentas'];
+const NAV = [
+  ['grid', 'Análisis'],
+  ['house', 'Inicio'],
+  ['cards', 'Cuentas'],
+] as const;
 
 export function panelOf(route: string | undefined) {
   if (route === 'analisis' || route === 'presupuesto') return 0;
@@ -24,6 +29,7 @@ export function Shell({ route }: { route: string }) {
   const [open, setOpenState] = useState(route === 'movimientos');
   const [focus, setFocus] = useState(0);
   const pill = useRef<HTMLSpanElement>(null);
+  const pillIcons = useRef<HTMLSpanElement>(null);
 
   // the bottom bar's white pill follows the finger, not just the final panel
   useEffect(() => {
@@ -34,6 +40,8 @@ export function Shell({ route }: { route: string }) {
       raf = 0;
       const x = el.scrollLeft / Math.max(1, el.clientWidth);
       if (pill.current) pill.current.style.transform = `translateX(${x * 100}%)`;
+      // the dark copy inside the pill moves the other way, so it stays over the real icons
+      if (pillIcons.current) pillIcons.current.style.transform = `translateX(${(-x * 100) / 3}%)`;
     };
     const on = () => {
       if (!raf) raf = requestAnimationFrame(paint);
@@ -122,16 +130,21 @@ export function Shell({ route }: { route: string }) {
       </div>
       <CardMorph pager={pager} />
       <nav className="pnav" aria-label="Navegación principal">
-        <span className="pnav-track" aria-hidden="true"><span ref={pill} className="pnav-pill" /></span>
-        {([
-          ['grid', 'Análisis'],
-          ['house', 'Inicio'],
-          ['cards', 'Cuentas'],
-        ] as const).map(([icon, label], i) => (
+        {NAV.map(([icon, label], i) => (
           <button key={icon} className={i === idx ? 'pnav-item on' : 'pnav-item'} aria-label={label} aria-current={i === idx ? 'page' : undefined} onClick={() => (i === 1 && idx === 1 && open ? setOpenState(false) : goPanel(i))}>
             <Icon name={icon} size={i === 1 ? 24 : 23} stroke={1.8} />
           </button>
         ))}
+        {/* the white pill carries dark copies of the icons, clipped to its shape: the icon under it reads dark */}
+        <span className="pnav-track" aria-hidden="true">
+          <span ref={pill} className="pnav-pill">
+            <span ref={pillIcons} className="pnav-pill-icons">
+              {NAV.map(([icon], i) => (
+                <span key={icon}><Icon name={icon} size={i === 1 ? 24 : 23} stroke={1.8} /></span>
+              ))}
+            </span>
+          </span>
+        </span>
       </nav>
     </>
   );

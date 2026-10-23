@@ -68,7 +68,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const cards = accs.filter((a) => a.kind === 'credit_card').map((a) => a.id);
       const since = new Date(Date.now() - 60 * 86400000).toISOString();
       const ct = cards.length
-        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at').eq('space_id', spaceId).gte('occurred_at', since).limit(3000)
+        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold').eq('space_id', spaceId).gte('occurred_at', since).limit(3000).then((r) => r.filter((t) => t.hold !== 'void'))
         : [];
       if (!alive) return;
       setAccounts(accs);

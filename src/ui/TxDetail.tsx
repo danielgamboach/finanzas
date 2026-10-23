@@ -11,6 +11,7 @@ import { go, TX_SELECT, useApp } from '../store';
 import { Emo, Icon, Loading } from '.';
 import { TxRow } from './TxRow';
 import { useDragToClose } from './useDragToClose';
+import { setHold, settlesIn } from '../lib/holds';
 
 const KIND_LABEL: Record<string, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
@@ -121,15 +122,19 @@ function Body({ t }: { t: Tx }) {
       <header className="txd-hero">
         <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={64} />
         <h2 className="txd-name">{name}</h2>
-        <span className={inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
+        <span className={t.hold === 'void' ? 'txd-amt muted void' : inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
         {conv && <span className="txd-conv">{conv}</span>}
         <span className="chips center">
+          {t.hold === 'pending' && <span className="chip warn">Por confirmar</span>}
+          {t.hold === 'void' && <span className="chip">No se cobró</span>}
           {review && !suggested && <span className="chip warn">Por revisar</span>}
           {review && suggested && <span className="chip ai">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</span>}
           {t.recurring_id && <span className="chip">🔁 Recurrente</span>}
           {tags.map((g) => <span key={g} className="chip">{g}</span>)}
         </span>
       </header>
+
+      {t.hold && <HoldBox t={t} />}
 
       <section className="field-card txd-fields" aria-label="Detalles">
         <Row label="Fecha">{cap(fullDate.format(d))}</Row>
@@ -185,6 +190,45 @@ function Body({ t }: { t: Tx }) {
 
       {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <SameMerchant t={t} name={name} />}
     </>
+  );
+}
+
+/** A card authorization: say whether it was charged. Pending ones settle on their own after 48 h. */
+function HoldBox({ t }: { t: Tx }) {
+  const { toast, bump } = useApp();
+  const [busy, setBusy] = useState(false);
+  async function set(hold: 'void' | 'pending' | null, msg: string) {
+    setBusy(true);
+    const before = t.hold ?? null;
+    try {
+      await setHold([t.id], hold);
+      toast(msg, async () => {
+        await setHold([t.id], before);
+        bump();
+      });
+      bump();
+    } catch {
+      toast('No se pudo guardar');
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (t.hold === 'void') {
+    return (
+      <section className="hold-box" aria-label="Cobro">
+        <p>Marcado como no cobrado. No cuenta en el gasto ni en el saldo de la tarjeta.</p>
+        <button className="hold-btn" disabled={busy} onClick={() => set(null, 'Marcado como cobrado')}>Sí se cobró</button>
+      </section>
+    );
+  }
+  return (
+    <section className="hold-box" aria-label="Cobro">
+      <p>Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; {settlesIn(t)} si no la marcás.</p>
+      <div className="hold-btns">
+        <button className="hold-btn" disabled={busy} onClick={() => set('void', 'Marcado como no cobrado')}>No se cobró</button>
+        <button className="hold-btn dark" disabled={busy} onClick={() => set(null, 'Confirmado')}>Se cobró</button>
+      </div>
+    </section>
   );
 }
 

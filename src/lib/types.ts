@@ -75,6 +75,9 @@ export interface Tx {
   status: 'posted' | 'review';
   source: 'manual' | 'email' | 'import' | 'recurring' | 'system';
   external_id: string | null;
+  /** Card authorization (Uber, Didi): 'pending' until it settles, 'void' if it was never charged. */
+  hold?: 'pending' | 'void' | null;
+  hold_resolved_at?: string | null;
   category_source?: 'auto' | 'ai' | 'manual' | null;
   suggested_category_id?: string | null;
   ai_confidence?: number | null;

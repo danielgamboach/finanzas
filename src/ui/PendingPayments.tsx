@@ -6,6 +6,7 @@ import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '.';
 import { CardPayment, recEmoji } from '../screens/Recurrentes';
+import { Holds } from './Holds';
 
 /**
  * Payments someone has to make by hand (transfers, cash) that are due or overdue, plus the shared
@@ -13,6 +14,15 @@ import { CardPayment, recEmoji } from '../screens/Recurrentes';
  * Renders nothing when there's nothing to pay.
  */
 export function PendingPayments({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
+  return (
+    <>
+      <Holds variant={variant} />
+      <ManualPayments variant={variant} />
+    </>
+  );
+}
+
+function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
   const { space, accounts } = useApp();
   const { items } = useRecurring(space?.id);
   // what was confirmed in this session, so it can be undone

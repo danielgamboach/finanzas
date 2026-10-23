@@ -34,6 +34,8 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
   let what = review ? 'Por revisar' : t.kind === 'contribution' ? `Aporte${who ? ` de ${who}` : ''}` : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || '';
   if (what === name) what = KIND_LABEL[t.kind] || '';
+  if (t.hold === 'pending') what = 'Por confirmar';
+  if (t.hold === 'void') what = 'No se cobró';
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
@@ -48,7 +50,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
           <span className="tx-name">{name}</span>
           {what && <span className={review ? 'tx-cat warn' : 'tx-cat'}>{review ? reviewLabel(t, categories) : what}</span>}
         </span>
-        <span className={inflow ? 'tx-amt pos' : neutral ? 'tx-amt muted' : 'tx-amt'}>{main}</span>
+        <span className={amtClass('tx-amt', t, inflow, neutral)}>{main}</span>
       </button>
     );
   }
@@ -73,11 +75,18 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
       <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
       <span className="tx-mid">
         <span className="tx-name">{name}</span>
-        {(what || showDate) && <span className={review ? 'tx-cat warn' : 'tx-cat'}>{showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what}</span>}
+        {(what || showDate) && <span className={review ? 'tx-cat warn' : t.hold ? 'tx-cat hold' : 'tx-cat'}>{showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what}</span>}
       </span>
-      <span className={inflow ? 'tx-amt pos' : neutral ? 'tx-amt muted' : 'tx-amt'}>{main}</span>
+      <span className={amtClass('tx-amt', t, inflow, neutral)}>{main}</span>
     </button>
   );
+}
+
+/** Amount style: inflow green, transfers and pending holds quiet, never-charged holds struck through. */
+function amtClass(base: string, t: Tx, inflow: boolean, neutral: boolean) {
+  if (t.hold === 'void') return `${base} muted void`;
+  if (t.hold === 'pending') return `${base} muted`;
+  return inflow ? `${base} pos` : neutral ? `${base} muted` : base;
 }
 
 const dateFmt = new Intl.DateTimeFormat('es-CR', { day: 'numeric', month: 'short', timeZone: 'America/Costa_Rica' });
@@ -102,12 +111,13 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
       <span role="cell" className="tt-merchant">
         <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
+        {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>
       <span role="cell" className={review ? 'tt-cat' : 'tt-cat muted'}>
         {review && t.kind !== 'transfer' && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'contribution' ? 'Aporte' : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || ''}
       </span>
       {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : t.kind === 'transfer' ? '' : 'Efectivo / SINPE'}</span>}
-      <span role="cell" className={inflow ? 'tt-amt pos' : neutral ? 'tt-amt muted' : 'tt-amt'}>{main}</span>
+      <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}</span>
     </div>
   );
 }
