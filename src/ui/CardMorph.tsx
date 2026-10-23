@@ -4,7 +4,9 @@ type Box = { x: number; y: number; w: number; h: number };
 interface Item { src: HTMLElement; dst: HTMLElement; ghost: HTMLDivElement; content: HTMLElement; a: Box; b: Box; ra: number; rb: number }
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
-const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// gentle curves: the pager already decelerates when it snaps, a steep in-out on top feels jumpy
+const smooth = (t: number) => t * t * (3 - 2 * t);
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /**
@@ -70,13 +72,17 @@ export function CardMorph({ pager }: { pager: React.RefObject<HTMLDivElement | n
       if (!items) items = build(s, W);
       if (!items) return;
       const n = items.length;
-      const step = 0.07;
+      const step = 0.05;
+      const left = 2 * W - s; // where the Cuentas panel starts on screen
       items.forEach((it, k) => {
         // the front card leads, the ones behind follow a beat later
         const tk = clamp((t - (n - 1 - k) * step) / (1 - (n - 1) * step));
-        const e = ease(tk);
-        const x = lerp(it.a.x, it.b.x, e);
-        const y = lerp(it.a.y, it.b.y, ease(clamp(tk * 1.15)));
+        // sideways the card rides with the Cuentas panel and lines up early, so it never crosses into Inicio;
+        // then it drops and grows into its slot
+        const ex = easeOut(clamp(tk * 1.6));
+        const e = smooth(tk);
+        const x = left + lerp(it.a.x - W, it.b.x, ex);
+        const y = lerp(it.a.y, it.b.y, e);
         const w = lerp(it.a.w, it.b.w, e);
         const h = lerp(it.a.h, it.b.h, e);
         it.ghost.style.transform = `translate3d(${x}px, ${y}px, 0)`;
