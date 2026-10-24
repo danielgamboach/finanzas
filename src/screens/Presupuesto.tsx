@@ -9,7 +9,7 @@ import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 import { useDesktop } from '../lib/useDesktop';
-import { txMerchant, photoUrl } from '../lib/merchants';
+import { txBadge, txMerchant, photoUrl } from '../lib/merchants';
 
 /** Left panel: the month at a glance, budgets by category and trends. */
 export function Analisis() {
@@ -223,11 +223,11 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
   const inMonth = txs.filter((x) => inRange(x, month));
 
   // a catalog merchant groups all its branches ("ampm Freses", "AM PM Pavas"…)
-  const shops = new Map<string, { n: number; amt: number; cat?: string; photo: string | null }>();
+  const shops = new Map<string, { n: number; amt: number; cat?: string; photo: string | null; badge: string | null }>();
   inMonth.filter((x) => x.kind === 'expense').forEach((x) => {
     const m = txMerchant(merchants, x);
     const k = m ? m.name : x.merchant || 'Sin nombre';
-    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined, photo: m ? photoUrl(m) : null };
+    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined, photo: m ? photoUrl(m) : null, badge: txBadge(merchants, x) };
     s.n += 1;
     s.amt += spend(x);
     shops.set(k, s);
@@ -298,7 +298,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
             return (
               <div key={name} className="row gap12 list-row">
                 <span className="rank">{i + 1}</span>
-                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo} />
+                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo} badge={s.badge} />
                 <span className="grow col">
                   <strong className="sm">{name}</strong>
                   <span className="muted small">

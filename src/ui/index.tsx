@@ -62,7 +62,23 @@ export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof paths
   );
 }
 
-export function Emo({ e, color, size = 48, img }: { e: string; color?: string | null; size?: number; img?: string | null }) {
+/** A round face: the merchant's photo or the category emoji. `badge` adds a small logo at the bottom right (e.g. Apple). */
+export function Emo({ e, color, size = 48, img, badge }: { e: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
+  if (badge) {
+    const b = Math.max(14, Math.round(size * 0.42));
+    return (
+      <span className="emo-wrap" aria-hidden="true" style={{ width: size, height: size }}>
+        <Emo e={e} color={color} size={size} img={img} />
+        <span className="emo-badge" style={{ width: b, height: b }}>
+          <img src={badge} alt="" loading="lazy" decoding="async" />
+        </span>
+      </span>
+    );
+  }
+  return <Face e={e} color={color} size={size} img={img} />;
+}
+
+function Face({ e, color, size, img }: { e: string; color?: string | null; size: number; img?: string | null }) {
   const [broken, setBroken] = useState(false);
   if (img && !broken) {
     return (

@@ -80,6 +80,18 @@ export function txPhoto(list: Merchant[], t: Parameters<typeof txMerchant>[1]) {
   return m ? photoUrl(m) : null;
 }
 
+/** True for a card charge Apple billed ("APPLE.COM/BILL") that its receipt named after the app. */
+export const viaApple = (t: { raw_merchant?: string | null; merchant?: string | null }) =>
+  /^APPLE\.COM/i.test(t.raw_merchant || '') && !!t.merchant && t.merchant.trim().toLowerCase() !== 'apple';
+
+/** The small Apple logo shown on a service paid through Apple (YouTube, iCloud…), or null. */
+export function txBadge(list: Merchant[], t: Parameters<typeof txMerchant>[1]) {
+  if (!viaApple(t)) return null;
+  const apple = merchantFor(list, 'APPLE.COM/BILL');
+  const own = txMerchant(list, t);
+  return apple && own?.id !== apple.id ? photoUrl(apple) : null;
+}
+
 /** Logo URL for anything named (recurring payments), or null. */
 export function namePhoto(list: Merchant[], ...names: (string | null | undefined)[]) {
   const m = merchantFor(list, ...names);

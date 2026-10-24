@@ -4,7 +4,7 @@ import { db } from '../lib/api';
 import { catLabel } from '../lib/cats';
 import { tagsOf } from '../lib/calc';
 import { cap, money, moneyRaw, shortDate } from '../lib/format';
-import { normWords, photoUrl, txMerchant, type Merchant } from '../lib/merchants';
+import { normWords, photoUrl, txBadge, txMerchant, type Merchant } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { useDesktop } from '../lib/useDesktop';
 import { go, TX_SELECT, useApp } from '../store';
@@ -122,7 +122,7 @@ function Body({ t }: { t: Tx }) {
   return (
     <>
       <header className="txd-hero">
-        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} size={64} />
+        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} size={64} />
         <h2 className="txd-name">{name}</h2>
         <span className={t.hold === 'void' ? 'txd-amt muted void' : inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
         {conv && <span className="txd-conv">{conv}</span>}

@@ -1,7 +1,7 @@
 import { go, useApp } from '../store';
 import { money, relDay } from '../lib/format';
 import type { Tx } from '../lib/types';
-import { txPhoto } from '../lib/merchants';
+import { txBadge, txPhoto } from '../lib/merchants';
 import { Emo, Icon } from '.';
 import { CatPick } from './CatPick';
 
@@ -39,12 +39,13 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const photo = txPhoto(merchants, t);
+  const badge = txBadge(merchants, t);
   // selecting several: the whole row toggles
   if (pick) {
     return (
       <button className={pick.selected ? 'tx-row selecting on' : 'tx-row selecting'} onClick={pick.onToggle} aria-pressed={pick.selected}>
         <Check on={pick.selected} />
-        <Emo e={emoji} color={color} img={photo} />
+        <Emo e={emoji} color={color} img={photo} badge={badge} />
         <span className="tx-mid">
           <span className="tx-name">{name}</span>
           {what && <span className={review ? 'tx-cat warn' : 'tx-cat'}>{review ? reviewLabel(t, categories) : what}</span>}
@@ -57,7 +58,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   if (review && t.kind !== 'transfer') {
     return (
       <div className="tx-row pick">
-        <Emo e={emoji} color={color} img={photo} />
+        <Emo e={emoji} color={color} img={photo} badge={badge} />
         <span className="tx-mid">
           <button className="tx-name tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>
           <span className="tx-pick-line">
@@ -71,7 +72,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   }
   return (
     <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
-      <Emo e={emoji} color={color} img={photo} />
+      <Emo e={emoji} color={color} img={photo} badge={badge} />
       <span className="tx-mid">
         <span className="tx-name">{name}</span>
         {(what || showDate) && <span className={review ? 'tx-cat warn' : t.hold ? 'tx-cat hold' : 'tx-cat'}>{showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what}</span>}
@@ -102,13 +103,14 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const photo = txPhoto(merchants, t);
+  const badge = txBadge(merchants, t);
   const open = pick ? pick.onToggle : () => go(`/mov/${t.id}`);
   const cls = ['ttr', hideAccount && 'no-acc', pick && 'selecting', pick?.selected && 'on'].filter(Boolean).join(' ');
   return (
     <div className={cls} role="row" tabIndex={0} aria-selected={pick ? pick.selected : undefined} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}>
       <span role="cell" className="tt-date">{pick && <Check on={pick.selected} />}{dateFmt.format(new Date(t.occurred_at))}</span>
       <span role="cell" className="tt-merchant">
-        <Emo e={emoji} color={color} img={photo} size={32} />
+        <Emo e={emoji} color={color} img={photo} badge={badge} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>

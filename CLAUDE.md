@@ -73,6 +73,7 @@ scripts/
 - `apple_receipts` guarda cada recibo. Se empareja con el cobro de Apple del mismo monto y moneda a 3 días o menos, en un espacio del dueño del recibo y con la misma tarjeta si se sabe. Si hay dos candidatos casi igual de cerca, no adivina y el cobro queda como "Apple".
 - Si el recibo llega antes que el cobro, el trigger `transactions_0_apple` (corre antes que los demás) le pone el nombre de la app al insertarlo; si llega después, `apple_match_receipt` lo renombra y lo liga a su recurrente (`link_recurring`). `ensure_app_merchant` crea el comercio de la app en el catálogo (YouTube, iCloud, Apple One…).
 - `match_recurring` y las sugerencias de recurrentes también miran el nombre limpio, así cada suscripción puede tener su recurrente ("YOUTUBE") sin agarrar todo Apple. La IA nunca renombra cobros de Apple. El detalle muestra "Suscripción en Apple: YouTube Premium · mensual".
+- La cara de esos movimientos es el logo del servicio con un logo chico de Apple abajo a la derecha (`txBadge` + `Emo badge`), en las listas, el detalle y Top comercios.
 
 ## Comercios y logos (catálogo global)
 
