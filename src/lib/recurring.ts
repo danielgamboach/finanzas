@@ -88,9 +88,9 @@ export function isManual(r: Recurring, _accounts?: Pick<Account, 'id' | 'kind'>[
   return r.method !== 'card';
 }
 
-/** A manual payment that is due (within its lead days) or overdue and hasn't been confirmed. */
+/** A manual payment that hasn't been confirmed: asked from the day before it's due, and for as long as it's overdue. */
 export const needsConfirm = (r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[]) =>
-  r.active && isManual(r, accounts) && recState(r) !== 'upcoming';
+  r.active && isManual(r, accounts) && daysUntil(r.next_due) <= 1;
 
 /** A manual payment confirmed in the last few days: shown as completed for a little while. */
 export function justPaid(r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[], days = 3) {

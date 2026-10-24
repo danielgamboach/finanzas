@@ -440,7 +440,7 @@ export function RecurringEdit({ id }: { id: string }) {
         <span className="hint">
           {r.method === 'card'
             ? 'Cobro automático: se marca como pagado solo cuando llega el voucher de la tarjeta (crédito o débito).'
-            : 'Pago manual: aparece en Pagos pendientes en el inicio desde unos días antes, y se queda ahí hasta que confirmés que lo pagaste.'}
+            : 'Pago manual: aparece en Pagos pendientes en el inicio desde el día antes, y se queda ahí hasta que confirmés que lo pagaste.'}
         </span>
         {r.method === 'card' && (
           <label className="col gap6"><span className="field-label">Cómo aparece en el voucher</span>
