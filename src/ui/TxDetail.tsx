@@ -4,12 +4,13 @@ import { db } from '../lib/api';
 import { catLabel } from '../lib/cats';
 import { tagsOf } from '../lib/calc';
 import { cap, money, moneyRaw, shortDate } from '../lib/format';
-import { normWords, photoFor, photoUrl } from '../lib/photos';
+import { normWords, photoUrl, txMerchant, type Merchant } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { useDesktop } from '../lib/useDesktop';
 import { go, TX_SELECT, useApp } from '../store';
 import { Emo, Icon, Loading } from '.';
 import { TxRow } from './TxRow';
+import { MergeSheet } from './Merchant';
 import { useDragToClose } from './useDragToClose';
 import { setHold, settlesIn } from '../lib/holds';
 
@@ -98,13 +99,14 @@ export function TxDetail({ id }: { id: string }) {
 }
 
 function Body({ t }: { t: Tx }) {
-  const { categories, accounts, cur, fx, profiles, photos } = useApp();
+  const { categories, accounts, cur, fx, profiles, merchants } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const suggested = t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
   const acc = accounts.find((a) => a.id === t.account_id);
   const to = accounts.find((a) => a.id === t.to_account_id);
   const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
-  const photo = t.kind === 'transfer' ? null : photoFor(photos, t.merchant, t.raw_merchant);
+  const merchant = txMerchant(merchants, t);
+  const photo = merchant ? photoUrl(merchant) : null;
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
   const tags = tagsOf(t);
@@ -120,7 +122,7 @@ function Body({ t }: { t: Tx }) {
   return (
     <>
       <header className="txd-hero">
-        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={64} />
+        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} size={64} />
         <h2 className="txd-name">{name}</h2>
         <span className={t.hold === 'void' ? 'txd-amt muted void' : inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
         {conv && <span className="txd-conv">{conv}</span>}
@@ -151,6 +153,7 @@ function Body({ t }: { t: Tx }) {
             )}
           </Row>
         )}
+        {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <MerchantRow t={t} merchant={merchant} />}
         <Row label={t.kind === 'transfer' ? 'Desde' : 'Cuenta'}>
           {acc ? (
             <a className="txd-link" href={`#/cuenta/${acc.id}`}>{acc.name}{acc.last4 ? ` ••${acc.last4}` : ''}</a>
@@ -187,8 +190,46 @@ function Body({ t }: { t: Tx }) {
         </section>
       )}
 
-      {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <SameMerchant t={t} name={name} />}
+      {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <SameMerchant t={t} name={name} merchant={merchant} />}
     </>
+  );
+}
+
+/** Which catalog merchant this is, with a way to fix it ("Unir con otro comercio"). */
+function MerchantRow({ t, merchant }: { t: Tx; merchant: Merchant | null }) {
+  const { merchants, bump, toast } = useApp();
+  const [open, setOpen] = useState<null | 'pick' | Merchant>(null);
+  const suggested = !merchant && t.suggested_merchant_id ? merchants.find((m) => m.id === t.suggested_merchant_id) || null : null;
+
+  async function dismiss() {
+    try {
+      await db.update('transactions', { id: t.id }, { suggested_merchant_id: null });
+      bump();
+    } catch {
+      toast('No se pudo guardar');
+    }
+  }
+
+  return (
+    <Row label="Comercio">
+      <span className="txd-merchant">
+        {merchant ? (
+          <>
+            {merchant.name}
+            <button className="txd-mini" onClick={() => setOpen('pick')}>Cambiar</button>
+          </>
+        ) : suggested ? (
+          <>
+            ¿Es {suggested.name}?
+            <button className="txd-mini dark" onClick={() => setOpen(suggested)}>Sí</button>
+            <button className="txd-mini" onClick={dismiss}>No</button>
+          </>
+        ) : (
+          <button className="txd-mini" onClick={() => setOpen('pick')}>Unir con otro comercio</button>
+        )}
+      </span>
+      {open && <MergeSheet t={t} preset={open === 'pick' ? null : open} onClose={() => setOpen(null)} />}
+    </Row>
   );
 }
 
@@ -232,12 +273,11 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-/** Every other movement of this merchant in the space: by its photo pattern when it has one, by name otherwise. */
-function SameMerchant({ t, name }: { t: Tx; name: string }) {
-  const { photos, cur, fx, version } = useApp();
+/** Every other movement of this merchant in the space: all its branches when it is in the catalog, by name otherwise. */
+function SameMerchant({ t, name, merchant }: { t: Tx; name: string; merchant: Merchant | null }) {
+  const { cur, fx, version } = useApp();
   const [rows, setRows] = useState<Tx[] | null>(null);
   const [shown, setShown] = useState(20);
-  const photo = photoFor(photos, t.merchant, t.raw_merchant);
 
   useEffect(() => {
     let alive = true;
@@ -245,10 +285,8 @@ function SameMerchant({ t, name }: { t: Tx; name: string }) {
     setShown(20);
     const q = db.from<Tx>('transactions', TX_SELECT).eq('space_id', t.space_id).neq('kind', 'transfer').order('occurred_at', false).limit(400);
     const quote = (v: string) => `"${v.replace(/["\\]/g, '')}"`;
-    if (photo) {
-      // loose search on the server, exact whole-word match here
-      const like = '*' + normWords(photo.pattern).trim().split(' ').join('*') + '*';
-      q.or(`merchant.ilike.${quote(like)}`, `raw_merchant.ilike.${quote(like)}`);
+    if (merchant) {
+      q.eq('merchant_id', merchant.id);
     } else {
       const conds = [];
       if (t.merchant) conds.push(`merchant.eq.${quote(t.merchant)}`);
@@ -258,13 +296,13 @@ function SameMerchant({ t, name }: { t: Tx; name: string }) {
     }
     q.then((all) => {
       if (!alive) return;
-      setRows(photo ? all.filter((x) => photoFor(photos, x.merchant, x.raw_merchant)?.id === photo.id) : all);
+      setRows(all);
     }).catch(() => alive && setRows([]));
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t.id, photo?.id, version]);
+  }, [t.id, merchant?.id, version]);
 
   const stats = useMemo(() => {
     if (!rows) return null;
@@ -276,7 +314,7 @@ function SameMerchant({ t, name }: { t: Tx; name: string }) {
   }, [rows]);
 
   const others = rows?.filter((x) => x.id !== t.id) || [];
-  const title = photo ? photo.pattern : name;
+  const title = merchant ? merchant.name : name;
 
   return (
     <section className="txd-more" aria-label={`Más de ${title}`}>

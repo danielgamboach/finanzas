@@ -9,7 +9,7 @@ import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 import { useDesktop } from '../lib/useDesktop';
-import { photoFor, photoUrl, type MerchantPhoto } from '../lib/photos';
+import { txMerchant, photoUrl } from '../lib/merchants';
 
 /** Left panel: the month at a glance, budgets by category and trends. */
 export function Analisis() {
@@ -177,7 +177,7 @@ function CatRow({ s }: { s: CatStat }) {
 }
 
 function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [number, number] }) {
-  const { categories, cur, fx, photos } = useApp();
+  const { categories, cur, fx, merchants } = useApp();
   const [topBy, setTopBy] = useState<'amt' | 'n'>(() => {
     try {
       return localStorage.getItem('finanzas.topBy') === 'n' ? 'n' : 'amt';
@@ -222,12 +222,12 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
   const month = monthRange(ym[0], ym[1]);
   const inMonth = txs.filter((x) => inRange(x, month));
 
-  // a merchant with a photo groups all its branches ("McDonald's Sabana", "McDonald's Zapote"…)
-  const shops = new Map<string, { n: number; amt: number; cat?: string; photo: MerchantPhoto | null }>();
+  // a catalog merchant groups all its branches ("ampm Freses", "AM PM Pavas"…)
+  const shops = new Map<string, { n: number; amt: number; cat?: string; photo: string | null }>();
   inMonth.filter((x) => x.kind === 'expense').forEach((x) => {
-    const photo = photoFor(photos, x.merchant, x.raw_merchant);
-    const k = photo ? photo.pattern : x.merchant || 'Sin nombre';
-    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined, photo };
+    const m = txMerchant(merchants, x);
+    const k = m ? m.name : x.merchant || 'Sin nombre';
+    const s = shops.get(k) || { n: 0, amt: 0, cat: x.category_id || undefined, photo: m ? photoUrl(m) : null };
     s.n += 1;
     s.amt += spend(x);
     shops.set(k, s);
@@ -298,7 +298,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
             return (
               <div key={name} className="row gap12 list-row">
                 <span className="rank">{i + 1}</span>
-                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo ? photoUrl(s.photo) : null} />
+                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo} />
                 <span className="grow col">
                   <strong className="sm">{name}</strong>
                   <span className="muted small">

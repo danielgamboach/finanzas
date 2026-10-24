@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { dueLabel, isManual, justPaid, needsConfirm, payRecurring, recState, shortDay, undoPayRecurring, useRecurring } from '../lib/recurring';
 import { money, moneyRaw } from '../lib/format';
-import { photoFor, photoUrl } from '../lib/photos';
+import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '.';
@@ -68,9 +68,9 @@ function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {
 
 /** One line: who, when, how much, and a check to confirm it was paid. Skipping lives in Recurrentes. */
 function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null) => void }) {
-  const { categories, photos, cur, fx, userId, toast, bump } = useApp();
+  const { categories, merchants, cur, fx, userId, toast, bump } = useApp();
   const [busy, setBusy] = useState(false);
-  const photo = photoFor(photos, r.merchant, r.match_pattern);
+  const photo = namePhoto(merchants, r.merchant, r.match_pattern);
   const overdue = recState(r) === 'overdue';
 
   async function paid() {
@@ -90,7 +90,7 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
   return (
     <div className={overdue ? 'pp-row overdue' : 'pp-row'}>
       <button className="pp-main" onClick={() => go(`/recurrente/${r.id}`)}>
-        <Emo e={recEmoji(r, categories)} color={categories.find((c) => c.id === r.category_id)?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={40} />
+        <Emo e={recEmoji(r, categories)} color={categories.find((c) => c.id === r.category_id)?.color || 'gray'} img={photo} size={40} />
         <span className="pp-mid">
           <span className="pp-name">{r.merchant}</span>
           <span className="pp-sub">{dueLabel(r.next_due)}</span>
@@ -106,9 +106,9 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
 }
 
 function DoneRow({ r, undo, onUndone }: { r: Recurring; undo?: { before: Recurring; txId: string }; onUndone: () => void }) {
-  const { categories, photos, cur, fx, toast, bump } = useApp();
+  const { categories, merchants, cur, fx, toast, bump } = useApp();
   const [busy, setBusy] = useState(false);
-  const photo = photoFor(photos, r.merchant, r.match_pattern);
+  const photo = namePhoto(merchants, r.merchant, r.match_pattern);
   async function revert() {
     if (!undo) return;
     setBusy(true);
@@ -125,7 +125,7 @@ function DoneRow({ r, undo, onUndone }: { r: Recurring; undo?: { before: Recurri
     <div className="pp-row done">
       <div className="pp-main">
         <span className="pp-emo-done">
-          <Emo e={recEmoji(r, categories)} color="gray" img={photo ? photoUrl(photo) : null} size={40} />
+          <Emo e={recEmoji(r, categories)} color="gray" img={photo} size={40} />
           <span className="pp-check" aria-hidden="true"><Icon name="check" size={12} stroke={3} /></span>
         </span>
         <span className="pp-mid">

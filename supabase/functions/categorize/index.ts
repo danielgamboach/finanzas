@@ -5,6 +5,10 @@
 // so calling it with arbitrary ids can't change existing data or burn credits twice.
 // Subcategories: categories can have one level of children ("Salidas > Bares"). The model answers with
 // "Padre > Hijo" when it can tell, or just the parent.
+// One question per merchant: movements of the same merchant (catalog merchant, or the same merchant_key)
+// share one answer, inside a batch and later on: a new movement reuses the answer an earlier one got.
+// When the name looks like a known catalog merchant ("AMPM ASAMBLEA" ~ "ampm"), the same call asks
+// whether it is that merchant and leaves suggested_merchant_id for the person to confirm.
 // Mode "refine" (internal only, needs x-notify-secret) re-reads the history of one parent and moves
 // movements into its subcategories when the model is confident.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -24,7 +28,10 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-interface Tx { id: string; space_id: string; kind: string; raw_merchant: string | null; merchant: string | null; amount: number; currency: string; occurred_at: string; source: string }
+interface Tx { id: string; space_id: string; kind: string; raw_merchant: string | null; merchant: string | null; amount: number; currency: string; occurred_at: string; source: string; merchant_id?: string | null; merchant_key?: string | null }
+interface Known { id: string; name: string }
+interface Answer { i: number; category: string | null; confidence: number; name?: string; es?: string | null; es_confianza?: number }
+interface Prior { suggested_category_id: string | null; category_id: string | null; category_source: string | null; ai_confidence: number | null; suggested_merchant_id: string | null }
 interface Cat { id: string; name: string; emoji: string; kind: string; parent_id: string | null }
 
 async function rest(path: string, init: RequestInit = {}) {
@@ -97,7 +104,7 @@ async function callClaude(system: string, user: string) {
   return JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1));
 }
 
-async function askClaude(cats: Cat[], examples: string[], items: Tx[]) {
+async function askClaude(cats: Cat[], examples: string[], items: Tx[], known: Known[][]) {
   const expense = catList(cats, 'expense');
   const income = catList(cats, 'income');
   const list = items.map((t, i) => ({
@@ -105,20 +112,22 @@ async function askClaude(cats: Cat[], examples: string[], items: Tx[]) {
     comercio: t.raw_merchant || t.merchant,
     monto: `${t.currency} ${t.amount}`,
     tipo: t.kind === 'income' ? 'ingreso' : 'gasto',
+    ...(known[i]?.length ? { conocidos: known[i].map((k) => k.name) } : {}),
   }));
   const system =
     'Clasificás movimientos de tarjetas y cuentas bancarias de un hogar en Costa Rica. ' +
     'Los nombres vienen del voucher del banco, en mayúsculas y a veces cortados. ' +
     'Usá solo las categorías dadas, con el nombre exacto. Si no estás seguro, bajá la confianza; no inventes categorías. ' +
     'Algunas categorías tienen subcategorías: si sabés cuál aplica respondé "Categoría > Subcategoría" (ej. "Salidas > Bares"); si no, respondé solo la categoría. ' +
+    'Algunos movimientos traen "conocidos": comercios ya registrados con nombre parecido. Si el movimiento es claramente una sucursal o variante de uno de ellos, ponelo en "es" con el nombre exacto; si no, null. ' +
     'Respondé únicamente con JSON válido, sin texto extra.';
   const user =
     `Categorías de gasto: ${expense}\nCategorías de ingreso: ${income || 'ninguna'}\n\n` +
     (examples.length ? `Así ha categorizado este hogar antes (comercio → categoría):\n${examples.join('\n')}\n\n` : '') +
     `Movimientos a clasificar:\n${JSON.stringify(list)}\n\n` +
     'Devolvé un arreglo JSON con un objeto por movimiento: ' +
-    '{"i": número, "category": "nombre exacto (o Categoría > Subcategoría) o null", "confidence": número de 0 a 1, "name": "nombre legible del comercio, corto, con mayúsculas normales y tildes"}';
-  return (await callClaude(system, user)) as { i: number; category: string | null; confidence: number; name?: string }[];
+    '{"i": número, "category": "nombre exacto (o Categoría > Subcategoría) o null", "confidence": número de 0 a 1, "name": "nombre legible del comercio, corto, con mayúsculas normales y tildes", "es": "nombre exacto de un conocido o null", "es_confianza": número de 0 a 1}';
+  return (await callClaude(system, user)) as Answer[];
 }
 
 /** Moves movements of a parent category (or its subcategories) into the right subcategory. */
@@ -168,6 +177,41 @@ async function refine(parentId: string, limit: number, offset: number, dry: bool
   return { processed: txs.length, moved, results };
 }
 
+/** Movements of the same merchant share one answer. */
+function groupOf(t: Tx) {
+  return t.merchant_id ? `m:${t.merchant_id}` : t.merchant_key ? `k:${t.merchant_key}` : `t:${t.id}`;
+}
+
+/** The answer an earlier movement of the same merchant got in this space, if any. */
+async function priorAnswer(spaceId: string, t: Tx): Promise<Prior | null> {
+  const same = t.merchant_id ? `merchant_id=eq.${t.merchant_id}` : t.merchant_key ? `merchant_key=eq.${encodeURIComponent(t.merchant_key)}` : null;
+  if (!same) return null;
+  const rows: Prior[] = await rest(
+    `transactions?select=suggested_category_id,category_id,category_source,ai_confidence,suggested_merchant_id&space_id=eq.${spaceId}&id=neq.${t.id}&${same}&ai_checked_at=not.is.null&or=(suggested_category_id.not.is.null,category_source.eq.ai)&order=ai_checked_at.desc&limit=1`,
+  );
+  return rows[0] || null;
+}
+
+/** Catalog merchants with a similar name, for the "es" question. */
+async function candidates(text: string | null): Promise<Known[]> {
+  if (!text) return [];
+  try {
+    const rows: Known[] = await rest('rpc/merchant_candidates', { method: 'POST', body: JSON.stringify({ p_text: text, p_limit: 4 }) });
+    return rows.map((r) => ({ id: r.id, name: r.name }));
+  } catch {
+    return [];
+  }
+}
+
+async function apply(t: Tx, cat: Cat | undefined, conf: number, name: string | null, sameAs: string | null) {
+  const patch: Record<string, unknown> = { ai_checked_at: new Date().toISOString(), ai_confidence: Math.round(conf * 100) / 100 };
+  if (cat && conf >= THRESHOLD) Object.assign(patch, { category_id: cat.id, status: 'posted', category_source: 'ai', suggested_category_id: null });
+  else if (cat) patch.suggested_category_id = cat.id;
+  if (name && t.raw_merchant && (t.source === 'email' || t.source === 'import')) patch.merchant = name.slice(0, 80);
+  if (sameAs && !t.merchant_id) patch.suggested_merchant_id = sameAs;
+  await rest(`transactions?id=eq.${t.id}&category_id=is.null`, { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const reply = (body: unknown, status = 200) =>
@@ -201,7 +245,7 @@ Deno.serve(async (req) => {
     }
 
     const txs: Tx[] = await rest(
-      `transactions?select=id,space_id,kind,raw_merchant,merchant,amount,currency,occurred_at,source&id=in.(${ids.join(',')})&category_id=is.null&ai_checked_at=is.null&kind=in.(expense,income,refund)`,
+      `transactions?select=id,space_id,kind,raw_merchant,merchant,amount,currency,occurred_at,source,merchant_id,merchant_key&id=in.(${ids.join(',')})&category_id=is.null&ai_checked_at=is.null&kind=in.(expense,income,refund)`,
     );
     if (!txs.length) return reply({ ok: true, processed: 0 });
 
@@ -229,18 +273,42 @@ Deno.serve(async (req) => {
         if (examples.length >= 60) break;
       }
 
-      const answers = await askClaude(cats, examples, items);
+      // one question per merchant: group the batch, and reuse what an earlier movement of the same merchant got
+      const groups = new Map<string, Tx[]>();
       for (const t of items) {
-        const a = answers.find((x) => x.i === items.indexOf(t));
-        const wantKind = t.kind === 'income' ? 'income' : 'expense';
+        const g = groupOf(t);
+        groups.set(g, [...(groups.get(g) || []), t]);
+      }
+      const ask: Tx[] = [];
+      const known: Known[][] = [];
+      for (const members of groups.values()) {
+        const rep = members[0];
+        const prior = await priorAnswer(spaceId, rep);
+        if (prior) {
+          const cat = cats.find((c) => c.id === (prior.suggested_category_id || (prior.category_source === 'ai' ? prior.category_id : null)));
+          const conf = Number(prior.ai_confidence) || 0;
+          for (const t of members) {
+            await apply(t, cat, conf, null, prior.suggested_merchant_id); // the clean name is per branch: not reused
+            results.push({ id: t.id, reused: true, category: cat ? label(cats, cat) : null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD) });
+          }
+          continue;
+        }
+        ask.push(rep);
+        known.push(rep.merchant_id ? [] : await candidates(rep.raw_merchant || rep.merchant));
+      }
+      if (!ask.length) continue;
+
+      const answers = await askClaude(cats, examples, ask, known);
+      for (const [i, rep] of ask.entries()) {
+        const a = answers.find((x) => x.i === i);
+        const wantKind = rep.kind === 'income' ? 'income' : 'expense';
         const cat = findCat(cats, a?.category, wantKind);
         const conf = Math.max(0, Math.min(1, Number(a?.confidence) || 0));
-        const patch: Record<string, unknown> = { ai_checked_at: new Date().toISOString(), ai_confidence: Math.round(conf * 100) / 100 };
-        if (cat && conf >= THRESHOLD) Object.assign(patch, { category_id: cat.id, status: 'posted', category_source: 'ai', suggested_category_id: null });
-        else if (cat) patch.suggested_category_id = cat.id;
-        if (a?.name && t.raw_merchant && (t.source === 'email' || t.source === 'import')) patch.merchant = a.name.slice(0, 80);
-        await rest(`transactions?id=eq.${t.id}&category_id=is.null`, { method: 'PATCH', body: JSON.stringify(patch) });
-        results.push({ id: t.id, answer: a?.category ?? null, category: cat ? label(cats, cat) : null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD) });
+        const same = a?.es && Number(a.es_confianza) >= 0.8 ? known[i].find((k) => norm(k.name) === norm(String(a.es))) : undefined;
+        for (const t of groups.get(groupOf(rep)) || [rep]) {
+          await apply(t, cat, conf, t.id === rep.id ? a?.name || null : null, same?.id || null);
+          results.push({ id: t.id, answer: a?.category ?? null, category: cat ? label(cats, cat) : null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD), same_as: same?.name || null });
+        }
       }
     }
     return reply({ ok: true, processed: results.length, results });

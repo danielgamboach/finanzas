@@ -54,9 +54,10 @@ scripts/
 
 ## Base de datos: piezas clave
 
-- Tablas principales: `transactions`, `categories`, `accounts`, `recurring`, `merchant_rules`, `merchant_photos`, `spaces`, `space_members`, `goals`, `balance_snapshots`, `fx_rates`, `ingest_tokens`, `ingest_unmatched`, `ai_usage`.
+- Tablas principales: `transactions`, `categories`, `accounts`, `recurring`, `merchant_rules`, `merchants`, `merchant_patterns`, `spaces`, `space_members`, `goals`, `balance_snapshots`, `fx_rates`, `ingest_tokens`, `ingest_unmatched`, `ai_usage`.
 - `transactions.merchant_key` es una columna generada con `merchant_key(raw_merchant)`. Si se cambia esa función, hay que tocar las filas (`update … set raw_merchant = raw_merchant`) para recalcularla.
-- Categorización automática: `match_category` usa primero reglas con prioridad ≥ 50, luego el historial del mismo `merchant_key`, luego las demás reglas. Si nada aplica, la IA (`categorize`) deja una sugerencia en `suggested_category_id` y el movimiento queda `status = 'review'`.
+- Categorización automática: `match_category` usa primero reglas con prioridad ≥ 50, luego el historial del mismo comercio del catálogo (`merchant_id`) o, si no tiene, del mismo `merchant_key`, luego las demás reglas. Si nada aplica, la IA (`categorize`) deja una sugerencia en `suggested_category_id` y el movimiento queda `status = 'review'`.
+- La IA pregunta una vez por comercio: los movimientos del mismo comercio comparten respuesta (en el lote y después, reusando la de un movimiento anterior). Si el nombre se parece a un comercio del catálogo (`merchant_candidates`, con pg_trgm), la misma llamada pregunta si es ese y deja `suggested_merchant_id`; la persona confirma en el detalle ("¿Es ampm? Sí / No").
 - `pretty_merchant` limpia el nombre del comercio. Uber Eats se separa de Uber con `is_uber_eats()`.
 - Recurrentes: el trigger `advance_recurring` mueve `next_due` y marca `last_paid_on`. Un recurrente es "manual" si `method <> 'card'` y aparece en Pagos pendientes hasta que se confirma.
 - Seguridad: `set_fx_rate` solo para admins y con límites; cuotas diarias de IA con `consume_ai_quota`; las llamadas internas a `categorize` llevan el header `x-notify-secret`.
@@ -66,9 +67,13 @@ scripts/
 
 `scripts/google-apps-script.gs` corre en la cuenta de Google de Dani. Lee los correos del BAC (etiqueta `Finanzas/Historial` para importar historial) y llama a `ingest_voucher_as` con el token personal. Los últimos 4 dígitos de la tarjeta deciden el espacio.
 
-## Logos de comercios
+## Comercios y logos (catálogo global)
 
-`merchant_photos` (patrón + archivo en el bucket). El patrón se compara como palabras completas contra el nombre y gana el más largo. Imágenes de 192 px en webp. Un logo nuevo necesita un nombre de archivo único para no pisar otro.
+- `merchants` (nombre, logo en `photo_path`) y `merchant_patterns` (palabras que llevan a ese comercio, p. ej. "AM PM" y "AMPM" → ampm). El catálogo es uno solo para todos los usuarios: un logo o una unión sirve para todos.
+- Un movimiento pertenece al comercio cuyo patrón aparece como palabras completas en `raw_merchant` o `merchant` (sin tildes ni mayúsculas); gana el patrón más largo. El trigger `transactions_merchant` guarda el resultado en `transactions.merchant_id`, y al agregar, mover o apagar un patrón se re-enlazan los movimientos afectados. Eso agrupa sucursales en el detalle ("Más de ampm"), en Top comercios, en "Por revisar" y en el historial de categorías.
+- Escrituras solo por funciones con reglas: `merchant_create`, `merchant_add_pattern` ("Unir con otro comercio"), `merchant_disable_pattern` (deshacer; los patrones nunca se borran), `merchant_set_photo`, `merchant_rename`. Cualquiera puede crear un comercio, unir con al menos 3 letras y poner el primer logo; solo un admin (`is_app_admin()`, tabla `app_admins`) reemplaza o quita un logo, renombra comercios ajenos o mueve patrones ajenos.
+- Logos: 192 px JPEG, siempre un archivo nuevo en `<space_id>/m-<uuid>.jpg` del bucket `merchant-photos` (público). Los 82 logos originales siguen en sus rutas de antes. `merchant_photos` quedó como historial de solo lectura y ya no se usa.
+- En el app: `src/lib/merchants.ts` (misma regla de coincidencia, `txMerchant`, `txPhoto`), `src/ui/Merchant.tsx` (campo de foto en el formulario, hoja de foto, hoja de unir). Ajustes ya no lista fotos.
 
 ## Cómo trabajar
 
@@ -99,3 +104,4 @@ scripts/
 - "Dinero Simbiótico" tiene `last_paid_on` en noviembre por un movimiento con fecha futura.
 - Pendientes manuales de Dani: activar la protección de contraseñas filtradas en Supabase Auth, confirmar que la confirmación de correo está activa, poner un límite de gasto en Anthropic y borrar la rama `logo-import` en GitHub.
 - Tabla `_seed_logos` sin uso (RLS activo, sin acceso); se puede borrar a mano.
+- Storage: las políticas del bucket `merchant-photos` pertenecen al rol de storage y no se pueden cambiar por SQL. Todavía permiten que un miembro sobrescriba o borre archivos de la carpeta de su espacio (el app nunca lo hace). Para cerrarlo, en el dashboard de Supabase (Storage → Policies) dejar update y delete solo para admins.

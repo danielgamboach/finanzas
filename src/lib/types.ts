@@ -83,6 +83,10 @@ export interface Tx {
   ai_confidence?: number | null;
   ai_checked_at?: string | null;
   merchant_key?: string | null;
+  /** Catalog merchant (set by the database from the names). */
+  merchant_id?: string | null;
+  /** A catalog merchant the AI thinks this is; the person confirms it. */
+  suggested_merchant_id?: string | null;
   created_by?: string | null;
   created_at?: string;
   transaction_tags?: { tags: { name: string } | null }[];

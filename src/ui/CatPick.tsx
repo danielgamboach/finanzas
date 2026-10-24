@@ -20,7 +20,8 @@ export function CatPick({ t }: { t: Tx }) {
   /** The same merchant's movements still waiting for a category, this one included. */
   async function siblings(): Promise<Tx[]> {
     const q = (v: string) => `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-    const conds = [t.merchant_key && `merchant_key.eq.${q(t.merchant_key)}`, t.merchant && `merchant.eq.${q(t.merchant)}`].filter(Boolean) as string[];
+    // a catalog merchant groups all its branches; otherwise the same bank key or name
+    const conds = (t.merchant_id ? [`merchant_id.eq.${t.merchant_id}`] : [t.merchant_key && `merchant_key.eq.${q(t.merchant_key)}`, t.merchant && `merchant.eq.${q(t.merchant)}`]).filter(Boolean) as string[];
     if (!conds.length) return [t];
     try {
       const rows = await db.from<Tx>('transactions', 'id,category_id,status,category_source,suggested_category_id,kind')

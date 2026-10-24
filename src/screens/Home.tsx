@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
 import { cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
 import { accountColor, byKind } from '../lib/accounts';
-import { normWords, photoFor, photoUrl } from '../lib/photos';
+import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Emo, Icon, Loading, tint } from '../ui';
@@ -66,7 +66,7 @@ const BUBBLES: [number, number, number][] = [
 
 /** Everything the home summary shows; shared by the phone and desktop homes. */
 export function useHomeSummary() {
-  const { space, categories, accounts, cur, fx, photos } = useApp();
+  const { space, categories, accounts, cur, fx, merchants: catalog } = useApp();
   const t = todayCR();
   const month = monthRange(t.y, t.m);
   const prevMonth = monthRange(t.y, t.m - 1);
@@ -126,8 +126,8 @@ export function useHomeSummary() {
   const merchants: { key: string; tx: Tx }[] = [];
   for (const x of inMonth) {
     if (x.kind !== 'expense' || x.hold === 'void' || x.occurred_at > nowIso) continue;
-    const ph = photoFor(photos, x.merchant, x.raw_merchant);
-    const key = ph ? `p:${ph.id}` : normWords(x.merchant || x.raw_merchant || x.id).trim();
+    const mm = txMerchant(catalog, x);
+    const key = mm ? `m:${mm.id}` : normWords(x.merchant || x.raw_merchant || x.id).trim();
     if (seen.has(key)) continue;
     seen.add(key);
     merchants.push({ key, tx: x });
@@ -140,14 +140,14 @@ export function useHomeSummary() {
 
 /** A merchant's face: its photo, or the emoji of its category on the category color. */
 export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
-  const { photos, categories } = useApp();
-  const ph = photoFor(photos, tx.merchant, tx.raw_merchant);
+  const { merchants, categories } = useApp();
+  const ph = txPhoto(merchants, tx);
   const cat = categories.find((c) => c.id === tx.category_id);
-  return ph ? <img src={photoUrl(ph)} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
+  return ph ? <img src={ph} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
 }
 
 export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
-  const { categories, cur, fx, photos } = useApp();
+  const { categories, cur, fx, merchants: catalog } = useApp();
   const topRef = useRef<HTMLDivElement>(null);
   const h = useHomeSummary();
   if (!h) return <Loading />;
@@ -197,11 +197,11 @@ export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen
             <div className="bubbles" aria-hidden="true">
               {shown.map((m, i) => {
                 const [l, tp, sz] = BUBBLES[i];
-                const ph = photoFor(photos, m.tx.merchant, m.tx.raw_merchant);
+                const ph = txPhoto(catalog, m.tx);
                 const cat = categories.find((c) => c.id === m.tx.category_id);
                 return (
                   <span key={m.key} className="bubble" style={{ left: l, top: tp, width: sz, height: sz, background: ph ? '#fff' : tint(cat?.color) }}>
-                    {ph ? <img src={photoUrl(ph)} alt="" /> : <span style={{ fontSize: sz * 0.5 }}>{cat?.emoji || '🛍️'}</span>}
+                    {ph ? <img src={ph} alt="" /> : <span style={{ fontSize: sz * 0.5 }}>{cat?.emoji || '🛍️'}</span>}
                   </span>
                 );
               })}

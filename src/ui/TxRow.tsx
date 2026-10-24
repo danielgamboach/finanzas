@@ -2,7 +2,7 @@ import { go, useApp } from '../store';
 import { money, relDay } from '../lib/format';
 import type { Tx } from '../lib/types';
 import { catLabel } from '../lib/cats';
-import { photoFor, photoUrl } from '../lib/photos';
+import { txPhoto } from '../lib/merchants';
 import { Emo, Icon } from '.';
 import { CatPick } from './CatPick';
 
@@ -25,7 +25,7 @@ function Check({ on }: { on: boolean }) {
 }
 
 export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean; pick?: Pick }) {
-  const { categories, cur, fx, profiles, photos } = useApp();
+  const { categories, cur, fx, profiles, merchants } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
@@ -39,13 +39,13 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
-  const photo = t.kind === 'transfer' ? null : photoFor(photos, t.merchant, t.raw_merchant);
+  const photo = txPhoto(merchants, t);
   // selecting several: the whole row toggles
   if (pick) {
     return (
       <button className={pick.selected ? 'tx-row selecting on' : 'tx-row selecting'} onClick={pick.onToggle} aria-pressed={pick.selected}>
         <Check on={pick.selected} />
-        <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
+        <Emo e={emoji} color={color} img={photo} />
         <span className="tx-mid">
           <span className="tx-name">{name}</span>
           {what && <span className={review ? 'tx-cat warn' : 'tx-cat'}>{review ? reviewLabel(t, categories) : what}</span>}
@@ -58,7 +58,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   if (review && t.kind !== 'transfer') {
     return (
       <div className="tx-row pick">
-        <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
+        <Emo e={emoji} color={color} img={photo} />
         <span className="tx-mid">
           <button className="tx-name tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>
           <span className="tx-pick-line">
@@ -72,7 +72,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   }
   return (
     <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
-      <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} />
+      <Emo e={emoji} color={color} img={photo} />
       <span className="tx-mid">
         <span className="tx-name">{name}</span>
         {(what || showDate) && <span className={review ? 'tx-cat warn' : t.hold ? 'tx-cat hold' : 'tx-cat'}>{showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what}</span>}
@@ -93,7 +93,7 @@ const dateFmt = new Intl.DateTimeFormat('es-CR', { day: 'numeric', month: 'short
 
 /** Desktop: one movement as a table row (date, merchant, category, account, amount). Details live in the side sheet. */
 export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccount?: boolean; pick?: Pick }) {
-  const { categories, accounts, cur, fx, photos } = useApp();
+  const { categories, accounts, cur, fx, merchants } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const acc = accounts.find((a) => a.id === t.account_id);
   const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
@@ -102,14 +102,14 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
-  const photo = t.kind === 'transfer' ? null : photoFor(photos, t.merchant, t.raw_merchant);
+  const photo = txPhoto(merchants, t);
   const open = pick ? pick.onToggle : () => go(`/mov/${t.id}`);
   const cls = ['ttr', hideAccount && 'no-acc', pick && 'selecting', pick?.selected && 'on'].filter(Boolean).join(' ');
   return (
     <div className={cls} role="row" tabIndex={0} aria-selected={pick ? pick.selected : undefined} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}>
       <span role="cell" className="tt-date">{pick && <Check on={pick.selected} />}{dateFmt.format(new Date(t.occurred_at))}</span>
       <span role="cell" className="tt-merchant">
-        <Emo e={emoji} color={color} img={photo ? photoUrl(photo) : null} size={32} />
+        <Emo e={emoji} color={color} img={photo} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>

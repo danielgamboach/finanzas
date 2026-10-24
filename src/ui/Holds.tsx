@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { setHold, usePendingHolds } from '../lib/holds';
 import { money, relDay } from '../lib/format';
-import { photoFor, photoUrl } from '../lib/photos';
+import { txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '.';
@@ -68,14 +68,14 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
 }
 
 function HoldRow({ t, busy, onResolve }: { t: Tx; busy: boolean; onResolve: (hold: 'void' | null) => void }) {
-  const { categories, photos, cur, fx } = useApp();
+  const { categories, merchants, cur, fx } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
-  const photo = photoFor(photos, t.merchant, t.raw_merchant);
+  const photo = txPhoto(merchants, t);
   const name = t.merchant || 'Movimiento';
   return (
     <div className="pp-row hold-row">
       <button className="pp-main" onClick={() => go(`/mov/${t.id}`)}>
-        <Emo e={cat?.emoji || '🚗'} color={cat?.color || 'gray'} img={photo ? photoUrl(photo) : null} size={40} />
+        <Emo e={cat?.emoji || '🚗'} color={cat?.color || 'gray'} img={photo} size={40} />
         <span className="pp-mid">
           <span className="pp-name">{name}</span>
           <span className="pp-sub">{relDay(t.occurred_at)} · {timeFmt.format(new Date(t.occurred_at))}</span>

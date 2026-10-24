@@ -4,7 +4,7 @@ import { accountColor } from '../lib/accounts';
 import { money } from '../lib/format';
 import { go, useApp } from '../store';
 import { Icon, tint } from '../ui';
-import { photoFor } from '../lib/photos';
+import { txPhoto } from '../lib/merchants';
 import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
@@ -157,7 +157,7 @@ function SpaceSwitch() {
 
 /** Desktop home: the month in three cards, then the latest movements as a table. */
 export function DesktopHome() {
-  const { cur, fx, photos, categories, profile } = useApp();
+  const { cur, fx, merchants: catalog, categories, profile } = useApp();
   const h = useHomeSummary();
   if (!h) return null;
   const { label, value, negative, delta, vsLabel, cardLabel, cardValue, spent, budget, merchants, peek, recent } = h;
@@ -192,7 +192,7 @@ export function DesktopHome() {
           {faces.length > 0 && (
             <span className="dfaces" aria-label="Comercios recientes">
               {faces.map((m) => (
-                <span key={m.key} className="dface" title={m.tx.merchant || ''} style={{ background: photoFor(photos, m.tx.merchant, m.tx.raw_merchant) ? '#fff' : tint(categories.find((c) => c.id === m.tx.category_id)?.color) }}>
+                <span key={m.key} className="dface" title={m.tx.merchant || ''} style={{ background: txPhoto(catalog, m.tx) ? '#fff' : tint(categories.find((c) => c.id === m.tx.category_id)?.color) }}>
                   <MerchantFace tx={m.tx} size={30} />
                 </span>
               ))}
