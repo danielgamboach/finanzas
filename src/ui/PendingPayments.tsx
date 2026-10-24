@@ -63,7 +63,8 @@ function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
 
 function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {
   const crc = r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount);
-  return r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx);
+  const shown = r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx);
+  return r.variable ? `≈ ${shown}` : shown;
 }
 
 /** One line: who, when, how much, and a check to confirm it was paid. Skipping lives in Recurrentes. */

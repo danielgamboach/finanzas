@@ -111,6 +111,8 @@ export interface Recurring {
   last_paid_on: string | null;
   notes: string | null;
   active: boolean;
+  /** Electricity, water, internet: matched whatever the amount; amount is the average of the last 3 payments. */
+  variable?: boolean;
 }
 
 export interface RecurringSuggestion {

@@ -57,12 +57,12 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
         <Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : state === 'overdue' ? 'pink' : cat?.color || 'gray'} img={photo} />
         <span className="tx-mid">
           <span className="tx-cat">
-            {compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`}
+            {compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`}{r.variable ? ' · Varía' : ''}
           </span>
           <span className="tx-name">{r.merchant}</span>
         </span>
         <span className="tx-amt">
-          <span>{r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx)}</span>
+          <span>{r.variable ? '≈ ' : ''}{r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx)}</span>
           <span className={state === 'overdue' ? 'tx-sub danger' : state === 'due' ? 'tx-sub strong' : 'tx-sub'}>
             {!r.active ? 'Pausado' : paidRecently(r) ? `✅ Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(r.next_due)}
           </span>
@@ -373,6 +373,7 @@ export function RecurringEdit({ id }: { id: string }) {
       match_pattern: effectivePattern.trim().toUpperCase() || null,
       active: r.active,
       notes: r.notes || null,
+      variable: !!r.variable,
     };
     try {
       if (isNew) await db.insert('recurring', row);
@@ -407,7 +408,7 @@ export function RecurringEdit({ id }: { id: string }) {
           <input className="input" value={r.merchant || ''} onChange={(e) => set('merchant', e.target.value)} placeholder="Ej. Alquiler, Netflix, Internet" />
         </label>
         <div className="col gap6">
-          <span className="field-label">Monto esperado</span>
+          <span className="field-label">{r.variable ? 'Monto aproximado' : 'Monto esperado'}</span>
           <div className="row gap8">
             <label className="amount-input small grow">
               <span className="amount-sym">{r.currency === 'USD' ? '$' : '¢'}</span>
@@ -415,6 +416,13 @@ export function RecurringEdit({ id }: { id: string }) {
             </label>
             <Segmented value={(r.currency || 'CRC') as Currency} options={[['CRC', '¢'], ['USD', '$']]} onChange={(v) => set('currency', v)} dark={false} />
           </div>
+        </div>
+        <div className="field-row bare">
+          <span className="col">
+            <span>Monto variable</span>
+            <small>{r.variable ? 'Se reconoce aunque cambie el monto. El monto se actualiza solo con el promedio de los últimos 3 pagos.' : 'Para luz, agua o internet, que cambian cada mes'}</small>
+          </span>
+          <button role="switch" aria-checked={!!r.variable} aria-label="Monto variable" className={r.variable ? 'switch on' : 'switch'} onClick={() => set('variable', !r.variable)}><span /></button>
         </div>
         <label className="col gap6"><span className="field-label">Cada cuánto</span>
           <select className="input" value={r.frequency} onChange={(e) => set('frequency', e.target.value as Frequency)}>
