@@ -4,6 +4,8 @@ import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
 import { useDragToClose } from '../ui/useDragToClose';
 import { MerchantPhotoField } from '../ui/Merchant';
+import { merchantSiblings, setMerchantCategory } from '../lib/merchantCategory';
+import { txMerchant } from '../lib/merchants';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
@@ -59,6 +61,8 @@ export function TxForm({ id }: { id?: string }) {
   const [repeat, setRepeat] = useState(false);
   const dragRef = useDragToClose<HTMLDivElement>(() => (history.length > 1 ? history.back() : go('/')), 'window');
   const [remember, setRemember] = useState(true);
+  const [applyAll, setApplyAll] = useState(true);
+  const [siblings, setSiblings] = useState(0);
   const [showAllCats, setShowAllCats] = useState(false);
   const [cats, setCats] = useState<Category[]>([]);
   const [accs, setAccs] = useState<Account[]>([]);
@@ -86,6 +90,7 @@ export function TxForm({ id }: { id?: string }) {
       const base = (t.note || '').replace(/#[\p{L}\p{N}_-]+/gu, '').trim();
       setNote([base, ...tg].filter(Boolean).join(' '));
       setLoadingTx(false);
+      merchantSiblings(t).then((r) => setSiblings(r.length), () => setSiblings(0));
     });
   }, [id, userId]);
 
@@ -118,6 +123,10 @@ export function TxForm({ id }: { id?: string }) {
   const selectedCat = cats.find((c) => c.id === categoryId);
   const fromEmail = orig && (orig.source === 'email' || orig.source === 'import') && orig.raw_merchant;
   const categoryChanged = orig && categoryId && (categoryId !== orig.category_id || orig.status === 'review');
+  // a merchant is one thing: changing its category moves its other movements and branches too
+  const sameSpaceAndKind = orig && spaceId === orig.space_id && (type === 'gasto' || type === 'ingreso') && TYPE_TO_KIND[type] === (orig.kind === 'refund' ? 'expense' : orig.kind);
+  const canApplyAll = Boolean(categoryChanged && sameSpaceAndKind && siblings > 0 && merchant === orig?.merchant);
+  const merchantName = (orig && txMerchant(app.merchants, orig)?.name) || orig?.merchant || 'este comercio';
 
   const canSave = num > 0 && spaceId && (type !== 'transferir' || (accountId || toAccountId));
 
@@ -185,11 +194,18 @@ export function TxForm({ id }: { id?: string }) {
       }
       // learn the merchant
       let applied = 0;
-      if (orig && remember && categoryChanged && fromEmail && orig.raw_merchant) {
+      let undo: (() => Promise<unknown>) | undefined;
+      if (orig && categoryId && canApplyAll && applyAll) {
+        const r = await setMerchantCategory(orig.id, categoryId);
+        applied = r.changed;
+        if (r.changed) undo = r.undo;
+      } else if (orig && !canApplyAll && remember && categoryChanged && fromEmail && orig.raw_merchant) {
         const pattern = rulePattern(orig.raw_merchant);
         if (pattern.length >= 3) applied = await db.rpc<number>('save_rule_and_apply', { p_space: spaceId, p_pattern: pattern, p_category: categoryId });
       }
-      toast(applied > 1 ? `✅ Guardado · ${applied} movimientos más categorizados` : '✅ Guardado');
+      const target = cats.find((c) => c.id === categoryId);
+      if (undo) toast(`${target?.emoji || '✅'} Todo ${merchantName} → ${target?.name || 'categoría'} · ${applied} ${applied === 1 ? 'movimiento más' : 'movimientos más'}`, undo);
+      else toast(applied > 1 ? `✅ Guardado · ${applied} movimientos más categorizados` : '✅ Guardado');
       bump();
       await app.reloadMeta();
       history.length > 1 ? history.back() : go('/');
@@ -303,7 +319,12 @@ export function TxForm({ id }: { id?: string }) {
                 </button>
               )}
             </div>
-            {orig && categoryChanged && fromEmail && (
+            {canApplyAll ? (
+              <label className="check">
+                <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />
+                <span>Mover todo {merchantName} a {selectedCat?.emoji} {catLabel(cats, selectedCat)}: {siblings === 1 ? 'el otro movimiento' : `los otros ${siblings} movimientos`} y los que vengan</span>
+              </label>
+            ) : orig && categoryChanged && fromEmail && (
               <label className="check">
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
                 <span>Recordar: “{rulePattern(orig.raw_merchant || '')}” siempre va en {selectedCat?.emoji} {catLabel(cats, selectedCat)}</span>

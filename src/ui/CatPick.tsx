@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { db } from '../lib/api';
 import { pickerOrder } from '../lib/cats';
-import { restoreCategories, snapCategories } from '../lib/undo';
+import { setMerchantCategory } from '../lib/merchantCategory';
 import type { Tx } from '../lib/types';
 import { useApp } from '../store';
 import { Icon } from '.';
 
 /**
- * "Por revisar" as a category selector: pick one and that merchant's pending movements are categorized right there.
+ * "Por revisar" as a category selector: pick one and the whole merchant (all its movements and branches) goes there.
  * A native select, so phones show their own picker and it works with the keyboard.
  */
 export function CatPick({ t }: { t: Tx }) {
@@ -17,33 +16,15 @@ export function CatPick({ t }: { t: Tx }) {
   const options = pickerOrder(categories.filter((c) => !c.archived && c.kind === kind));
   const suggested = t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
 
-  /** The same merchant's movements still waiting for a category, this one included. */
-  async function siblings(): Promise<Tx[]> {
-    const q = (v: string) => `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-    // a catalog merchant groups all its branches; otherwise the same bank key or name
-    const conds = (t.merchant_id ? [`merchant_id.eq.${t.merchant_id}`] : [t.merchant_key && `merchant_key.eq.${q(t.merchant_key)}`, t.merchant && `merchant.eq.${q(t.merchant)}`]).filter(Boolean) as string[];
-    if (!conds.length) return [t];
-    try {
-      const rows = await db.from<Tx>('transactions', 'id,category_id,status,category_source,suggested_category_id,kind')
-        .eq('space_id', t.space_id).eq('status', 'review').or(...conds);
-      const same = rows.filter((r) => (r.kind === 'income' || r.kind === 'contribution' ? 'income' : 'expense') === kind);
-      return same.some((r) => r.id === t.id) ? same : [t, ...same];
-    } catch {
-      return [t];
-    }
-  }
-
   async function pick(id: string) {
     if (!id) return;
     setBusy(true);
     try {
-      // categorizing a merchant categorizes all its pending movements; future ones learn from these
-      const rows = await siblings();
-      const before = snapCategories(rows);
-      await db.updateIds('transactions', rows.map((r) => r.id), { category_id: id, status: 'posted', category_source: id === suggested?.id ? 'ai' : 'manual', suggested_category_id: null });
+      // a merchant is one thing: all its movements and branches move to this category, and future ones learn from them
+      const r = await setMerchantCategory(t.id, id);
       const c = categories.find((x) => x.id === id);
-      const more = rows.length > 1 ? ` · ${rows.length} movimientos` : '';
-      toast(`${c?.emoji || '✅'} ${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}${more}`, () => restoreCategories(before));
+      const more = r.total > 1 ? ` · ${r.total} movimientos` : '';
+      toast(`${c?.emoji || '✅'} ${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}${more}`, r.undo);
       bump();
     } catch {
       toast('No se pudo guardar la categoría');
