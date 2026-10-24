@@ -44,7 +44,7 @@ scripts/
 ## Secciones del app
 
 - **Inicio**: disponible del mes, botón Gasto, tarjeta de gastado con comercios recientes, abanico de cuentas. Abajo, una hoja con pagos pendientes y últimos movimientos; al subirla se vuelve el buscador de movimientos.
-- **Movimientos**: buscador, un botón de filtros (hoja con período, tipo, categoría, cuenta, etiqueta) y los filtros activos como chips removibles. "Por revisar" es un selector de categoría en la misma fila; elegir una categoriza todos los movimientos pendientes del mismo comercio (con deshacer). "Seleccionar" permite cambiar la categoría de varios a la vez. En escritorio es una tabla.
+- **Movimientos**: buscador, un botón de filtros (hoja con período, tipo, categoría, cuenta, etiqueta) y los filtros activos como chips removibles. "Por revisar" es un selector de categoría en la misma fila; elegir una mueve todo el comercio a esa categoría (con deshacer). "Seleccionar" permite cambiar la categoría de varios a la vez. En escritorio es una tabla.
 - **Detalle de movimiento**: drawer en móvil, panel lateral derecho en escritorio. Abajo, los otros movimientos del mismo comercio.
 - **Análisis**: nota de la IA (con enlace a Kai), gráfico del mes con una línea de comparación, pestañas Presupuesto (categorías con límites) y Tendencias (gasto por mes, mes vs. anterior, top comercios por monto o por compras).
 - **Cuentas**: patrimonio neto, tarjetas de crédito, débito y ahorro, metas. Cada cuenta tiene su vista con sus movimientos.
@@ -58,6 +58,7 @@ scripts/
 - `transactions.merchant_key` es una columna generada con `merchant_key(raw_merchant)`. Si se cambia esa función, hay que tocar las filas (`update … set raw_merchant = raw_merchant`) para recalcularla.
 - Categorización automática: `match_category` usa primero reglas con prioridad ≥ 50, luego el historial del mismo comercio del catálogo (`merchant_id`) o, si no tiene, del mismo `merchant_key`, luego las demás reglas. Si nada aplica, la IA (`categorize`) deja una sugerencia en `suggested_category_id` y el movimiento queda `status = 'review'`.
 - La IA pregunta una vez por comercio: los movimientos del mismo comercio comparten respuesta (en el lote y después, reusando la de un movimiento anterior). Si el nombre se parece a un comercio del catálogo (`merchant_candidates`, con pg_trgm), la misma llamada pregunta si es ese y deja `suggested_merchant_id`; la persona confirma en el detalle ("¿Es ampm? Sí / No").
+- Un comercio es una sola cosa: `set_merchant_category(tx, categoría)` mueve todos sus movimientos del espacio (todas las sucursales si está en el catálogo; si no, mismo `merchant_key` o nombre) y las reglas con prioridad ≥ 50 que solo lo agarran a él. Devuelve lo que pisó para deshacer (`src/lib/merchantCategory.ts`). Lo usan el formulario de edición (casilla "Mover todo X", activa por defecto) y "Por revisar".
 - `pretty_merchant` limpia el nombre del comercio. Uber Eats se separa de Uber con `is_uber_eats()`.
 - Recurrentes: el trigger `advance_recurring` mueve `next_due` y marca `last_paid_on`. Un recurrente es "manual" si `method <> 'card'` y aparece en Pagos pendientes hasta que se confirma.
 - Seguridad: `set_fx_rate` solo para admins y con límites; cuotas diarias de IA con `consume_ai_quota`; las llamadas internas a `categorize` llevan el header `x-notify-secret`.
