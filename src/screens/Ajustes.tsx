@@ -161,7 +161,7 @@ export function Ajustes() {
         ) : (
           <button className="btn-light" onClick={makeToken}>Generar token</button>
         )}
-        <span className="muted small">Tipo de cambio actual: ₡{fx.toFixed(2)} por dólar (BCCR, actualizado por el script).</span>
+        <span className="muted small">Tipo de cambio actual: ¢{fx.toFixed(2)} por dólar (BCCR, actualizado por el script).</span>
       </section>
 
       <button className="btn-danger" onClick={() => auth.signOut()}>Cerrar sesión</button>

@@ -373,7 +373,7 @@ export function Saldos() {
                 <span className="muted small">{a.institution || KIND_LABEL[a.kind]} · antes {w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</span>
               </span>
               <span className="saldo-input">
-                <span>{a.currency === 'USD' ? '$' : '₡'}</span>
+                <span>{a.currency === 'USD' ? '$' : '¢'}</span>
                 <input inputMode="decimal" value={vals[a.id] || ''} onChange={(e) => setVals({ ...vals, [a.id]: e.target.value.replace(/[^0-9.,-]/g, '') })} placeholder="0" aria-label={`Saldo de ${a.name}`} />
               </span>
             </label>
@@ -494,7 +494,7 @@ export function AccountEdit({ id }: { id: string }) {
         ) : (
           <div className="grid2">
             {(['CRC', 'USD'] as const).map((c) => (
-              <button key={c} className={acc.currency === c ? 'opt on' : 'opt'} aria-pressed={acc.currency === c} onClick={() => set('currency', c)}>{c === 'CRC' ? '₡ Colones' : '$ Dólares'}</button>
+              <button key={c} className={acc.currency === c ? 'opt on' : 'opt'} aria-pressed={acc.currency === c} onClick={() => set('currency', c)}>{c === 'CRC' ? '¢ Colones' : '$ Dólares'}</button>
             ))}
           </div>
         )}
@@ -566,7 +566,7 @@ export function GoalEdit({ id }: { id: string }) {
         <label className="col gap6"><span className="field-label">Emoji</span><input className="input" value={g.emoji || ''} onChange={(e) => setG({ ...g, emoji: e.target.value })} maxLength={8} /></label>
         <div className="grid2">
           {(['CRC', 'USD'] as const).map((c) => (
-            <button key={c} className={g.currency === c ? 'opt on' : 'opt'} onClick={() => setG({ ...g, currency: c })}>{c === 'CRC' ? '₡ Colones' : '$ Dólares'}</button>
+            <button key={c} className={g.currency === c ? 'opt on' : 'opt'} onClick={() => setG({ ...g, currency: c })}>{c === 'CRC' ? '¢ Colones' : '$ Dólares'}</button>
           ))}
         </div>
         <label className="col gap6"><span className="field-label">Monto objetivo</span><input className="input" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="12.000.000" /></label>

@@ -23,7 +23,7 @@ interface Cat { id: string; name: string; emoji: string; kind: string; limit_amo
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DOW = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const crIso = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d) + CR).toISOString();
-const crc = (n: number) => '₡' + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const crc = (n: number) => '¢' + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const spend = (t: Tx) => (t.kind === 'expense' ? Number(t.amount_crc) : t.kind === 'refund' ? -Number(t.amount_crc) : 0);
 const sum = (txs: Tx[]) => txs.reduce((a, t) => a + spend(t), 0);
 const within = (t: Tx, from: string, to: string) => t.occurred_at >= from && t.occurred_at < to;
@@ -142,7 +142,7 @@ async function ask(f: ReturnType<typeof facts>, prev: string | null) {
     'Reglas:',
     '- Hablale directo a las personas por su nombre (campo "para").',
     '- Máximo 170 caracteres. Una o dos oraciones cortas. Nada de saludos ni relleno.',
-    '- Concreto: incluí 1 o 2 números del resumen, copiados tal cual vienen (con ₡). Nunca inventes ni calcules cifras nuevas.',
+    '- Concreto: incluí 1 o 2 números del resumen, copiados tal cual vienen (con ¢). Nunca inventes ni calcules cifras nuevas.',
     '- Elegí LO MÁS importante, en este orden: una categoría PASADA de su límite; una cerca del límite; gastar bastante más que la semana o el mes pasado a esta altura; un comercio repetido o un gasto grande esta semana; si todo va bien, celebralo.',
     '- Cuando aplique, cerrá con una sugerencia concreta y graciosa (ej: "hoy toca cocinar en casa").',
     '- Humor ligero, cálido y tico sin exagerar. Nunca regañes, no culpes a nadie, no seas condescendiente.',

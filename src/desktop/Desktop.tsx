@@ -58,7 +58,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
   return (
     <div className="desk">
       <aside className="dside" aria-label="Navegación">
-        <div className="dbrand"><span className="dbrand-mark" aria-hidden="true">₡</span>Finanzas</div>
+        <div className="dbrand"><span className="dbrand-mark" aria-hidden="true">¢</span>Finanzas</div>
         <SpaceSwitch />
         <a href="#/agregar" className="dnew"><Icon name="plus" size={18} stroke={2.4} />Nuevo movimiento<kbd>N</kbd></a>
         <button className="dkai" onClick={() => openKai()}><Icon name="sparkle" size={18} />Preguntale a Kai<kbd>K</kbd></button>
@@ -85,7 +85,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
           <div className="dcur" role="radiogroup" aria-label="Moneda">
             {(['CRC', 'USD'] as const).map((c) => (
               <button key={c} role="radio" aria-checked={cur === c} className={cur === c ? 'on' : ''} onClick={() => cur !== c && toggleCur()}>
-                {c === 'CRC' ? '₡ Colones' : '$ Dólares'}
+                {c === 'CRC' ? '¢ Colones' : '$ Dólares'}
               </button>
             ))}
           </div>

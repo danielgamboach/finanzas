@@ -170,7 +170,7 @@ function Body({ t }: { t: Tx }) {
         {t.currency === 'USD' && (
           <>
             <Row label="Monto original">{moneyRaw(Number(t.amount), 'USD', { decimals: true })}</Row>
-            <Row label="Tipo de cambio">₡{Number(t.fx_rate).toFixed(2)} · {money(Number(t.amount_crc), 'CRC', fx)}</Row>
+            <Row label="Tipo de cambio">¢{Number(t.fx_rate).toFixed(2)} · {money(Number(t.amount_crc), 'CRC', fx)}</Row>
           </>
         )}
         {t.raw_merchant && normWords(t.raw_merchant) !== normWords(t.merchant || '') && <Row label="Como sale en el banco"><span className="txd-mono">{t.raw_merchant}</span></Row>}

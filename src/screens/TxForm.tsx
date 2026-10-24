@@ -243,13 +243,13 @@ export function TxForm({ id }: { id?: string }) {
           <div className="row gap6">
             {(['CRC', 'USD'] as Currency[]).map((c) => (
               <button key={c} className={cur === c ? 'mini on' : 'mini'} aria-pressed={cur === c} onClick={() => setCur(c)}>
-                {c === 'CRC' ? '₡ Colones' : '$ Dólares'}
+                {c === 'CRC' ? '¢ Colones' : '$ Dólares'}
               </button>
             ))}
           </div>
           <label className="amount-input">
             <span className="sr">Monto</span>
-            <span className="amount-sym">{cur === 'USD' ? '$' : '₡'}</span>
+            <span className="amount-sym">{cur === 'USD' ? '$' : '¢'}</span>
             <input
               inputMode="decimal"
               autoFocus={!id}

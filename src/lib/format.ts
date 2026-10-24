@@ -18,17 +18,17 @@ export function moneyRaw(v: number, cur: Currency, opts: { sign?: '+' | '-' | ''
   const fixed = showDec ? abs.toFixed(2) : Math.round(abs).toString();
   const [int, dec] = fixed.split('.');
   const body = thousands(int) + (dec !== undefined ? ',' + dec : '');
-  return (opts.sign ?? '') + (cur === 'USD' ? '$' : '₡') + body;
+  return (opts.sign ?? '') + (cur === 'USD' ? '$' : '¢') + body;
 }
 
 export function moneyParts(crc: number, cur: Currency, fx: number) {
   const v = cur === 'USD' ? crc / fx : crc;
-  return { sym: cur === 'USD' ? '$' : '₡', num: thousands(Math.round(Math.abs(v)).toString()), negative: v < 0 };
+  return { sym: cur === 'USD' ? '$' : '¢', num: thousands(Math.round(Math.abs(v)).toString()), negative: v < 0 };
 }
 
 export function shortK(crc: number, cur: Currency, fx: number) {
   const v = cur === 'USD' ? crc / fx : crc;
-  const sym = cur === 'USD' ? '$' : '₡';
+  const sym = cur === 'USD' ? '$' : '¢';
   if (Math.abs(v) >= 1_000_000) return `${sym}${(v / 1_000_000).toFixed(1).replace('.', ',')}M`;
   if (Math.abs(v) >= 10_000) return `${sym}${Math.round(v / 1000)}k`;
   return moneyRaw(v, cur, { decimals: false });

@@ -91,6 +91,7 @@ scripts/
 - Patrones conocidos antes que inventos: selects nativos para elegir categoría, chips removibles para filtros, hoja de filtros con "Ver N movimientos", toast de 6 s con "Deshacer" en acciones masivas.
 - Tema oscuro por defecto; las hojas y drawers son claros (clases `.light`, `.sheet`, `.sheet-page`, `.tx-sheet`, `.txd`). Cuidar el contraste en ambos.
 - Montos en la moneda de visualización elegida (colones o dólares); la moneda original vive en el detalle.
+- Colones siempre con `¢` (así se escribe en Costa Rica), nunca `₡`: en el app, en Kai, en la nota de la IA y en las notificaciones (`crc_text`). Las filas de movimientos muestran solo la subcategoría; el detalle muestra "Padre › Hija".
 
 ## Reglas que no se rompen
 

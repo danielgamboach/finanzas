@@ -409,10 +409,10 @@ export function RecurringEdit({ id }: { id: string }) {
           <span className="field-label">Monto esperado</span>
           <div className="row gap8">
             <label className="amount-input small grow">
-              <span className="amount-sym">{r.currency === 'USD' ? '$' : '₡'}</span>
+              <span className="amount-sym">{r.currency === 'USD' ? '$' : '¢'}</span>
               <input inputMode="decimal" value={amount} onChange={(e) => setAmount(fmtInput(e.target.value))} placeholder="0" aria-label="Monto" />
             </label>
-            <Segmented value={(r.currency || 'CRC') as Currency} options={[['CRC', '₡'], ['USD', '$']]} onChange={(v) => set('currency', v)} dark={false} />
+            <Segmented value={(r.currency || 'CRC') as Currency} options={[['CRC', '¢'], ['USD', '$']]} onChange={(v) => set('currency', v)} dark={false} />
           </div>
         </div>
         <label className="col gap6"><span className="field-label">Cada cuánto</span>

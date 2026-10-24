@@ -26,7 +26,7 @@ interface Acc { id: string; name: string; last4: string | null; kind: string; cu
 interface Rec { merchant: string | null; amount: number; currency: string; frequency: string; next_due: string; last_paid_on: string | null; method: string | null; kind: string; category_id: string | null; account_id: string | null; notes: string | null }
 
 const DOW = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const crc = (n: number) => (n < 0 ? '-' : '') + '₡' + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const crc = (n: number) => (n < 0 ? '-' : '') + '¢' + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const money = (n: number, cur: string) => (cur === 'USD' ? `$${Number(n).toFixed(2)}` : crc(Number(n)));
 const day = (iso: string) => new Date(new Date(iso).getTime() - CR).toISOString().slice(0, 10);
 const spend = (t: Tx) => (t.kind === 'expense' ? Number(t.amount_crc) : t.kind === 'refund' ? -Number(t.amount_crc) : 0);
@@ -168,7 +168,7 @@ const SYSTEM = [
   '- Empezá con la respuesta directa en la primera oración, con el número o la fecha concreta.',
   '- Después, si ayuda, hasta 3 líneas cortas de detalle que empiecen con "• ".',
   '- Máximo unas 90 palabras. Español de Costa Rica con voseo, cálido y claro, sin regañar.',
-  '- Montos en colones como ₡12.500 (punto de miles). En dólares como $12.99. Copiá los montos de los datos; si sumás o promediás, hacelo con cuidado.',
+  '- Montos en colones como ¢12.500 (punto de miles). En dólares como $12.99. Copiá los montos de los datos; si sumás o promediás, hacelo con cuidado.',
   '- Fechas como "viernes 24 de octubre". Si es una predicción (ej. el próximo cobro de una suscripción), decí en qué te basás: el pago recurrente registrado, o cada cuánto y qué día se ha cobrado antes.',
   '- "Gasto hormiga" son compras chicas y frecuentes que suman mucho; usá gastos_hormiga_90_dias.',
   '- Si preguntan por algo fuera de las finanzas de este espacio, respondé amablemente que solo podés ayudar con estas finanzas.',

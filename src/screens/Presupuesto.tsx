@@ -249,7 +249,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
                 <div className="mb-area">
                   <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? '#FFDF20' : over ? '#FF8A7A' : '#525252' }} />
                   {budget > 0 && <div className="mb-budget" style={{ height: `${(budget / max) * 100}%` }} />}
-                  <span className={last || over ? 'mb-val on-light' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[₡$]/, '')}</span>
+                  <span className={last || over ? 'mb-val on-light' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[¢$]/, '')}</span>
                 </div>
                 <span className="mb-label">{monthShort(m.m)}</span>
               </div>

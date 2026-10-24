@@ -155,7 +155,7 @@ export function CategoryEdit({ id }: { id: string }) {
             <Segmented value={period} options={[['monthly', 'Mensual'], ['weekly', 'Semanal'], ['none', 'Sin límite']]} onChange={setPeriod} dark={false} />
             {period !== 'none' && (
               <label className="amount-input small">
-                <span className="amount-sym">₡</span>
+                <span className="amount-sym">¢</span>
                 <input inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" aria-label="Monto del límite en colones" />
               </label>
             )}

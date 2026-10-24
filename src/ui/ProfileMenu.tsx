@@ -59,7 +59,7 @@ function ProfileSheet({ onClose, pending }: { onClose: () => void; pending: numb
 
       <div className="col gap8">
         <span className="field-label">Ver montos en</span>
-        <Segmented value={cur} options={[['CRC', '₡ Colones'], ['USD', '$ Dólares']]} onChange={(v) => v !== cur && toggleCur()} dark={false} />
+        <Segmented value={cur} options={[['CRC', '¢ Colones'], ['USD', '$ Dólares']]} onChange={(v) => v !== cur && toggleCur()} dark={false} />
       </div>
 
       <div className="menu-list">
