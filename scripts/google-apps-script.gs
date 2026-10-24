@@ -22,6 +22,12 @@
  * Lee todos los vouchers viejos desde HISTORIAL_DESDE, por tandas, y se reprograma solo hasta terminar.
  * Les pone la etiqueta Finanzas/Historial; para repetirlo desde cero, quitá esa etiqueta.
  * Las fechas que ya cubre un estado de cuenta importado se saltan para no duplicar.
+ *
+ * Recibos de Apple: el banco solo dice "APPLE.COM/BILL". Cada vez que revisa los vouchers, el script
+ * también lee los recibos de Apple (no_reply@email.apple.com) y manda qué se pagó (YouTube, iCloud…);
+ * la app lo empareja con el cobro del mismo monto. Solo sale el nombre de la app, el plan, el monto,
+ * la fecha y los últimos 4 dígitos de la tarjeta; el correo no sale de tu cuenta.
+ * Historial de recibos (una vez): ejecutar `importarRecibosApple`.
  */
 
 const SUPABASE_URL = 'https://vzgnujopgryuskixcnnx.supabase.co';
@@ -219,6 +225,127 @@ function procesarVouchers() {
     if (ok) thread.addLabel(label);
   });
   Logger.log(n + ' vouchers nuevos');
+  try {
+    procesarRecibosApple();
+  } catch (e) {
+    Logger.log('No se pudieron leer los recibos de Apple: ' + e);
+  }
+}
+
+// ───────── Recibos de Apple ─────────
+const APPLE_QUERY = 'from:(no_reply@email.apple.com) subject:(receipt OR invoice OR recibo OR factura)';
+const LABEL_APPLE = 'Finanzas/Apple';
+// Desde cuándo leer recibos viejos con importarRecibosApple (formato de Gmail AAAA/MM/DD).
+const APPLE_DESDE = '2026/03/01';
+
+/** Recibos recientes; corre junto con los vouchers. */
+function procesarRecibosApple() {
+  const r = recibosApple_('newer_than:21d', 60 * 1000);
+  Logger.log('Recibos de Apple: ' + r.emparejados + ' emparejados, ' + r.pendientes + ' esperando el cobro');
+}
+
+/** Una vez: los recibos viejos, para nombrar los cobros de Apple que ya están en la app. */
+function importarRecibosApple() {
+  const r = recibosApple_('after:' + APPLE_DESDE, 5 * 60 * 1000);
+  Logger.log('Recibos de Apple: ' + r.leidos + ' leídos, ' + r.emparejados + ' emparejados, ' + r.pendientes +
+    ' sin cobro claro, ' + r.ilegibles + ' sin datos, ' + r.errores + ' con error' + (r.quedan ? '. Faltan: correlo otra vez.' : '.'));
+}
+
+function recibosApple_(cuando, tiempo) {
+  const inicio = Date.now();
+  const label = GmailApp.getUserLabelByName(LABEL_APPLE) || GmailApp.createLabel(LABEL_APPLE);
+  const tok = token_();
+  const st = { leidos: 0, emparejados: 0, pendientes: 0, ilegibles: 0, errores: 0, quedan: false };
+  const q = APPLE_QUERY + ' ' + cuando + ' -label:' + LABEL_APPLE.replace('/', '-');
+  while (true) {
+    if (Date.now() - inicio > tiempo) { st.quedan = true; break; }
+    const threads = GmailApp.search(q, 0, 30);
+    if (!threads.length) break;
+    threads.forEach((thread) => {
+      let ok = true;
+      thread.getMessages().forEach((msg) => {
+        if (!/apple\.com/i.test(msg.getFrom())) return;
+        st.leidos++;
+        const r = parseAppleReceipt_(msg);
+        if (!r) { st.ilegibles++; return; }
+        try {
+          const res = rpc_('ingest_apple_receipt', {
+            p_token: tok, p_order_id: r.order, p_received_at: r.at, p_app: r.app, p_plan: r.plan,
+            p_amount: r.amount, p_currency: r.currency, p_last4: r.last4,
+          });
+          if (res === 'matched') st.emparejados++;
+          else if (res === 'pending') st.pendientes++;
+        } catch (e) {
+          ok = false;
+          st.errores++;
+          Logger.log('Error con el recibo ' + r.order + ': ' + e);
+        }
+      });
+      // con error no se etiqueta, así se reintenta la próxima vez
+      if (ok) thread.addLabel(label);
+    });
+  }
+  return st;
+}
+
+/** Saca de un recibo de Apple: app, plan, monto, moneda, fecha, número de pedido y tarjeta. */
+function parseAppleReceipt_(msg) {
+  const html = msg.getBody() || '';
+  const text = msg.getPlainBody() || html.replace(/<[^>]+>/g, '\n');
+  const order = (text.match(/(?:Order ID|ID de pedido|N\.?º de pedido|Número de pedido)\s*:?\s*([A-Z0-9]{6,})/i) || [])[1] || msg.getId();
+  const last4 = (text.match(/(?:[•·*]{2,}|\.{3,})\s*(\d{4})/) || [])[1] || null;
+  const items = [];
+  (html.match(/<tr[^>]*class="[^"]*lockup[^"]*"[^>]*>[\s\S]*?<\/tr>/gi) || []).forEach((row) => {
+    const content = (row.match(/<td[^>]*class="[^"]*lockup__content[^"]*"[^>]*>([\s\S]*?)<\/td>/i) || [])[1];
+    const cell = (row.match(/<td[^>]*class="[^"]*bottom-text[^"]*"[^>]*>([\s\S]*?)<\/td>/i) || [])[1];
+    if (!content || !cell) return;
+    const lines = (content.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || []).map(clean_)
+      .filter((l) => l && !/^(renews|renewal|se renueva|renueva|expires|vence|caduca)/i.test(l));
+    const price = money_(clean_(cell));
+    if (lines.length && price) items.push({ app: lines[0], plan: lines.slice(1).join(' · '), amount: price.amount, currency: price.currency });
+  });
+  if (!items.length) {
+    // formato viejo ("Your invoice from Apple."): título, plan y precio en celdas; solo la versión de escritorio
+    const desk = html.split('aapl-mobile-div')[0];
+    const re = /<td[^>]*class="item-cell[^"]*"[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*class="price-cell[^"]*"[^>]*>([\s\S]*?)<\/td>/gi;
+    let m;
+    while ((m = re.exec(desk))) {
+      const title = clean_((m[1].match(/class="title"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+      const plan = clean_((m[1].match(/class="addon-duration"[^>]*>([\s\S]*?)<\/span>/i) || [])[1] || '');
+      const price = money_(clean_(m[2]));
+      if (title && price) items.push({ app: title, plan: plan, amount: price.amount, currency: price.currency });
+    }
+  }
+  if (!items.length) {
+    // formato de texto: "| | YouTube YouTube Premium (Monthly) Renews 6 November 2026 | US$9,49 |"
+    const m = text.match(/\|\s*\|\s*(.+?)\s*\|\s*((?:US)?\$\s*[\d.,]+|₡\s*[\d.,]+)\s*\|/);
+    const price = m && money_(m[2]);
+    if (price) items.push({ app: m[1].replace(/\s+(Renews|Se renueva|Renueva)\b.*$/i, '').trim(), plan: '', amount: price.amount, currency: price.currency });
+  }
+  if (!items.length || items.some((i) => i.currency !== items[0].currency)) return null;
+  const amount = Math.round(items.reduce((a, i) => a + i.amount, 0) * 100) / 100;
+  const app = items.every((i) => i.app === items[0].app) ? items[0].app : 'App Store';
+  const plan = items.map((i) => i.plan || i.app).join(' + ');
+  return { order: order, last4: last4, app: app, plan: plan, amount: amount, currency: items[0].currency, at: msg.getDate().toISOString() };
+}
+
+function clean_(h) {
+  return String(h).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+}
+
+/** "US$9,49" → 9.49 USD; "US$1,234.56" → 1234.56; "₡4.500" → 4500 CRC. */
+function money_(s) {
+  const m = String(s).match(/(US\$|USD|\$|₡|CRC)\s*([\d.,]+)/i);
+  if (!m) return null;
+  const crc = /₡|CRC/i.test(m[1]);
+  let n = m[2].replace(/[.,]$/, '');
+  const c = n.lastIndexOf(','), d = n.lastIndexOf('.');
+  if (c > d) n = n.replace(/\./g, '').replace(',', '.');
+  else if (crc && c < 0 && /\.\d{3}$/.test(n)) n = n.replace(/\./g, '');
+  else n = n.replace(/,/g, '');
+  const v = parseFloat(n);
+  return isFinite(v) ? { amount: v, currency: crc ? 'CRC' : 'USD' } : null;
 }
 
 /** Tipo de cambio oficial de venta (Ministerio de Hacienda / BCCR). */

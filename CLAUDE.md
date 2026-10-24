@@ -67,6 +67,13 @@ scripts/
 
 `scripts/google-apps-script.gs` corre en la cuenta de Google de Dani. Lee los correos del BAC (etiqueta `Finanzas/Historial` para importar historial) y llama a `ingest_voucher_as` con el token personal. Los últimos 4 dígitos de la tarjeta deciden el espacio.
 
+## Suscripciones de Apple
+
+- El banco solo dice "APPLE.COM/BILL CUPERTINO". El script de Google lee los recibos de Apple (`procesarRecibosApple`, corre con los vouchers; `importarRecibosApple` una vez para el historial) y llama a `ingest_apple_receipt` con app, plan, monto, fecha y últimos 4 dígitos. Entiende el formato nuevo de recibo y el viejo ("Your invoice from Apple.").
+- `apple_receipts` guarda cada recibo. Se empareja con el cobro de Apple del mismo monto y moneda a 3 días o menos, en un espacio del dueño del recibo y con la misma tarjeta si se sabe. Si hay dos candidatos casi igual de cerca, no adivina y el cobro queda como "Apple".
+- Si el recibo llega antes que el cobro, el trigger `transactions_0_apple` (corre antes que los demás) le pone el nombre de la app al insertarlo; si llega después, `apple_match_receipt` lo renombra y lo liga a su recurrente (`link_recurring`). `ensure_app_merchant` crea el comercio de la app en el catálogo (YouTube, iCloud, Apple One…).
+- `match_recurring` y las sugerencias de recurrentes también miran el nombre limpio, así cada suscripción puede tener su recurrente ("YOUTUBE") sin agarrar todo Apple. La IA nunca renombra cobros de Apple. El detalle muestra "Suscripción en Apple: YouTube Premium · mensual".
+
 ## Comercios y logos (catálogo global)
 
 - `merchants` (nombre, logo en `photo_path`) y `merchant_patterns` (palabras que llevan a ese comercio, p. ej. "AM PM" y "AMPM" → ampm). El catálogo es uno solo para todos los usuarios: un logo o una unión sirve para todos.

@@ -207,7 +207,8 @@ async function apply(t: Tx, cat: Cat | undefined, conf: number, name: string | n
   const patch: Record<string, unknown> = { ai_checked_at: new Date().toISOString(), ai_confidence: Math.round(conf * 100) / 100 };
   if (cat && conf >= THRESHOLD) Object.assign(patch, { category_id: cat.id, status: 'posted', category_source: 'ai', suggested_category_id: null });
   else if (cat) patch.suggested_category_id = cat.id;
-  if (name && t.raw_merchant && (t.source === 'email' || t.source === 'import')) patch.merchant = name.slice(0, 80);
+  // Apple charges are named from Apple's receipt (ingest_apple_receipt), never by the model
+  if (name && t.raw_merchant && (t.source === 'email' || t.source === 'import') && !/^APPLE\.COM/i.test(t.raw_merchant)) patch.merchant = name.slice(0, 80);
   if (sameAs && !t.merchant_id) patch.suggested_merchant_id = sameAs;
   await rest(`transactions?id=eq.${t.id}&category_id=is.null`, { method: 'PATCH', body: JSON.stringify(patch) });
 }

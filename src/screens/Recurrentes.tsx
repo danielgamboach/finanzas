@@ -197,7 +197,8 @@ export function Recurrentes() {
       frequency: 'monthly',
       next_due: s.next_guess,
       method: 'card',
-      match_pattern: patternFrom(s.raw_merchant || s.merchant_key),
+      // an Apple subscription comes without bank name: its key ("YOUTUBE") is the pattern
+      match_pattern: s.raw_merchant ? patternFrom(s.raw_merchant) : s.merchant_key,
       last_paid_on: s.last_date,
     });
     toast(`🔁 ${cleanName(s.merchant || s.merchant_key)} agregado a recurrentes`);

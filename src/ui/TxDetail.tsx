@@ -174,6 +174,7 @@ function Body({ t }: { t: Tx }) {
           </>
         )}
         {t.raw_merchant && normWords(t.raw_merchant) !== normWords(t.merchant || '') && <Row label="Como sale en el banco"><span className="txd-mono">{t.raw_merchant}</span></Row>}
+        {/^APPLE\.COM/i.test(t.raw_merchant || '') && <AppleRow id={t.id} />}
         {auth && <Row label="Autorización"><span className="txd-mono">{auth}</span></Row>}
         {t.recurring_id && (
           <Row label="Recurrente">
@@ -231,6 +232,27 @@ function MerchantRow({ t, merchant }: { t: Tx; merchant: Merchant | null }) {
       {open && <MergeSheet t={t} preset={open === 'pick' ? null : open} onClose={() => setOpen(null)} />}
     </Row>
   );
+}
+
+/** What an Apple charge was, from Apple's receipt ("YouTube Premium · mensual"). */
+function AppleRow({ id }: { id: string }) {
+  const { version } = useApp();
+  const [plan, setPlan] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    db.from<{ app: string; plan: string | null }>('apple_receipts', 'app,plan').eq('transaction_id', id).limit(1)
+      .then((r) => alive && setPlan(r[0] ? applePlan(r[0].app, r[0].plan) : null), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [id, version]);
+  return plan ? <Row label="Suscripción en Apple">{plan}</Row> : null;
+}
+
+function applePlan(app: string, plan: string | null) {
+  const period = /\b(monthly|mensual)\b/i.test(plan || '') ? 'mensual' : /\b(yearly|annual|anual)\b/i.test(plan || '') ? 'anual' : '';
+  const name = (plan || '').replace(/\s*\((monthly|yearly|annual|mensual|anual)\)/gi, '').replace(/\s*-?\s*\b(monthly|mensual|yearly|anual)\b\s*$/i, '').trim() || app.split(':')[0];
+  return period ? `${name} · ${period}` : name;
 }
 
 /** A card authorization: say whether it was charged. Pending ones settle on their own after 48 h. */
