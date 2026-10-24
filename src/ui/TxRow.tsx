@@ -1,7 +1,6 @@
 import { go, useApp } from '../store';
 import { money, relDay } from '../lib/format';
 import type { Tx } from '../lib/types';
-import { catLabel } from '../lib/cats';
 import { txPhoto } from '../lib/merchants';
 import { Emo, Icon } from '.';
 import { CatPick } from './CatPick';
@@ -32,7 +31,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const color = review ? 'butter' : cat?.color || 'gray';
   const who = t.kind === 'contribution' && t.contributor_id ? profiles[t.contributor_id]?.name : null;
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
-  let what = review ? 'Por revisar' : t.kind === 'contribution' ? `Aporte${who ? ` de ${who}` : ''}` : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || '';
+  let what = review ? 'Por revisar' : t.kind === 'contribution' ? `Aporte${who ? ` de ${who}` : ''}` : cat ? cat.name : KIND_LABEL[t.kind] || '';
   if (what === name) what = KIND_LABEL[t.kind] || '';
   if (t.hold === 'pending') what = 'Por confirmar';
   if (t.hold === 'void') what = 'No se cobró';
@@ -114,7 +113,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>
       <span role="cell" className={review ? 'tt-cat' : 'tt-cat muted'}>
-        {review && t.kind !== 'transfer' && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'contribution' ? 'Aporte' : cat ? catLabel(categories, cat) : KIND_LABEL[t.kind] || ''}
+        {review && t.kind !== 'transfer' && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'contribution' ? 'Aporte' : cat ? cat.name : KIND_LABEL[t.kind] || ''}
       </span>
       {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : t.kind === 'transfer' ? '' : 'Efectivo / SINPE'}</span>}
       <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}</span>
