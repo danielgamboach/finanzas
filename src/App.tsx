@@ -24,9 +24,10 @@ const MODAL = new Set(['agregar', 'mov']);
 function useInviteLink(path: string) {
   const { session, ready, profile, reloadMeta, setSpaceId, toast } = useApp();
   const m = path.match(/^\/unirme\/([a-z0-9]+)/i);
+  // saved right away so the first screen (sign-up or the setup) already knows about it
+  if (m && pendingInvite() !== m[1].toLowerCase()) setPendingInvite(m[1].toLowerCase());
   useEffect(() => {
     if (!m) return;
-    setPendingInvite(m[1].toLowerCase());
     history.replaceState(null, '', '#/');
     dispatchEvent(new HashChangeEvent('hashchange'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
