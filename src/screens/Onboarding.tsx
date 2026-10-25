@@ -65,7 +65,7 @@ export function Onboarding({ preview = false }: { preview?: boolean }) {
   const first = (profile?.name || '').trim().split(/\s+/)[0];
 
   // the shared space they made or joined in this flow (for the account step and the summary)
-  const [shared, setShared] = useState<{ id: string; name: string } | null>(null);
+  const [shared, setShared] = useState<{ id: string; name: string; code?: string } | null>(null);
 
   useEffect(() => {
     mainRef.current?.querySelector<HTMLElement>('h1')?.focus();
@@ -136,7 +136,7 @@ export function Onboarding({ preview = false }: { preview?: boolean }) {
             preview={preview}
             onCreated={(sp) => {
               setShared(sp);
-              setDone((d) => [...d, `Creaste el espacio ${sp.name}`]);
+              setDone((d) => [...d.filter((x) => !x.startsWith('Creaste')), `Creaste el espacio ${sp.name}`]);
             }}
             created={shared}
             onNext={() => to('cuenta')}
@@ -154,7 +154,7 @@ export function Onboarding({ preview = false }: { preview?: boolean }) {
                 setSpaceId(sp.id);
                 setPendingInvite(null);
               }
-              setDone((d) => [...d, `Te uniste a ${sp.name}`]);
+              setDone((d) => [...d.filter((x) => !x.startsWith('Te uniste')), `Te uniste a ${sp.name}`]);
             }}
             onNext={() => to('cuenta')}
           />
@@ -165,7 +165,7 @@ export function Onboarding({ preview = false }: { preview?: boolean }) {
             personalId={spaces.find((s) => s.kind === 'personal' && s.created_by === userId)?.id || spaces.find((s) => s.kind === 'personal')?.id || ''}
             shared={shared}
             onSaved={(name) => {
-              setDone((d) => [...d, `Agregaste ${name}`]);
+              setDone((d) => [...d.filter((x) => !x.startsWith('Agregaste')), `Agregaste ${name}`]);
               to('listo');
             }}
             onSkip={() => to('listo')}
@@ -214,28 +214,27 @@ function UsoStep({ first, value, onPick, onNext, onSkip }: { first: string; valu
   );
 }
 
-function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean; created: { id: string; name: string } | null; onCreated: (s: { id: string; name: string }) => void; onNext: () => void }) {
+function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean; created: { id: string; name: string; code?: string } | null; onCreated: (s: { id: string; name: string; code?: string }) => void; onNext: () => void }) {
   const { reloadMeta, toast } = useApp();
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState(SPACE_EMOJIS[0]);
-  const [code, setCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const code = created?.code || null;
 
   async function create() {
     const n = name.trim() || 'Casa';
     setBusy(true);
     setErr(null);
     if (preview) {
-      onCreated({ id: 'preview', name: n });
-      setCode('a1b2c3d4e5f6');
+      onCreated({ id: 'preview', name: n, code: 'a1b2c3d4e5f6' });
       setBusy(false);
       return;
     }
     try {
       const sid = await db.rpc<string>('create_space', { p_name: n, p_emoji: emoji, p_kind: 'shared' });
-      onCreated({ id: sid, name: n });
-      setCode(await db.rpc<string>('create_invite', { p_space: sid }));
+      const c = await db.rpc<string>('create_invite', { p_space: sid }).catch(() => undefined);
+      onCreated({ id: sid, name: n, code: c });
       await reloadMeta();
     } catch {
       setErr('No pudimos crear el espacio. Probá de nuevo en un momento.');
@@ -260,7 +259,7 @@ function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean
           <p className="ob-sub">Mandale el enlace. Si ya tiene cuenta, también puede escribir el código.</p>
         </div>
         <div className="ob-invite">
-          {code ? <span className="ob-code" aria-label={`Código ${code.split('').join(' ')}`}>{code}</span> : <span className="ob-code muted">…</span>}
+          {code ? <span className="ob-code" aria-label={`Código ${code.split('').join(' ')}`}>{code}</span> : <span className="ob-code muted">Generalo después en Ajustes</span>}
           <span className="ob-invite-note">El código sirve una vez y vence en 14 días.</span>
           <div className="ob-row2">
             <button className="btn-light" onClick={share} disabled={!code}><Icon name="arrowUpRight" size={18} />Compartir enlace</button>
