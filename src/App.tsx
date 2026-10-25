@@ -9,6 +9,8 @@ import { Shell } from './screens/Shell';
 import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
 import { NotifPrompt } from './screens/NotifPrompt';
+import { Onboarding, pendingInvite, setPendingInvite } from './screens/Onboarding';
+import { db } from './lib/api';
 import { Analisis } from './screens/Presupuesto';
 import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
@@ -18,9 +20,36 @@ import { TxDetail } from './ui/TxDetail';
 
 const MODAL = new Set(['agregar', 'mov']);
 
+/** #/unirme/<code>: keep the invite until the person is in, then join (new people do it in the setup). */
+function useInviteLink(path: string) {
+  const { session, ready, profile, reloadMeta, setSpaceId, toast } = useApp();
+  const m = path.match(/^\/unirme\/([a-z0-9]+)/i);
+  useEffect(() => {
+    if (!m) return;
+    setPendingInvite(m[1].toLowerCase());
+    history.replaceState(null, '', '#/');
+    dispatchEvent(new HashChangeEvent('hashchange'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m?.[1]]);
+  useEffect(() => {
+    const code = pendingInvite();
+    if (!session || !ready || !profile?.onboarded_at || !code) return;
+    setPendingInvite(null);
+    db.rpc<string>('accept_invite', { p_code: code })
+      .then(async (sid) => {
+        await reloadMeta();
+        setSpaceId(sid);
+        toast('🎉 Te uniste al espacio compartido');
+      })
+      .catch(() => toast('Esa invitación ya no sirve. Pedí un enlace nuevo.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, ready, profile?.onboarded_at, path]);
+}
+
 function Router() {
-  const { session, ready, spaces } = useApp();
+  const { session, ready, spaces, profile, isAdmin } = useApp();
   const path = useRoute();
+  useInviteLink(path);
   const desk = useDesktop();
   const bg = useRef('/');
   const [, a, b, c] = path.split('/');
@@ -31,6 +60,9 @@ function Router() {
   if (!session) return <Login />;
   if (!ready) return <Loading />;
   if (spaces.length === 0) return <Loading />;
+  // first time in: a short setup before anything else
+  if (profile && !profile.onboarded_at) return <Onboarding />;
+  if (a === 'bienvenida' && isAdmin) return <Onboarding preview key={path} />;
 
   if (desk) {
     // desktop: the page stays put and the movement form opens on top of it

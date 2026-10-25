@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { auth } from '../lib/api';
+import { pendingInvite } from './Onboarding';
 
 export function Login() {
-  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>('in');
+  const invited = !!pendingInvite();
+  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>(invited ? 'up' : 'in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -39,6 +41,12 @@ export function Login() {
         <h1 className="headline">Tus finanzas, <strong>claras</strong> y en pareja</h1>
         <p className="muted">Gastos, presupuestos y patrimonio en colones y dólares.</p>
       </div>
+      {invited && (
+        <div className="login-invite" role="status">
+          <span aria-hidden="true">💌</span>
+          <span>Te invitaron a un espacio compartido. Creá tu cuenta, o entrá si ya tenés una, y te unimos.</span>
+        </div>
+      )}
       <form className="card pad col gap12" onSubmit={submit}>
         {mode === 'up' && (
           <label className="col gap6"><span className="field-label">Nombre</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" required /></label>

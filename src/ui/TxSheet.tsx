@@ -4,6 +4,7 @@ import { MovementsBrowser } from '../screens/Movimientos';
 import { Icon } from '.';
 import { TxRow } from './TxRow';
 import { PendingPayments } from './PendingPayments';
+import { GettingStarted } from './GettingStarted';
 
 /**
  * The white sheet on the home screen. Collapsed it shows the latest movements under the summary;
@@ -120,6 +121,7 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
           <MovementsBrowser autoFocus={focusKey > 0} key={focusKey} />
         ) : (
           <>
+            <GettingStarted variant="sheet" />
             <PendingPayments />
             {recent.length === 0 ? (
               <div className="empty center-text">Todavía no hay movimientos. Tocá “Gasto” para agregar uno.</div>

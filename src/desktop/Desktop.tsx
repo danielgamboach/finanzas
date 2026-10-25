@@ -9,6 +9,7 @@ import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
 import { PendingPayments } from '../ui/PendingPayments';
+import { GettingStarted } from '../ui/GettingStarted';
 import { TxTableRow } from '../ui/TxRow';
 import { greeting } from '../lib/greetings';
 
@@ -213,6 +214,8 @@ export function DesktopHome() {
           </span>
         </a>
       </div>
+
+      <GettingStarted variant="card" />
 
       <PendingPayments variant="card" />
 

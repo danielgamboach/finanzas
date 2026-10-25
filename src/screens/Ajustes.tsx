@@ -4,9 +4,10 @@ import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { moneyRaw } from '../lib/format';
 import { go, useApp } from '../store';
 import { Emo, Icon } from '../ui';
+import { shareInvite } from './Onboarding';
 
 export function Ajustes() {
-  const { profile, userId, spaces, members, profiles, accounts, categories, space, fx, toast, reloadMeta, bump, setSpaceId } = useApp();
+  const { isAdmin, profile, userId, spaces, members, profiles, accounts, categories, space, fx, toast, reloadMeta, bump, setSpaceId } = useApp();
   const [name, setName] = useState(profile?.name || '');
   const [emoji, setEmoji] = useState(profile?.emoji || '🙂');
   const [invite, setInvite] = useState<string | null>(null);
@@ -102,8 +103,11 @@ export function Ajustes() {
             {invite ? (
               <>
                 <span className="code">{invite}</span>
-                <span className="muted small">Pasale este código. Lo pone en Ajustes → “Unirme con código”. Vence en 14 días.</span>
-                <button className="btn-light" onClick={() => copy(invite)}>Copiar código</button>
+                <span className="muted small">Mandale el enlace, o pasale el código para que lo ponga en Ajustes, en “Unirme con código”. Sirve una vez y vence en 14 días.</span>
+                <div className="grid2">
+                  <button className="btn-light" onClick={() => shareInvite(invite, space.name).then((r) => r === 'copied' && toast('Enlace copiado'))}>Compartir enlace</button>
+                  <button className="btn-light" onClick={() => copy(invite)}>Copiar código</button>
+                </div>
               </>
             ) : (
               <button className="btn-light" onClick={makeInvite}>Generar código de invitación</button>
@@ -163,6 +167,13 @@ export function Ajustes() {
         )}
         <span className="muted small">Tipo de cambio actual: ¢{fx.toFixed(2)} por dólar (BCCR, actualizado por el script).</span>
       </section>
+
+      {isAdmin && (
+        <a className="card pad row gap10 link-card" href="#/bienvenida">
+          <span className="grow col"><strong className="sm">👋 Bienvenida de usuarios nuevos</strong><span className="muted small">Vista previa de la configuración inicial. No guarda nada.</span></span>
+          <Icon name="chevRight" size={18} />
+        </a>
+      )}
 
       <button className="btn-danger" onClick={() => auth.signOut()}>Cerrar sesión</button>
     </div>

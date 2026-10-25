@@ -4,7 +4,7 @@ import { useApp } from '../store';
 
 /** Full-screen, dismissible invitation to turn on notifications, shown until answered. */
 export function NotifPrompt() {
-  const { toast } = useApp();
+  const { toast, profile } = useApp();
   const support = pushSupport();
   const [show, setShow] = useState(() => !promptDismissed() && (support === 'ios-install' || (support === 'ok' && permission() === 'default')));
   const [busy, setBusy] = useState(false);
@@ -13,7 +13,8 @@ export function NotifPrompt() {
     void refreshPush();
   }, []);
 
-  if (!show) return null;
+  // new people get it as a step of "Primeros pasos" instead of a prompt on their first visit
+  if (!show || !profile || !profile.onboarded_at || !profile.setup_hidden) return null;
   const close = () => {
     dismissPrompt();
     setShow(false);

@@ -7,6 +7,10 @@ export interface Profile {
   emoji: string | null;
   notify_limits?: boolean;
   notify_card?: boolean;
+  /** Set when the first-time setup was finished or skipped; null means it still has to show. */
+  onboarded_at?: string | null;
+  /** The "Primeros pasos" checklist on Inicio was closed. */
+  setup_hidden?: boolean;
 }
 
 export interface Space {
