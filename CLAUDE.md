@@ -50,7 +50,7 @@ scripts/
 - **Cuentas**: patrimonio neto, tarjetas de crédito, débito y ahorro, metas. Cada cuenta tiene su vista con sus movimientos.
 - **Recurrentes**: filtros (próximos, pendientes, mensuales, anuales…), pagos pendientes manuales, pago de la tarjeta compartida.
 - **Kai**: una pregunta, una respuesta (no es chat). Edge function `ask`, cuota de 40 por día.
-- **Ajustes**: perfil, espacios, categorías, tokens del script, notificaciones.
+- **Ajustes**: perfil, espacios (invitar con enlace o código), categorías, tokens del script, notificaciones.
 
 ## Base de datos: piezas clave
 
@@ -63,6 +63,14 @@ scripts/
 - Recurrentes: el trigger `advance_recurring` mueve `next_due` y marca `last_paid_on`. Un recurrente con `variable = true` (luz, agua, internet) se reconoce por nombre y fecha sin importar el monto; su `amount` es el promedio de los últimos 3 pagos ligados (`recurring_refresh_amount`, trigger `transactions_recurring_amount`). Al marcarlo variable, `recurring_variable_backfill` liga las facturas viejas del mismo nombre. En el app se muestra con "≈" y "Varía". Un recurrente es "manual" si `method <> 'card'` y aparece en Pagos pendientes desde el día antes del vencimiento (o si está atrasado) hasta que se confirma (`needsConfirm`).
 - Seguridad: `set_fx_rate` solo para admins y con límites; cuotas diarias de IA con `consume_ai_quota`; las llamadas internas a `categorize` llevan el header `x-notify-secret`.
 - Edge functions: `categorize` (verify_jwt off, acepta secreto interno o sesión de usuario), `insight` (cuota 60), `ask` (cuota 40), `notify`.
+
+## Usuarios nuevos
+
+- `profiles.onboarded_at` en null muestra la configuración inicial (`src/screens/Onboarding.tsx`) antes que nada: cómo va a usar el app (solo, con alguien, o me invitaron), primera cuenta y un cierre que lleva al primer gasto. Todo se puede saltar. Los perfiles que ya existían quedaron marcados como hechos.
+- Al compartir, crea el espacio con `create_space` y la invitación con `create_invite`. El enlace `#/unirme/<código>` guarda el código en `localStorage` (`finanzas.invite`) hasta que la persona entra: si es nueva, la configuración la une; si ya tenía cuenta, se une sola al entrar.
+- Inicio muestra "Primeros pasos" (`src/ui/GettingStarted.tsx`) mientras `profiles.setup_hidden` sea false: primer gasto, cuenta, pagos fijos, un límite, invitar (si tiene un espacio compartido propio) y notificaciones. Cada paso se marca solo con datos reales. El aviso de notificaciones de pantalla completa espera a que se cierre.
+- Los admins ven la configuración sin guardar nada en Ajustes → "Bienvenida de usuarios nuevos" (`#/bienvenida`).
+- La conexión con los correos del BAC no está en los primeros pasos: el script de Google todavía es personal de Dani (Sheet y fechas propias).
 
 ## Ingesta de vouchers
 
