@@ -10,8 +10,9 @@ const timeFmt = new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-d
 const SHOWN = 3;
 
 /**
- * Uber and Didi reserve the fare before the ride and BAC emails it like a purchase. These wait here
- * until someone says whether they were charged; untouched ones settle on their own after 48 h.
+ * Uber and Didi reserve the fare before the ride and BAC emails it like a purchase. Only bursts (two or
+ * more rides on the same card less than 10 minutes apart) wait here, since one of them was usually never
+ * charged; a lone ride counts right away. Untouched ones settle on their own after 48 h.
  * They don't count in totals or budgets while pending. Renders nothing when there are none.
  */
 export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
@@ -46,7 +47,7 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
         <span>Por confirmar</span>
         <span className="pp-count">{rows.length}</span>
       </div>
-      <p className="hold-hint">Uber y Didi reservan el monto antes del viaje. Si no se cobró, quitalo con ✕. Los demás se confirman solos a las 48 h.</p>
+      <p className="hold-hint">Hubo varios viajes seguidos en la misma tarjeta y alguno pudo no cobrarse. Quitá con ✕ los que no se cobraron. Los demás se confirman solos a las 48 h.</p>
       <div className="pp-list">
         {list.map((t) => (
           <HoldRow key={t.id} t={t} busy={busy} onResolve={(h) => resolve([t], h)} />

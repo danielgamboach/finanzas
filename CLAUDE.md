@@ -76,6 +76,8 @@ scripts/
 
 `scripts/google-apps-script.gs` corre en la cuenta de Google de Dani. Lee los correos del BAC (etiqueta `Finanzas/Historial` para importar historial) y llama a `ingest_voucher_as` con el token personal. Los últimos 4 dígitos de la tarjeta deciden el espacio.
 
+Preautorizaciones de Uber y Didi (`is_hold_merchant`): solo quedan "Por confirmar" (`hold = 'pending'`) si hay 2 o más en la misma tarjeta a menos de 10 minutos entre sí (triggers `transactions_hold_window` y `transactions_hold_window_pull`); un viaje solo cuenta de una vez. Los pendientes se confirman solos a las 48 h (`settle_holds`) y "No se cobró" los oculta del app (`set_holds`, columna `visible`).
+
 ## Suscripciones de Apple
 
 - El banco solo dice "APPLE.COM/BILL CUPERTINO". El script de Google lee los recibos de Apple (`procesarRecibosApple`, corre con los vouchers; `importarRecibosApple` una vez para el historial) y llama a `ingest_apple_receipt` con app, plan, monto, fecha y últimos 4 dígitos. Entiende el formato nuevo de recibo y el viejo ("Your invoice from Apple.").
