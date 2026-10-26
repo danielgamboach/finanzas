@@ -188,12 +188,12 @@ export function DesktopHome() {
           <span className="spend-label">{cardLabel}</span>
           <span className="dspend-value">{money(cardValue, cur, fx)}</span>
           {budget > 0 && (
-            <span className="bar"><span className="bar-fill" style={{ width: `${used}%`, background: used >= 100 ? 'var(--danger)' : used >= 80 ? 'var(--warn)' : 'var(--ink)' }} /></span>
+            <span className="bar"><span className="bar-fill" style={{ width: `${used}%`, background: used >= 100 ? 'var(--destructive)' : used >= 80 ? 'var(--warning)' : 'var(--primary)' }} /></span>
           )}
           {faces.length > 0 && (
             <span className="dfaces" aria-label="Comercios recientes">
               {faces.map((m) => (
-                <span key={m.key} className="dface" title={m.tx.merchant || ''} style={{ background: txPhoto(catalog, m.tx) ? '#fff' : tint(categories.find((c) => c.id === m.tx.category_id)?.color) }}>
+                <span key={m.key} className="dface" title={m.tx.merchant || ''} style={{ background: txPhoto(catalog, m.tx) ? 'var(--color-white)' : tint(categories.find((c) => c.id === m.tx.category_id)?.color) }}>
                   <MerchantFace tx={m.tx} size={30} />
                 </span>
               ))}

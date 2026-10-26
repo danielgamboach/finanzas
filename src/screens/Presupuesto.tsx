@@ -122,7 +122,7 @@ function CatRow({ s }: { s: CatStat }) {
   const { cur, fx } = useApp();
   const [open, setOpen] = useState(false);
   const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
-  const bar = s.cat.is_fixed ? 'var(--muted)' : s.level === 'over' ? 'var(--danger)' : s.level === 'warn' ? 'var(--warn)' : 'var(--ink)';
+  const bar = s.cat.is_fixed ? 'var(--muted-foreground)' : s.level === 'over' ? 'var(--destructive)' : s.level === 'warn' ? 'var(--warning)' : 'var(--primary)';
   const subs = s.subs.filter((x) => x.spent !== 0 || !x.direct);
   const kids = s.subs.filter((x) => !x.direct).length;
   return (
@@ -163,7 +163,7 @@ function CatRow({ s }: { s: CatStat }) {
                         <span className="sm">{x.direct ? 'Sin detalle' : x.cat.name}</span>
                         <strong className="sm">{money(x.spent, cur, fx)}</strong>
                       </span>
-                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--muted)' }} /></span>
+                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--muted-foreground)' }} /></span>
                     </span>
                   </a>
                 );
@@ -247,7 +247,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
             return (
               <div key={i} className="mb-col">
                 <div className="mb-area">
-                  <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? '#FFDF20' : over ? '#FF8A7A' : '#525252' }} />
+                  <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? 'var(--chart-current)' : over ? 'var(--chart-over)' : 'var(--chart-bar)' }} />
                   {budget > 0 && <div className="mb-budget" style={{ height: `${(budget / max) * 100}%` }} />}
                   <span className={last || over ? 'mb-val on-light' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[¢$]/, '')}</span>
                 </div>

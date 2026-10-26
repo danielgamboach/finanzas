@@ -204,7 +204,7 @@ export function CategoryEdit({ id }: { id: string }) {
               {months.map((m, i) => (
                 <div key={i} className="mb-col">
                   <div className="mb-area">
-                    <div className="mb-fill" style={{ height: `${(m.v / max) * 100}%`, background: i === 5 ? tint(color) : '#525252' }} />
+                    <div className="mb-fill" style={{ height: `${(m.v / max) * 100}%`, background: i === 5 ? tint(color) : 'var(--chart-bar)' }} />
                     <span className={i === 5 ? 'mb-val on-light' : 'mb-val'}>{m.v ? Math.round((cur === 'USD' ? m.v / fx : m.v) / 1000) + 'k' : ''}</span>
                   </div>
                   <span className="mb-label">{monthShort(m.m)}</span>
@@ -331,7 +331,7 @@ export function CategoryView({ id }: { id: string }) {
             <span>{weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
             <span className={pct !== null && pct >= 100 ? 'danger' : ''}>{money(periodSpent, cur, fx)} de {money(limit, cur, fx)}</span>
           </div>
-          <div className="bar"><div className="bar-fill" style={{ width: `${Math.min(pct || 0, 100)}%`, background: (pct || 0) >= 100 ? 'var(--danger)' : (pct || 0) >= 80 ? 'var(--warn)' : 'var(--ink)' }} /></div>
+          <div className="bar"><div className="bar-fill" style={{ width: `${Math.min(pct || 0, 100)}%`, background: (pct || 0) >= 100 ? 'var(--destructive)' : (pct || 0) >= 80 ? 'var(--warning)' : 'var(--primary)' }} /></div>
         </div>
       )}
 

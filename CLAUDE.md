@@ -103,12 +103,22 @@ Preautorizaciones de Uber y Didi (`is_hold_merchant`): solo quedan "Por confirma
 - **QA**: revisar móvil (390 px) y escritorio (1440 px). Capturas solo si el cambio es visual.
 - **Eficiencia**: agrupar varios cambios por ciclo y una sesión por tema.
 
+## Sistema de diseño (tokens)
+
+- **Fuente única**: `tokens/tokens.json`. `npm run build` corre `scripts/tokens.mjs`, que genera `src/tokens.css` (no se edita a mano), y `scripts/check-tokens.mjs`, que falla el build si aparece un color hex, un `font-size` en px, un `font-weight` numérico o un radio en px fuera de los tokens (excepción: dibujo en canvas).
+- **Primitivos**: Tailwind v4.1 con sus nombres (`--color-neutral-800`, `--text-sm` y `--text-sm--line-height`, `--font-weight-semibold`, `--tracking-tight`, `--radius-3xl`, `--spacing: 4px`).
+- **Semánticos** estilo shadcn: `--background`, `--foreground`, `--card`, `--popover`, `--primary(-foreground)`, `--secondary(-foreground)`, `--muted(-foreground)`, `--accent`, `--border`, `--input`, `--ring`, `--destructive`, `--success`, `--warning` (cada uno con `-subtle` y `-subtle-foreground`), `--highlight`, `--ai…` (Kai), `--sidebar…`, `--chart-…`, `--overlay`, y los de datos `--category-<color>(-subtle)` y `--account-<color>(-foreground)`.
+- **Temas**: oscuro en `:root`; claro en `.light, .sheet, .sheet-page, .np-card, .tx-sheet, .rec-row.ask, .txd`. Un elemento con la clase `light` se vuelve superficie clara (sus tokens cambian). Dentro de una tarjeta (`.card`, `.dcard`, `.pp-card`, etc.) `--secondary` sube un paso (`--secondary-on-card`) para que los controles no se fundan con la tarjeta.
+- **Escalas**: tipo 12/14/16/18/20/24/30/36/48/60 con pesos 500, 600 y 700; radios de Tailwind (`full` para todo lo que es píldora o círculo, `3xl` tarjetas, `4xl` hojas, `2xl` filas y menús); espaciado en px pero siempre un paso de la escala de Tailwind (2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32…).
+- **Figma**: archivo "Finanzas DS" (`9ZEhCZzb13CLLv3YUx1GZm`). Colecciones `Tailwind v4.1 · …` (primitivos) y `Finanzas · Tokens` (semánticos, modos Oscuro y Claro). Mismo nombre que en código con `/` en vez de `-`: `color/card-foreground` ↔ `var(--card-foreground)`, `color/category/mint` ↔ `var(--category-mint)`. Cada variable tiene su code syntax web. Página "Fundamentos" con muestras de todo. Las hojas se diseñan con el frame en modo Claro.
+- **Cambiar un token**: editar `tokens/tokens.json`, correr el build y actualizar la variable en Figma (o al revés: si Dani cambia una variable en Figma, leerla y pasarla al JSON).
+
 ## Convenciones de diseño y copy
 
 - Simpleza radical: las vistas iniciales muestran solo lo esencial. Lo secundario va en el detalle.
 - Copy del app en español de Costa Rica con voseo ("Elegí", "Probá"). Nunca usar guiones largos (—).
 - Patrones conocidos antes que inventos: selects nativos para elegir categoría, chips removibles para filtros, hoja de filtros con "Ver N movimientos", toast de 6 s con "Deshacer" en acciones masivas.
-- Tema oscuro por defecto; las hojas y drawers son claros (clases `.light`, `.sheet`, `.sheet-page`, `.tx-sheet`, `.txd`). Cuidar el contraste en ambos.
+- Tema oscuro por defecto; las hojas y drawers son claros (ver "Sistema de diseño"). Cuidar el contraste en ambos. Nunca colores, tamaños ni radios sueltos: siempre tokens.
 - Montos en la moneda de visualización elegida (colones o dólares); la moneda original vive en el detalle.
 - Colones siempre con `¢` (así se escribe en Costa Rica), nunca `₡`: en el app, en Kai, en la nota de la IA y en las notificaciones (`crc_text`). Las filas de movimientos muestran solo la subcategoría; el detalle muestra "Padre › Hija".
 

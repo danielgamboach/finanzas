@@ -1,6 +1,9 @@
 import { build } from 'esbuild';
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 
+await import('./tokens.mjs');
+await import('./check-tokens.mjs');
+
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/assets', { recursive: true });
 await build({

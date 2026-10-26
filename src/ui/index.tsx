@@ -5,14 +5,14 @@ import { moneyParts } from '../lib/format';
 import { useDragToClose } from './useDragToClose';
 
 export const PALETTE: Record<string, [string, string]> = {
-  mint: ['#EFF7EF', '#CDEBD3'],
-  peach: ['#FDF2E6', '#F7D7B5'],
-  sky: ['#EDF3FD', '#CFE0F8'],
-  butter: ['#FDF7E3', '#F6E3A0'],
-  lilac: ['#F3F0FC', '#DCD3F5'],
-  pink: ['#FCEEF3', '#F6CFDF'],
-  cyan: ['#ECF7F8', '#BFE6EC'],
-  gray: ['#F5F5F3', '#E2E2DE'],
+  mint: ['var(--category-mint-subtle)', 'var(--category-mint)'],
+  peach: ['var(--category-peach-subtle)', 'var(--category-peach)'],
+  sky: ['var(--category-sky-subtle)', 'var(--category-sky)'],
+  butter: ['var(--category-butter-subtle)', 'var(--category-butter)'],
+  lilac: ['var(--category-lilac-subtle)', 'var(--category-lilac)'],
+  pink: ['var(--category-pink-subtle)', 'var(--category-pink)'],
+  cyan: ['var(--category-cyan-subtle)', 'var(--category-cyan)'],
+  gray: ['var(--category-gray-subtle)', 'var(--category-gray)'],
 };
 export const COLOR_NAMES = Object.keys(PALETTE);
 export const tint = (c?: string | null, strong = true) => (PALETTE[c || 'gray'] || PALETTE.gray)[strong ? 1 : 0];

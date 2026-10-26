@@ -219,7 +219,7 @@ export function Cuentas() {
             <strong className="sm">{gl.emoji} {gl.name}</strong>
             <span className="muted small">{pct}%</span>
           </div>
-          <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--ink)' }} /></div>
+          <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--primary)' }} /></div>
           <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
         </a>
       );

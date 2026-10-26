@@ -57,7 +57,7 @@ export function CardMorph({ pager }: { pager: React.RefObject<HTMLDivElement | n
         root.appendChild(ghost);
         src.style.visibility = 'hidden';
         dst.style.visibility = 'hidden';
-        out.push({ src, dst, ghost, content, a, b, ra: parseFloat(getComputedStyle(src).borderRadius) || 22, rb: parseFloat(cs.borderRadius) || 18 });
+        out.push({ src, dst, ghost, content, a, b, ra: parseFloat(getComputedStyle(src).borderRadius) || 24, rb: parseFloat(cs.borderRadius) || 18 });
       });
       return out.length ? out : null;
     };

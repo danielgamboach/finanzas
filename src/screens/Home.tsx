@@ -200,7 +200,7 @@ export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen
                 const ph = txPhoto(catalog, m.tx);
                 const cat = categories.find((c) => c.id === m.tx.category_id);
                 return (
-                  <span key={m.key} className="bubble" style={{ left: l, top: tp, width: sz, height: sz, background: ph ? '#fff' : tint(cat?.color) }}>
+                  <span key={m.key} className="bubble" style={{ left: l, top: tp, width: sz, height: sz, background: ph ? 'var(--color-white)' : tint(cat?.color) }}>
                     {ph ? <img src={ph} alt="" /> : <span style={{ fontSize: sz * 0.5 }}>{cat?.emoji || '🛍️'}</span>}
                   </span>
                 );

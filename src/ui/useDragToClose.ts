@@ -40,7 +40,7 @@ export function useDragToClose<T extends HTMLElement>(onClose: () => void, scrol
       dy = Math.max(0, d);
       e.preventDefault();
       el.style.transform = `translateY(${dy}px)`;
-      if (backdrop) backdrop.style.backgroundColor = `rgba(17,17,17,${Math.max(0, 0.4 * (1 - dy / 400))})`;
+      if (backdrop) backdrop.style.backgroundColor = `color-mix(in srgb, var(--color-black) ${Math.max(0, 50 * (1 - dy / 400))}%, transparent)`;
     };
     const end = () => {
       if (!tracking) return;

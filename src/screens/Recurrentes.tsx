@@ -216,7 +216,7 @@ export function Recurrentes() {
       <CardPayment />
       <section className="col gap6 px4">
         <span className="muted-label">{headerLabel}</span>
-        <BigMoney crc={headerTotal} size={52} />
+        <BigMoney crc={headerTotal} size={48} />
         <span className="muted small">
           {current === 'todos' ? (active.length === 1 ? '1 pago activo' : `${active.length} pagos activos`) : shown.length === 1 ? '1 pago' : `${shown.length} pagos`}
         </span>
