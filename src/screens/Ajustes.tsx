@@ -176,6 +176,10 @@ export function Ajustes() {
       )}
 
       <button className="btn-danger" onClick={() => auth.signOut()}>Cerrar sesión</button>
+
+      <footer className="credits">
+        Uicons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon</a>
+      </footer>
     </div>
   );
 }

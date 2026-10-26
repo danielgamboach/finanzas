@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import React from 'react';
-import { Icon, ICON_NAMES } from './Icon';
+import { Icon, ICON_NAMES, UICON } from './Icon';
 
 const meta: Meta<typeof Icon> = {
   title: 'Átomos/Icon',
@@ -20,6 +20,7 @@ export const Todos: StoryObj = {
         <div key={n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 16, borderRadius: 'var(--radius-2xl)', background: 'var(--card)' }}>
           <Icon name={n} size={24} />
           <span className="ds-meta">{n}</span>
+          <span className="ds-meta">fi-rr-{UICON[n]}</span>
         </div>
       ))}
     </div>

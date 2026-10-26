@@ -44,6 +44,8 @@ input, select { min-width: 0; }
 .muted, .muted-label { color: var(--muted-foreground); }
 .muted-label { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
 .small { font-size: var(--text-xs); font-weight: var(--font-weight-semibold); }
+.credits { text-align: center; font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--muted-foreground); opacity: .7; padding: 4px 0 8px; }
+.credits a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .sm { font-size: var(--text-base); }
 .strong-sm { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 .small-strong { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
