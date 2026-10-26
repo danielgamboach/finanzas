@@ -37,7 +37,10 @@ const out =
   '/* semantic: light surfaces (sheets, drawers, the movement form) */\n' +
   block(s.scopes.light, sem(s.light)) + '\n' +
   '/* controls sitting on a card step up one level so they never blend into it */\n' +
-  block(s.elevate, ['--secondary: var(--secondary-on-card);']);
+  block(s.elevate, ['--secondary: var(--secondary-on-card);']) + '\n' +
+  '/* type roles: same names as the Figma text styles (Heading/H1 → .type-heading-h1) */\n' +
+  Object.entries(t.typography).map(([role, [size, weight, track]]) =>
+    `.type-${role} { font-size: var(--text-${size}); line-height: var(--text-${size}--line-height); font-weight: var(--font-weight-${weight}); letter-spacing: var(--tracking-${track}); }`).join('\n') + '\n';
 
 writeFileSync(new URL('../src/tokens.css', import.meta.url), out);
 console.log('tokens.css written');

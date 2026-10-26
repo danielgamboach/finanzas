@@ -291,7 +291,7 @@
 }
 
 /* semantic: dark is the default theme */
-:root {
+:root, .theme-dark {
   --background: var(--color-neutral-800);
   --foreground: var(--color-neutral-50);
   --card: var(--color-neutral-700);
@@ -403,3 +403,18 @@
 .card, .dcard, .ai-card, .pp-card, .dcur, .menu, .menu-list, .ob-opt, .ob-invite, .gs-sheet, .hold-box, .field-card, .m-list {
   --secondary: var(--secondary-on-card);
 }
+
+/* type roles: same names as the Figma text styles (Heading/H1 → .type-heading-h1) */
+.type-display-lg { font-size: var(--text-6xl); line-height: var(--text-6xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tighter); }
+.type-display-md { font-size: var(--text-5xl); line-height: var(--text-5xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.type-display-sm { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.type-heading-h1 { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.type-heading-h2 { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.type-heading-h3 { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.type-heading-h4 { font-size: var(--text-lg); line-height: var(--text-lg--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-normal); }
+.type-body-lg { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-normal); }
+.type-body-sm { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-normal); }
+.type-label-lg { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-normal); }
+.type-label-sm { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-normal); }
+.type-caption { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-normal); }
+.type-caption-strong { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-normal); }
