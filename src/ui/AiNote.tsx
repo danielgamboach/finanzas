@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from '../ds';
 import { db } from '../lib/api';
 import type { Tx } from '../lib/types';
 import { Icon } from '.';
@@ -83,9 +84,7 @@ export function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; re
           Preguntale a Kai
         </button>
       </span>
-      <button className={busy ? 'ai-card-refresh spin' : 'ai-card-refresh'} onClick={() => load(true)} disabled={busy} aria-label="Otro mensaje">
-        <Icon name="refresh" size={16} />
-      </button>
+      <Button variant="secondary" size="xs" iconOnly className={busy ? 'ai-card-refresh spin' : 'ai-card-refresh'} onClick={() => load(true)} disabled={busy} aria-label="Otro mensaje"><Icon name="refresh" size={16} /></Button>
     </section>
   );
 }

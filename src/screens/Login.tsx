@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { auth } from '../lib/api';
+import { Button } from '../ds';
 import { pendingInvite } from './Onboarding';
 
 export function Login() {
@@ -57,17 +58,17 @@ export function Login() {
         )}
         {err && <div className="error">{err}</div>}
         {msg && <div className="ok">{msg}</div>}
-        <button className="btn-dark big" disabled={busy}>
+        <Button variant="primary" size="xl" type="submit" disabled={busy}>
           {busy ? 'Un momento…' : mode === 'in' ? 'Entrar' : mode === 'up' ? 'Crear cuenta' : 'Enviar enlace'}
-        </button>
+        </Button>
         <div className="row between small">
           {mode === 'in' ? (
             <>
-              <button type="button" className="link-btn" onClick={() => setMode('up')}>Crear cuenta</button>
-              <button type="button" className="link-btn" onClick={() => setMode('forgot')}>Olvidé mi contraseña</button>
+              <Button variant="link" onClick={() => setMode('up')}>Crear cuenta</Button>
+              <Button variant="link" onClick={() => setMode('forgot')}>Olvidé mi contraseña</Button>
             </>
           ) : (
-            <button type="button" className="link-btn" onClick={() => setMode('in')}>Ya tengo cuenta</button>
+            <Button variant="link" onClick={() => setMode('in')}>Ya tengo cuenta</Button>
           )}
         </div>
       </form>

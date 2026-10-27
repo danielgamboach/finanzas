@@ -1,0 +1,2 @@
+.ds-badge { display: inline-grid; place-items: center; flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-full); background: var(--highlight); color: var(--highlight-foreground); font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-medium); font-variant-numeric: tabular-nums; }
+.ds-badge--dot { min-width: 0; width: 9px; height: 9px; padding: 0; box-shadow: 0 0 0 2px var(--badge-ring, var(--background)); }

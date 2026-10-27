@@ -4,8 +4,9 @@ import '../src/tokens.css';
 import '../src/styles.css';
 import '../src/ds/ds.css';
 
-// Oscuro is the app default; Claro is what sheets and drawers use (the `.light` scope).
+// Everything is dark, sheets included. Claro is the opt-in `.light` surface.
 const preview: Preview = {
+  tags: ['autodocs'],
   globalTypes: {
     mode: {
       description: 'Modo del sistema',
@@ -14,7 +15,7 @@ const preview: Preview = {
         icon: 'contrast',
         items: [
           { value: 'oscuro', title: 'Oscuro (app)' },
-          { value: 'claro', title: 'Claro (hojas)' },
+          { value: 'claro', title: 'Claro (.light)' },
         ],
         dynamicTitle: true,
       },

@@ -1,0 +1,7 @@
+.ds-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ds-stat--lg { gap: 8px; }
+.ds-stat__label { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-medium); color: var(--muted-foreground); }
+.ds-stat__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ds-stat__value { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight); white-space: nowrap; }
+.ds-stat--md .ds-stat__value { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); }
+.ds-stat--lg .ds-stat__value { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); }

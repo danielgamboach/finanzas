@@ -1,0 +1,7 @@
+.ds-spend { position: relative; }
+.ds-spend__card { width: 100%; height: 80px; border: none; border-radius: var(--radius-2xl); background: var(--card); color: var(--card-foreground); padding: 12px 144px 12px 16px; display: flex; flex-direction: column; justify-content: center; gap: 4px; text-align: left; font: inherit; }
+.ds-spend__label { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); color: var(--muted-foreground); }
+.ds-spend__value { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ds-spend__bubbles { position: absolute; right: -8px; top: -8px; width: 125px; height: 81px; pointer-events: none; }
+.ds-spend__bubble { position: absolute; box-shadow: 0 0 0 2px var(--card); }
+.ds-spend__more { position: absolute; left: 97px; top: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); font-weight: var(--font-weight-medium); display: inline-grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }

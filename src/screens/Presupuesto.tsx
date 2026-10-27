@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import { Progress, Segmented } from '../ds';
 import { categoryStats, cumulative, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
 import { rootId } from '../lib/cats';
 import { cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
 import { useApp, useTxs } from '../store';
-import { Emo, Icon, Loading, Segmented } from '../ui';
+import { Emo, Icon, Loading } from '../ui';
 import { MonthChart } from '../ui/MonthChart';
 import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
@@ -111,7 +112,7 @@ export function Analisis() {
       </header>
       {ai}
       {chart}
-      <Segmented value={tab} options={[['limits', 'Presupuesto'], ['analysis', 'Tendencias']]} onChange={setTab} dark />
+      <Segmented value={tab} options={[{ value: 'limits', label: 'Presupuesto' }, { value: 'analysis', label: 'Tendencias' }]} onChange={setTab} />
       {loading && txs.length === 0 ? <Loading /> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
     </div>
   );
@@ -122,7 +123,6 @@ function CatRow({ s }: { s: CatStat }) {
   const { cur, fx } = useApp();
   const [open, setOpen] = useState(false);
   const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
-  const bar = s.cat.is_fixed ? 'var(--muted-foreground)' : s.level === 'over' ? 'var(--destructive)' : s.level === 'warn' ? 'var(--warning)' : 'var(--primary)';
   const subs = s.subs.filter((x) => x.spent !== 0 || !x.direct);
   const kids = s.subs.filter((x) => !x.direct).length;
   return (
@@ -135,7 +135,7 @@ function CatRow({ s }: { s: CatStat }) {
             <span className={`ml-auto pct lvl-${s.level}`}>{s.pct !== null ? (s.cat.is_fixed && s.pct >= 100 ? '✅ Pagado' : `${s.pct}%`) : ''}</span>
           </span>
           {s.limit ? (
-            <span className="bar"><span className="bar-fill" style={{ width: `${Math.min(s.pct || 0, 100)}%`, background: bar }} /></span>
+            <Progress value={(s.pct || 0) / 100} tone={s.cat.is_fixed ? 'muted' : s.level === 'over' ? 'destructive' : s.level === 'warn' ? 'warning' : 'default'} />
           ) : null}
           <span className="strong-sm">
             {money(s.spent, cur, fx)}
@@ -163,7 +163,7 @@ function CatRow({ s }: { s: CatStat }) {
                         <span className="sm">{x.direct ? 'Sin detalle' : x.cat.name}</span>
                         <strong className="sm">{money(x.spent, cur, fx)}</strong>
                       </span>
-                      <span className="bar thin"><span className="bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--muted-foreground)' }} /></span>
+                      <Progress size="sm" tone="muted" value={pct / 100} />
                     </span>
                   </a>
                 );
@@ -284,11 +284,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
       <section className="card list">
         <div className="row between pad-top top-head">
           <h2 className="h3">Top comercios</h2>
-          <div className="mini-seg" role="radiogroup" aria-label="Ordenar comercios">
-            {([['amt', 'Por monto'], ['n', 'Por compras']] as const).map(([v, label]) => (
-              <button key={v} role="radio" aria-checked={topBy === v} className={topBy === v ? 'on' : ''} onClick={() => pickTop(v)}>{label}</button>
-            ))}
-          </div>
+          <Segmented size="sm" label="Ordenar comercios" value={topBy} onChange={pickTop} options={[{ value: 'amt', label: 'Por monto' }, { value: 'n', label: 'Por compras' }]} />
         </div>
         {top.length === 0 ? (
           <span className="empty">Sin gastos este mes.</span>

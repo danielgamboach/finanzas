@@ -2,7 +2,8 @@ import { go, useApp } from '../store';
 import { money, relDay } from '../lib/format';
 import type { Tx } from '../lib/types';
 import { txBadge, txPhoto } from '../lib/merchants';
-import { Emo, Icon } from '.';
+import { Emo } from '.';
+import { Checkbox, TxRow as TxRowView, type TxAmountTone } from '../ds';
 import { CatPick } from './CatPick';
 
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
@@ -19,10 +20,6 @@ interface Pick { selected: boolean; onToggle: () => void }
 /** Movements that can take a category (and so can be selected for a bulk change). */
 export const canCategorize = (t: Tx) => t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund';
 
-function Check({ on }: { on: boolean }) {
-  return <span className={on ? 'sel-check on' : 'sel-check'} aria-hidden="true">{on && <Icon name="check" size={14} stroke={3} />}</span>;
-}
-
 export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean; pick?: Pick }) {
   const { categories, cur, fx, profiles, merchants } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
@@ -38,48 +35,35 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
   const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
-  const photo = txPhoto(merchants, t);
-  const badge = txBadge(merchants, t);
+  const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t) };
+  const context = showDate ? 'sheet' : 'list';
+  const amountTone = amtTone(t, inflow, neutral);
   // selecting several: the whole row toggles
   if (pick) {
-    return (
-      <button className={pick.selected ? 'tx-row selecting on' : 'tx-row selecting'} onClick={pick.onToggle} aria-pressed={pick.selected}>
-        <Check on={pick.selected} />
-        <Emo e={emoji} color={color} img={photo} badge={badge} />
-        <span className="tx-mid">
-          <span className="tx-name">{name}</span>
-          {what && <span className={review ? 'tx-cat warn' : 'tx-cat'}>{review ? reviewLabel(t, categories) : what}</span>}
-        </span>
-        <span className={amtClass('tx-amt', t, inflow, neutral)}>{main}</span>
-      </button>
-    );
+    return <TxRowView context={context} face={face} name={name} detail={review ? reviewLabel(t, categories) : what} detailTone={review ? 'warning' : 'default'} amount={main} amountTone={amountTone} selecting selected={pick.selected} onClick={pick.onToggle} />;
   }
-  // to review: the category line is a selector; the name still opens the detail (stretched over the row)
+  // to review: the category line is a selector; the name still opens the detail
   if (review && t.kind !== 'transfer') {
     return (
-      <div className="tx-row pick">
-        <Emo e={emoji} color={color} img={photo} badge={badge} />
-        <span className="tx-mid">
-          <button className="tx-name tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>
-          <span className="tx-pick-line">
-            {showDate && <span className="tx-cat">{relDay(t.occurred_at)}</span>}
-            <CatPick t={t} />
-          </span>
-        </span>
-        <span className={inflow ? 'tx-amt pos' : 'tx-amt'}>{main}</span>
-      </div>
+      <TxRowView
+        context={context}
+        className="tx-pick"
+        face={face}
+        name={<button className="tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>}
+        detail={<span className="tx-pick-line">{showDate && <span>{relDay(t.occurred_at)}</span>}<CatPick t={t} /></span>}
+        amount={main}
+        amountTone={inflow ? 'positive' : 'default'}
+      />
     );
   }
-  return (
-    <button className="tx-row" onClick={() => go(`/mov/${t.id}`)}>
-      <Emo e={emoji} color={color} img={photo} badge={badge} />
-      <span className="tx-mid">
-        <span className="tx-name">{name}</span>
-        {(what || showDate) && <span className={review ? 'tx-cat warn' : t.hold ? 'tx-cat hold' : 'tx-cat'}>{showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what}</span>}
-      </span>
-      <span className={amtClass('tx-amt', t, inflow, neutral)}>{main}</span>
-    </button>
-  );
+  const detail = showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what;
+  return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold ? 'warning' : 'default'} amount={main} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
+}
+
+function amtTone(t: Tx, inflow: boolean, neutral: boolean): TxAmountTone {
+  if (t.hold === 'void') return 'void';
+  if (t.hold === 'pending') return 'muted';
+  return inflow ? 'positive' : neutral ? 'muted' : 'default';
 }
 
 /** Amount style: inflow green, transfers and pending holds quiet, never-charged holds struck through. */
@@ -108,7 +92,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
   const cls = ['ttr', hideAccount && 'no-acc', pick && 'selecting', pick?.selected && 'on'].filter(Boolean).join(' ');
   return (
     <div className={cls} role="row" tabIndex={0} aria-selected={pick ? pick.selected : undefined} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}>
-      <span role="cell" className="tt-date">{pick && <Check on={pick.selected} />}{dateFmt.format(new Date(t.occurred_at))}</span>
+      <span role="cell" className="tt-date">{pick && <Checkbox checked={pick.selected} />}{dateFmt.format(new Date(t.occurred_at))}</span>
       <span role="cell" className="tt-merchant">
         <Emo e={emoji} color={color} img={photo} badge={badge} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>

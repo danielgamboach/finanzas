@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Button } from '../ds';
 import { createPortal } from 'react-dom';
 import { navigateBack, useApp } from '../store';
 import { moneyParts } from '../lib/format';
@@ -19,37 +20,11 @@ export const tint = (c?: string | null, strong = true) => (PALETTE[c || 'gray'] 
 
 export { Icon } from '../ds/atoms/Icon/Icon';
 import { Icon } from '../ds/atoms/Icon/Icon';
+import { Avatar, Button, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
 
-/** A round face: the merchant's photo or the category emoji. `badge` adds a small logo at the bottom right (e.g. Apple). */
+/** A merchant's or category's face: the photo, or the emoji on the category color. Thin wrapper over the DS Avatar. */
 export function Emo({ e, color, size = 48, img, badge }: { e: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
-  if (badge) {
-    const b = Math.max(14, Math.round(size * 0.42));
-    return (
-      <span className="emo-wrap" aria-hidden="true" style={{ width: size, height: size }}>
-        <Emo e={e} color={color} size={size} img={img} />
-        <span className="emo-badge" style={{ width: b, height: b }}>
-          <img src={badge} alt="" loading="lazy" decoding="async" />
-        </span>
-      </span>
-    );
-  }
-  return <Face e={e} color={color} size={size} img={img} />;
-}
-
-function Face({ e, color, size, img }: { e: string; color?: string | null; size: number; img?: string | null }) {
-  const [broken, setBroken] = useState(false);
-  if (img && !broken) {
-    return (
-      <span className="emo photo" aria-hidden="true" style={{ width: size, height: size }}>
-        <img src={img} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
-      </span>
-    );
-  }
-  return (
-    <span className="emo" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.46, background: tint(color) }}>
-      {e}
-    </span>
-  );
+  return <Avatar emoji={e} color={color || 'gray'} size={size} img={img} badge={badge} />;
 }
 
 export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
@@ -68,23 +43,16 @@ export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
 export function BackBar({ title, right }: { title?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <header className="topbar">
-      <button className="round" onClick={navigateBack} aria-label="Volver"><Icon name="back" /></button>
+      <Button variant="secondary" size="md" iconOnly onClick={navigateBack} aria-label="Volver"><Icon name="back" /></Button>
       {title ? <h1 className="h2 topbar-title">{title}</h1> : <span />}
-      {right || <span style={{ width: 48 }} />}
+      {right || <span style={{ width: 44 }} />}
     </header>
   );
 }
 
-export function Segmented<T extends string>({ value, options, onChange, dark = true }: { value: T; options: [T, string][]; onChange: (v: T) => void; dark?: boolean }) {
-  return (
-    <div className={dark ? 'seg' : 'seg seg-light'} style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
-      {options.map(([v, label]) => (
-        <button key={v} aria-pressed={v === value} className={v === value ? 'seg-on' : ''} onClick={() => onChange(v)}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+/** App shorthand for the DS Segmented: options as [value, label] pairs. */
+export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void; dark?: boolean }) {
+  return <DsSegmented value={value} options={options.map(([v, label]) => ({ value: v, label }))} onChange={onChange} />;
 }
 
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -98,13 +66,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div ref={dragRef} className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div className="grabber" />
-        <div className="row between">
-          <h2 className="h2">{title}</h2>
-          <button className="round light" onClick={onClose} aria-label="Cerrar">
-            <Icon name="close" size={18} stroke={2.4} />
-          </button>
-        </div>
+        <SheetHeader title={title} onClose={onClose} className="sheet-head" />
         {children}
       </div>
     </div>,
@@ -113,11 +75,11 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Toast() {
-  const { toastMsg, toastUndo, toast, clearToast, bump } = useApp();
+  const { toastMsg, toastUndo, toast, bump } = useApp();
   const [busy, setBusy] = useState(false);
   if (!toastMsg) return null;
   async function undo() {
-    if (!toastUndo) return;
+    if (!toastUndo || busy) return;
     setBusy(true);
     try {
       await toastUndo();
@@ -129,13 +91,7 @@ export function Toast() {
       setBusy(false);
     }
   }
-  return (
-    <div className={toastUndo ? 'toast has-undo' : 'toast'} role="status">
-      <span>{toastMsg}</span>
-      {toastUndo && <button className="toast-undo" onClick={undo} disabled={busy}>Deshacer</button>}
-      {toastUndo && <button className="toast-x" onClick={clearToast} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.6} /></button>}
-    </div>
-  );
+  return <DsToast className="toast" message={toastMsg} onUndo={toastUndo ? undo : undefined} />;
 }
 
 export function Loading() {

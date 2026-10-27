@@ -1,0 +1,4 @@
+.ds-field { display: flex; flex-direction: column; gap: 8px; }
+.ds-field__label { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); color: var(--secondary-foreground); padding: 0 4px; }
+.ds-field__hint { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); padding: 0 4px; }
+.ds-field__hint.is-error { color: var(--destructive); }

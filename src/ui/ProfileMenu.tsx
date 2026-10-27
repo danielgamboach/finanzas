@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { needsConfirm, useRecurring } from '../lib/recurring';
 import { go, useApp } from '../store';
 import { Icon, Segmented, Sheet } from '.';
+import { Badge, ProfileButton as ProfileButtonView } from '../ds';
 
 /** "🦥 Dani G ⌄" with the current space underneath; opens the profile menu. */
 export function ProfileButton() {
@@ -11,14 +12,14 @@ export function ProfileButton() {
   const pending = items.filter((r) => needsConfirm(r, accounts)).length;
   return (
     <>
-      <button className="profile-btn" onClick={() => setOpen(true)} aria-haspopup="dialog">
-        <span className="profile-avatar" aria-hidden="true">{profile?.emoji || (profile?.name || 'U').charAt(0).toUpperCase()}</span>
-        <span className="col profile-names">
-          <span className="profile-name">{profile?.name || 'Perfil'}<Icon name="chevDown" size={12} stroke={2.4} /></span>
-          {space && <span className="profile-space">{space.emoji} {space.name}</span>}
-        </span>
-        {pending > 0 && <span className="profile-dot" aria-label={`${pending} pagos por confirmar`} />}
-      </button>
+      <ProfileButtonView
+        emoji={profile?.emoji || (profile?.name || 'U').charAt(0).toUpperCase()}
+        name={profile?.name || 'Perfil'}
+        space={space ? `${space.emoji} ${space.name}` : undefined}
+        dot={pending > 0}
+        dotLabel={`${pending} pagos por confirmar`}
+        onClick={() => setOpen(true)}
+      />
       {open && <ProfileSheet onClose={() => setOpen(false)} pending={pending} />}
     </>
   );
@@ -66,7 +67,7 @@ function ProfileSheet({ onClose, pending }: { onClose: () => void; pending: numb
         <button className="menu-row" onClick={() => to('/recurrentes')}>
           <span className="menu-ico"><Icon name="repeat" size={18} /></span>
           <span className="grow col"><strong className="sm">Recurrentes</strong><span className="muted small">Pagos fijos y suscripciones</span></span>
-          {pending > 0 && <span className="count-badge">{pending}</span>}
+          {pending > 0 && <Badge className="count-badge" count={pending} />}
           <Icon name="chevRight" size={18} />
         </button>
         <button className="menu-row" onClick={() => to('/ajustes')}>

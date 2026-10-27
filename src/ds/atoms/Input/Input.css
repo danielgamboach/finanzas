@@ -1,0 +1,6 @@
+.ds-input { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px; border-radius: var(--radius-2xl); background: var(--secondary); box-shadow: inset 0 0 0 1.5px var(--input); color: var(--muted-foreground); }
+.ds-input:focus-within { box-shadow: inset 0 0 0 2px var(--ring); }
+.ds-input.is-invalid { box-shadow: inset 0 0 0 1.5px var(--destructive); }
+.ds-input.is-disabled { opacity: .45; }
+.ds-input__field { flex: 1; min-width: 0; height: 100%; border: none; background: none; outline: none; padding: 0; color: var(--foreground); font-size: var(--text-base); font-weight: var(--font-weight-medium); }
+.ds-input__field::placeholder { color: var(--muted-foreground); }

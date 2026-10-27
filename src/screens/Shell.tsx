@@ -1,3 +1,4 @@
+import { TabBar } from '../ds';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../ui';
 import { CardMorph } from '../ui/CardMorph';
@@ -129,23 +130,14 @@ export function Shell({ route }: { route: string }) {
         </section>
       </div>
       <CardMorph pager={pager} />
-      <nav className="pnav" aria-label="Navegación principal">
-        {NAV.map(([icon, label], i) => (
-          <button key={icon} className={i === idx ? 'pnav-item on' : 'pnav-item'} aria-label={label} aria-current={i === idx ? 'page' : undefined} onClick={() => (i === 1 && idx === 1 && open ? setOpenState(false) : goPanel(i))}>
-            <Icon name={icon} size={i === 1 ? 24 : 23} stroke={1.8} />
-          </button>
-        ))}
-        {/* the white pill carries dark copies of the icons, clipped to its shape: the icon under it reads dark */}
-        <span className="pnav-track" aria-hidden="true">
-          <span ref={pill} className="pnav-pill">
-            <span ref={pillIcons} className="pnav-pill-icons">
-              {NAV.map(([icon], i) => (
-                <span key={icon}><Icon name={icon} size={i === 1 ? 24 : 23} stroke={1.8} /></span>
-              ))}
-            </span>
-          </span>
-        </span>
-      </nav>
+      <TabBar
+        floating
+        items={NAV.map(([icon, label]) => ({ icon, label }))}
+        active={idx}
+        onSelect={(i) => (i === 1 && idx === 1 && open ? setOpenState(false) : goPanel(i))}
+        pillRef={pill}
+        pillIconsRef={pillIcons}
+      />
     </>
   );
 }

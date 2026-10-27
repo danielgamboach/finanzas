@@ -1,0 +1,4 @@
+.ds-toast { display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 32px); padding: 12px 16px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); box-shadow: 0 10px 24px color-mix(in srgb, var(--color-black) 25%, transparent); }
+.ds-toast.has-undo { padding: 6px 6px 6px 16px; }
+.ds-toast__msg { min-width: 0; }
+.ds-toast__undo { flex: none; border: none; background: none; color: inherit; font: inherit; font-weight: var(--font-weight-medium); padding: 8px 10px; border-radius: var(--radius-2xl); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }

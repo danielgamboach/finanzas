@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button, Progress } from '../ds';
 import { db } from '../lib/api';
 import { cardOutstanding } from '../lib/calc';
 import { crIso, money, moneyRaw, parseAmount, shortDate, todayCR } from '../lib/format';
@@ -219,7 +220,7 @@ export function Cuentas() {
             <strong className="sm">{gl.emoji} {gl.name}</strong>
             <span className="muted small">{pct}%</span>
           </div>
-          <div className="bar"><span className="bar-fill" style={{ width: `${pct}%`, background: 'var(--primary)' }} /></div>
+          <Progress value={pct / 100} />
           <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
         </a>
       );
@@ -233,8 +234,8 @@ export function Cuentas() {
         <header className="dpage-head">
           <h1 className="dtitle">Cuentas</h1>
           <div className="row gap8">
-            <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Actualizar saldos{w.stale ? ` · ${w.stale}` : ''}</a>
-            <a className="pill-btn light" href="#/cuenta/nueva"><Icon name="plus" size={16} stroke={2.4} />Nueva cuenta</a>
+            <Button variant="secondary" size="sm" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldos{w.stale ? ` · ${w.stale}` : ''}</Button>
+            <Button variant="primary" size="sm" leading={<Icon name="plus" size={16} stroke={2.4} />} href="#/cuenta/nueva">Nueva cuenta</Button>
           </div>
         </header>
         <div className="dgrid cuentas-grid">
@@ -261,7 +262,7 @@ export function Cuentas() {
     <div className="panel-inner">
       <header className="panel-head">
         <h1 className="h1">Cuentas</h1>
-        <a href="#/cuenta/nueva" className="round" aria-label="Agregar cuenta"><Icon name="plus" size={20} stroke={2.4} /></a>
+        <Button variant="secondary" size="md" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={20} /></Button>
       </header>
 
       {hasAssets && (
@@ -270,7 +271,7 @@ export function Cuentas() {
             <span className="muted small">Patrimonio neto</span>
             <strong className="worth-num">{money(w.net, cur, fx)}</strong>
           </span>
-          <a className="pill-btn" href="#/saldos"><Icon name="refresh" size={16} />Saldos{w.stale ? ` · ${w.stale}` : ''}</a>
+          <Button variant="secondary" size="sm" leading={<Icon name="refresh" size={16} />} href="#/saldos">Saldos{w.stale ? ` · ${w.stale}` : ''}</Button>
         </section>
       )}
 
@@ -297,17 +298,17 @@ export function AccountView({ id }: { id: string }) {
   const isCard = a.kind === 'credit_card';
   // the card already shows what's owed or the balance; only the action to update it stays
   const figures = isCard ? null : (
-    <a className="pill-btn acc-update" href="#/saldos"><Icon name="refresh" size={16} />Actualizar saldo</a>
+    <Button variant="secondary" size="sm" className="acc-update" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldo</Button>
   );
   if (desk) {
     return (
       <div className="dpage">
         <header className="dpage-head">
           <div className="row gap12">
-            <a className="round" href="#/cuentas" aria-label="Volver a cuentas"><Icon name="back" /></a>
+            <Button variant="secondary" size="md" iconOnly href="#/cuentas" aria-label="Volver a cuentas"><Icon name="back" /></Button>
             <h1 className="dtitle">{a.name}</h1>
           </div>
-          <a className="pill-btn" href={`#/cuenta/${a.id}/editar`}><Icon name="pencil" size={16} />Editar cuenta</a>
+          <Button variant="secondary" size="sm" leading={<Icon name="pencil" size={16} />} href={`#/cuenta/${a.id}/editar`}>Editar cuenta</Button>
         </header>
         <div className="dgrid account-grid">
           <div className="dcol dsticky">
@@ -324,7 +325,7 @@ export function AccountView({ id }: { id: string }) {
   }
   return (
     <div className="screen no-nav">
-      <BackBar right={<a className="round" href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" /></a>} />
+      <BackBar right={<Button variant="secondary" size="md" iconOnly href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" /></Button>} />
       <AccountCard a={a} w={w} big />
       {figures}
       <h2 className="h2 px4">Movimientos</h2>
@@ -356,7 +357,7 @@ export function Saldos() {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">Actualizar saldos</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -380,7 +381,7 @@ export function Saldos() {
           ))}
         </div>
       )}
-      <button className="btn-dark big" onClick={save} disabled={busy}>{busy ? 'Guardando…' : 'Guardar saldos'}</button>
+      <Button variant="primary" size="xl" onClick={save} disabled={busy}>{busy ? 'Guardando…' : 'Guardar saldos'}</Button>
     </div>
   );
 }
@@ -449,7 +450,7 @@ export function AccountEdit({ id }: { id: string }) {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">{isNew ? 'Nueva cuenta' : 'Editar cuenta'}</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -511,8 +512,8 @@ export function AccountEdit({ id }: { id: string }) {
           <label className="col gap6"><span className="field-label">Saldo de hoy (opcional)</span><input className="input" inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value.replace(/[^0-9.,-]/g, ''))} placeholder="0" /></label>
         )}
       </div>
-      <button className="btn-dark big" onClick={save} disabled={busy || !acc.name?.trim()}>{busy ? 'Guardando…' : 'Guardar'}</button>
-      {!isNew && <button className="btn-light" onClick={archive}>🗄️ Archivar cuenta</button>}
+      <Button variant="primary" size="xl" onClick={save} disabled={busy || !acc.name?.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+      {!isNew && <Button variant="secondary" size="lg" onClick={archive}>🗄️ Archivar cuenta</Button>}
     </div>
   );
 }
@@ -557,7 +558,7 @@ export function GoalEdit({ id }: { id: string }) {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">{isNew ? 'Nueva meta' : 'Editar meta'}</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -586,8 +587,8 @@ export function GoalEdit({ id }: { id: string }) {
           </label>
         ))}
       </div>
-      <button className="btn-dark big" onClick={save}>Guardar meta</button>
-      {!isNew && <button className="btn-danger" onClick={remove}><Icon name="trash" size={18} /> Eliminar meta</button>}
+      <Button variant="primary" size="xl" onClick={save}>Guardar meta</Button>
+      {!isNew && <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove}>Eliminar meta</Button>}
     </div>
   );
 }

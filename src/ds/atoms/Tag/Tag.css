@@ -1,0 +1,9 @@
+.ds-tag { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; border-radius: var(--radius-full); padding: 0 8px; font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-medium); white-space: nowrap; }
+.ds-tag--sm { height: 20px; }
+.ds-tag--md { height: 24px; }
+.ds-tag--lg { height: 28px; padding: 0 12px; }
+.ds-tag--neutral { background: var(--muted); color: var(--secondary-foreground); }
+.ds-tag--warning { background: var(--warning-subtle); color: var(--warning-subtle-foreground); }
+.ds-tag--ai { background: var(--ai-subtle); color: var(--ai-subtle-foreground); }
+.ds-tag--success { background: var(--success-subtle); color: var(--success-subtle-foreground); }
+.ds-tag--destructive { background: var(--destructive-subtle); color: var(--destructive-subtle-foreground); }

@@ -9,7 +9,7 @@ mkdirSync('dist/assets', { recursive: true });
 await build({
   entryPoints: { app: 'src/main.tsx' },
   bundle: true,
-  minify: true,
+  minify: !process.env.QA_DEBUG,
   sourcemap: false,
   format: 'esm',
   target: ['es2020', 'safari15'],

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from '../ds';
 import { dismissPrompt, enablePush, permission, promptDismissed, pushSupport, refreshPush, sendTestPush } from '../lib/push';
 import { useApp } from '../store';
 
@@ -53,12 +54,12 @@ export function NotifPrompt() {
               <strong>En iPhone primero hay que instalar la app</strong>
               <span>Tocá <b>Compartir</b> <span aria-hidden="true">⬆️</span> en Safari, elegí <b>Agregar a inicio</b> y abrila desde ese ícono. Ahí te vamos a pedir el permiso.</span>
             </div>
-            <button className="btn-dark big" onClick={close}>Entendido</button>
+            <Button variant="primary" size="xl" onClick={close}>Entendido</Button>
           </>
         ) : (
           <>
-            <button className="btn-dark big" onClick={activate} disabled={busy}>{busy ? 'Activando…' : 'Activar notificaciones'}</button>
-            <button className="btn-light" onClick={close}>Ahora no</button>
+            <Button variant="primary" size="xl" onClick={activate} disabled={busy}>{busy ? 'Activando…' : 'Activar notificaciones'}</Button>
+            <Button variant="secondary" size="lg" onClick={close}>Ahora no</Button>
           </>
         )}
         <span className="np-foot">Podés cambiarlo cuando quieras en Ajustes.</span>

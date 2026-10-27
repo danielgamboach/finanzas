@@ -374,7 +374,7 @@
 }
 
 /* semantic: light surfaces (sheets, drawers, the movement form) */
-.light, .sheet, .sheet-page, .np-card, .tx-sheet, .rec-row.ask, .txd {
+.light {
   --background: var(--color-white);
   --foreground: var(--color-neutral-800);
   --card: var(--color-stone-100);

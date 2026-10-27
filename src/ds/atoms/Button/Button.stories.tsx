@@ -21,7 +21,7 @@ const meta: Meta<typeof Button> = {
     docs: {
       description: {
         component:
-          'Una sola pieza para toda acción clickeable. Variantes semánticas, tamaños en pasos de 8 px y siempre en píldora. Dentro de una tarjeta, `secondary` sube un paso solo (token `--secondary-on-card`).',
+          'Una sola pieza para toda acción clickeable. Variantes semánticas y tamaños en pasos de 8 px; el radio crece con el tamaño (xs lg · sm xl · md y lg 2xl · xl 3xl). Dentro de una tarjeta, `secondary` sube un paso solo (token `--secondary-on-card`).',
       },
     },
   },

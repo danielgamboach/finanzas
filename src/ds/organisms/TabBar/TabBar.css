@@ -1,0 +1,7 @@
+.ds-tabbar { position: relative; width: 232px; height: 55px; padding: 4px; border-radius: var(--radius-full); background: var(--background); box-shadow: inset 0 0 0 1px var(--border), 0 5px 16px color-mix(in srgb, var(--color-black) 28%, transparent); display: flex; align-items: center; }
+.ds-tabbar--floating { position: fixed; z-index: 30; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); }
+.ds-tabbar__item { position: relative; flex: 1; height: 47px; border: none; border-radius: var(--radius-full); background: transparent; color: var(--foreground); display: flex; align-items: center; justify-content: center; }
+.ds-tabbar__track { position: absolute; left: 4px; right: 4px; top: 4px; bottom: 4px; pointer-events: none; z-index: 1; }
+.ds-tabbar__pill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--radius-full); background: var(--primary); overflow: hidden; will-change: transform; }
+.ds-tabbar__pill-icons { position: absolute; left: 0; top: 0; bottom: 0; display: flex; color: var(--primary-foreground); will-change: transform; }
+.ds-tabbar__pill-icons > span { flex: 1; display: flex; align-items: center; justify-content: center; }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Badge, Button } from '../ds';
 import { setHold, usePendingHolds } from '../lib/holds';
 import { money, relDay } from '../lib/format';
 import { txPhoto } from '../lib/merchants';
@@ -45,7 +46,7 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
     <section className={variant === 'card' ? 'pp pp-card' : 'pp'} aria-label="Por confirmar">
       <div className="pp-head">
         <span>Por confirmar</span>
-        <span className="pp-count">{rows.length}</span>
+        <Badge count={rows.length} />
       </div>
       <p className="hold-hint">Hubo varios viajes seguidos en la misma tarjeta y alguno pudo no cobrarse. Quitá con <Icon name="close" size={12} stroke={2.6} /> los que no se cobraron. Los demás se confirman solos a las 48 h.</p>
       <div className="pp-list">
@@ -55,12 +56,9 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
         {(rows.length > SHOWN || rows.length > 1) && (
           <div className="hold-foot">
             {rows.length > SHOWN ? (
-              <button className="pp-undo" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</button>
+              <Button variant="ghost" size="xs" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</Button>
             ) : <span />}
-            <button className="hold-all" disabled={busy} onClick={() => resolve(rows, null)}>
-              <Icon name="check" size={15} stroke={2.6} />
-              Todos se cobraron
-            </button>
+            <Button variant="primary" size="sm" disabled={busy} onClick={() => resolve(rows, null)} leading={<Icon name="check" size={16} />}>Todos se cobraron</Button>
           </div>
         )}
       </div>
@@ -83,12 +81,8 @@ function HoldRow({ t, busy, onResolve }: { t: Tx; busy: boolean; onResolve: (hol
         </span>
         <span className="pp-amt">{money(Number(t.amount_crc), cur, fx)}</span>
       </button>
-      <button className="pp-pay hold-no" onClick={() => onResolve('void')} disabled={busy} aria-label={`${name}: no se cobró`} title="No se cobró">
-        <Icon name="close" size={16} stroke={2.6} />
-      </button>
-      <button className="pp-pay" onClick={() => onResolve(null)} disabled={busy} aria-label={`${name}: se cobró`} title="Se cobró">
-        <Icon name="check" size={18} stroke={2.6} />
-      </button>
+      <Button variant="outline" size="sm" iconOnly onClick={() => onResolve('void')} disabled={busy} aria-label={`${name}: no se cobró`} title="No se cobró"><Icon name="close" size={18} /></Button>
+      <Button variant="outline" size="sm" iconOnly onClick={() => onResolve(null)} disabled={busy} aria-label={`${name}: se cobró`} title="Se cobró"><Icon name="check" size={18} /></Button>
     </div>
   );
 }

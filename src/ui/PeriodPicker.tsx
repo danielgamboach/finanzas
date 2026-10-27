@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button, Chip } from '../ds';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, shiftPeriod, type PeriodKey } from '../lib/period';
 import { Icon, Sheet } from '.';
 
@@ -23,9 +24,7 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
     <>
       <div className="period-nav">
         {monthLike && (
-          <button className="icon-btn" onClick={() => prev && onChange(prev)} disabled={!prev} aria-label="Mes anterior">
-            <Icon name="chevLeft" />
-          </button>
+          <Button variant="ghost" size="md" iconOnly onClick={() => prev && onChange(prev)} disabled={!prev} aria-label="Mes anterior"><Icon name="chevLeft" /></Button>
         )}
         <button className="period-btn" onClick={() => setOpen(true)} aria-haspopup="dialog">
           <Icon name="calendar" size={18} />
@@ -33,9 +32,7 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
           <Icon name="chevDown" size={16} stroke={2.4} />
         </button>
         {monthLike && (
-          <button className="icon-btn" onClick={() => next && onChange(next)} disabled={!next} aria-label="Mes siguiente">
-            <Icon name="chevRight" />
-          </button>
+          <Button variant="ghost" size="md" iconOnly onClick={() => next && onChange(next)} disabled={!next} aria-label="Mes siguiente"><Icon name="chevRight" /></Button>
         )}
       </div>
 
@@ -49,7 +46,7 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
           <span className="field-label">Por mes</span>
           <div className="hscroll">
             {recentMonths().map(([k, label]) => (
-              <button key={k} className={value === k ? 'filter on' : 'filter'} aria-pressed={value === k} onClick={() => pick(k)}>{label}</button>
+              <Chip key={k} selected={value === k} size="lg" onClick={() => pick(k)}>{label}</Chip>
             ))}
           </div>
           <span className="field-label">Personalizado</span>
@@ -57,7 +54,7 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
             <label className="col gap6"><span className="hint">Desde</span><input className="input" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
             <label className="col gap6"><span className="hint">Hasta</span><input className="input" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} /></label>
           </div>
-          <button className="btn-dark" disabled={!from || !to || from > to} onClick={() => pick(customKey(from, to))}>Ver este rango</button>
+          <Button variant="primary" size="lg" disabled={!from || !to || from> to} onClick={() => pick(customKey(from, to))}>Ver este rango</Button>
         </Sheet>
       )}
     </>

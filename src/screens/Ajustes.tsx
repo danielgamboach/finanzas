@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button, Switch } from '../ds';
 import { auth, db } from '../lib/api';
 import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { moneyRaw } from '../lib/format';
@@ -65,7 +66,7 @@ export function Ajustes() {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">Ajustes</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -76,7 +77,7 @@ export function Ajustes() {
           <input className="input emoji-input" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={8} aria-label="Emoji" />
           <input className="input grow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" aria-label="Nombre" />
         </div>
-        <button className="btn-light" onClick={saveProfile}>Guardar perfil</button>
+        <Button variant="secondary" size="lg" onClick={saveProfile}>Guardar perfil</Button>
       </section>
 
       <NotifSettings />
@@ -105,12 +106,12 @@ export function Ajustes() {
                 <span className="code">{invite}</span>
                 <span className="muted small">Mandale el enlace, o pasale el código para que lo ponga en Ajustes, en “Unirme con código”. Sirve una vez y vence en 14 días.</span>
                 <div className="grid2">
-                  <button className="btn-light" onClick={() => shareInvite(invite, space.name).then((r) => r === 'copied' && toast('Enlace copiado'))}>Compartir enlace</button>
-                  <button className="btn-light" onClick={() => copy(invite)}>Copiar código</button>
+                  <Button variant="secondary" size="lg" onClick={() => shareInvite(invite, space.name).then((r) => r === 'copied' && toast('Enlace copiado'))}>Compartir enlace</Button>
+                  <Button variant="secondary" size="lg" onClick={() => copy(invite)}>Copiar código</Button>
                 </div>
               </>
             ) : (
-              <button className="btn-light" onClick={makeInvite}>Generar código de invitación</button>
+              <Button variant="secondary" size="lg" onClick={makeInvite}>Generar código de invitación</Button>
             )}
           </div>
         )}
@@ -119,7 +120,7 @@ export function Ajustes() {
           <strong className="sm">Unirme con código</strong>
           <div className="row gap8">
             <input className="input grow" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="a1b2c3d4e5f6" aria-label="Código de invitación" />
-            <button className="btn-dark sm" onClick={join} disabled={!joinCode.trim()}>Unirme</button>
+            <Button variant="primary" size="md" onClick={join} disabled={!joinCode.trim()}>Unirme</Button>
           </div>
         </div>
 
@@ -127,7 +128,7 @@ export function Ajustes() {
           <strong className="sm">Nuevo espacio compartido</strong>
           <div className="row gap8">
             <input className="input grow" value={newSpace} onChange={(e) => setNewSpace(e.target.value)} placeholder="Ej. Casa, Viaje, Roomies" aria-label="Nombre del espacio" />
-            <button className="btn-dark sm" onClick={createSpace} disabled={!newSpace.trim()}>Crear</button>
+            <Button variant="primary" size="md" onClick={createSpace} disabled={!newSpace.trim()}>Crear</Button>
           </div>
         </div>
       </section>
@@ -160,10 +161,10 @@ export function Ajustes() {
           <>
             <span className="code wrap">{token}</span>
             <span className="muted small">Se muestra una sola vez. Guardalo en el script.</span>
-            <button className="btn-light" onClick={() => copy(token)}>Copiar token</button>
+            <Button variant="secondary" size="lg" onClick={() => copy(token)}>Copiar token</Button>
           </>
         ) : (
-          <button className="btn-light" onClick={makeToken}>Generar token</button>
+          <Button variant="secondary" size="lg" onClick={makeToken}>Generar token</Button>
         )}
         <span className="muted small">Tipo de cambio actual: ¢{fx.toFixed(2)} por dólar (BCCR, actualizado por el script).</span>
       </section>
@@ -175,8 +176,7 @@ export function Ajustes() {
         </a>
       )}
 
-      <button className="btn-danger" onClick={() => auth.signOut()}>Cerrar sesión</button>
-
+      <Button variant="destructive-outline" size="lg" onClick={() => auth.signOut()}>Cerrar sesión</Button>
       <footer className="credits">
         Uicons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon</a>
       </footer>
@@ -230,20 +230,20 @@ function NotifSettings() {
       ) : perm === 'granted' ? (
         <div className="row between gap10">
           <span className="small strong-sm">✅ Activas en este dispositivo</span>
-          <button className="btn-light sm" onClick={test} disabled={busy}>Probar</button>
+          <Button variant="secondary" size="md" onClick={test} disabled={busy}>Probar</Button>
         </div>
       ) : perm === 'denied' ? (
         <span className="muted small">Están bloqueadas para esta app. Activalas en los ajustes del navegador o del teléfono.</span>
       ) : (
-        <button className="btn-dark" onClick={activate} disabled={busy}>{busy ? 'Activando…' : 'Activar en este dispositivo'}</button>
+        <Button variant="primary" size="lg" onClick={activate} disabled={busy}>{busy ? 'Activando…' : 'Activar en este dispositivo'}</Button>
       )}
       <div className="field-row bare">
         <span className="col"><span>⚠️ Límites de categorías</span><small>Al llegar al 80% y al 100%</small></span>
-        <button role="switch" aria-checked={profile?.notify_limits ?? true} aria-label="Avisos de límites" className={(profile?.notify_limits ?? true) ? 'switch on' : 'switch'} onClick={() => toggle('notify_limits')}><span /></button>
+        <Switch checked={profile?.notify_limits ?? true} label="Avisos de límites" onChange={() => toggle('notify_limits')} />
       </div>
       <div className="field-row bare">
         <span className="col"><span>💳 Pago de la tarjeta</span><small>El día de pago, con el monto de la semana</small></span>
-        <button role="switch" aria-checked={profile?.notify_card ?? true} aria-label="Aviso de pago de tarjeta" className={(profile?.notify_card ?? true) ? 'switch on' : 'switch'} onClick={() => toggle('notify_card')}><span /></button>
+        <Switch checked={profile?.notify_card ?? true} label="Aviso de pago de tarjeta" onChange={() => toggle('notify_card')} />
       </div>
     </section>
   );

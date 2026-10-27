@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button, Progress } from '../ds';
 import { db } from '../lib/api';
 import { enablePush, permission, pushSupport } from '../lib/push';
 import { go, useApp } from '../store';
@@ -130,12 +131,12 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
           <span className="gs-count">{all ? 'Ya tenés todo listo.' : `${doneCount} de ${total} listos`}</span>
         </span>
         {all ? (
-          <button className="btn-dark sm" onClick={hide}>Cerrar</button>
+          <Button variant="primary" size="md" onClick={hide}>Cerrar</Button>
         ) : (
-          <button className="icon-btn gs-close" onClick={hide} aria-label="Ocultar primeros pasos"><Icon name="close" size={18} /></button>
+          <Button variant="ghost" size="md" iconOnly className="gs-close" onClick={hide} aria-label="Ocultar primeros pasos"><Icon name="close" size={18} /></Button>
         )}
       </div>
-      <span className="gs-bar" aria-hidden="true"><span style={{ width: `${(doneCount / total) * 100}%` }} /></span>
+      <Progress className="gs-bar" tone="success" value={doneCount / total} label="Primeros pasos completados" />
       {!all && variant === 'card' && <ul className="gs-list">{items.map(row)}</ul>}
       {!all && variant === 'sheet' && next && (
         <>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '../ds';
 import { db } from '../lib/api';
 import { useRecurring } from '../lib/recurring';
 import { useApp } from '../store';
@@ -102,9 +103,7 @@ function KaiSheet({ seed, onClose }: { seed?: string; onClose: () => void }) {
           enterKeyHint="send"
           autoComplete="off"
         />
-        <button className="kai-send" type="submit" disabled={busy || q.trim().length < 3} aria-label="Preguntar">
-          <Icon name="arrowUp" size={18} stroke={2.4} />
-        </button>
+        <Button variant="primary" size="md" iconOnly type="submit" className="kai-send" disabled={busy || q.trim().length < 3} aria-label="Preguntar"><Icon name="arrowUp" size={18} /></Button>
       </form>
 
       {!res && (

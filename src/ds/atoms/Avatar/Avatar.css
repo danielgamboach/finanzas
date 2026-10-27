@@ -1,0 +1,10 @@
+.ds-avatar { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; overflow: hidden; background: var(--category-lilac); color: var(--category-foreground); }
+.ds-avatar--r-lg { border-radius: var(--radius-lg); }
+.ds-avatar--r-xl { border-radius: var(--radius-xl); }
+.ds-avatar--r-2xl { border-radius: var(--radius-2xl); }
+.ds-avatar--photo { background: var(--color-white); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-black) 10%, transparent); }
+.ds-avatar--photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ds-avatar--initial { background: var(--muted); color: var(--foreground); font-weight: var(--font-weight-semibold); }
+.ds-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.ds-avatar-badge { position: absolute; right: -3px; bottom: -3px; border-radius: var(--radius-full); overflow: hidden; background: var(--color-neutral-900); box-shadow: 0 0 0 2px var(--badge-ring, var(--background)); }
+.ds-avatar-badge img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '../ds';
 import { db } from '../lib/api';
 import { accountColor } from '../lib/accounts';
 import type { Account, Currency } from '../lib/types';
@@ -105,7 +106,7 @@ export function Onboarding({ preview = false }: { preview?: boolean }) {
     <div className="ob">
       <header className="ob-bar">
         {trail.length > 0 && step !== 'listo' ? (
-          <button className="round" onClick={back} aria-label="Volver"><Icon name="back" /></button>
+          <Button variant="secondary" size="md" iconOnly onClick={back} aria-label="Volver"><Icon name="back" /></Button>
         ) : (
           <span className="ob-bar-gap" />
         )}
@@ -207,8 +208,8 @@ function UsoStep({ first, value, onPick, onNext, onSkip }: { first: string; valu
         ))}
       </div>
       <Actions>
-        <button className="btn-dark big" onClick={onNext} disabled={!value}>Continuar</button>
-        <button className="ob-later" onClick={onSkip}>Ahora no</button>
+        <Button variant="primary" size="xl" onClick={onNext} disabled={!value}>Continuar</Button>
+        <Button variant="ghost" size="lg" onClick={onSkip}>Ahora no</Button>
       </Actions>
     </>
   );
@@ -262,12 +263,12 @@ function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean
           {code ? <span className="ob-code" aria-label={`Código ${code.split('').join(' ')}`}>{code}</span> : <span className="ob-code muted">Generalo después en Ajustes</span>}
           <span className="ob-invite-note">El código sirve una vez y vence en 14 días.</span>
           <div className="ob-row2">
-            <button className="btn-light" onClick={share} disabled={!code}><Icon name="arrowUpRight" size={18} />Compartir enlace</button>
-            <button className="btn-light" onClick={() => code && navigator.clipboard?.writeText(code).then(() => toast('Código copiado'))} disabled={!code}>Copiar código</button>
+            <Button variant="secondary" size="lg" leading={<Icon name="arrowUpRight" size={18} />} onClick={share} disabled={!code}>Compartir enlace</Button>
+            <Button variant="secondary" size="lg" onClick={() => code && navigator.clipboard?.writeText(code).then(() => toast('Código copiado'))} disabled={!code}>Copiar código</Button>
           </div>
         </div>
         <Actions>
-          <button className="btn-dark big" onClick={onNext}>Continuar</button>
+          <Button variant="primary" size="xl" onClick={onNext}>Continuar</Button>
           <span className="ob-foot">También podés invitar después desde Ajustes.</span>
         </Actions>
       </>
@@ -300,8 +301,8 @@ function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean
         {err && <div className="error">{err}</div>}
       </div>
       <Actions>
-        <button className="btn-dark big" onClick={create} disabled={busy}>{busy ? 'Creando…' : 'Crear espacio'}</button>
-        <button className="ob-later" onClick={onNext} disabled={busy}>Ahora no</button>
+        <Button variant="primary" size="xl" onClick={create} disabled={busy}>{busy ? 'Creando…' : 'Crear espacio'}</Button>
+        <Button variant="ghost" size="lg" onClick={onNext} disabled={busy}>Ahora no</Button>
       </Actions>
     </>
   );
@@ -342,7 +343,7 @@ function CodigoStep({ preview, initial, fromLink, joined, onJoined, onNext }: { 
           <p className="ob-sub">Ahí ves los gastos que comparten. Tus gastos personales quedan en tu espacio, solo para vos.</p>
         </div>
         <Actions>
-          <button className="btn-dark big" onClick={onNext}>Continuar</button>
+          <Button variant="primary" size="xl" onClick={onNext}>Continuar</Button>
         </Actions>
       </>
     );
@@ -375,8 +376,8 @@ function CodigoStep({ preview, initial, fromLink, joined, onJoined, onNext }: { 
         {err && <div className="error" id="ob-code-err" role="alert">{err}</div>}
       </div>
       <Actions>
-        <button className="btn-dark big" onClick={join} disabled={busy || code.trim().length < 6}>{busy ? 'Uniéndote…' : 'Unirme'}</button>
-        <button className="ob-later" onClick={onNext} disabled={busy}>Ahora no</button>
+        <Button variant="primary" size="xl" onClick={join} disabled={busy || code.trim().length < 6}>{busy ? 'Uniéndote…' : 'Unirme'}</Button>
+        <Button variant="ghost" size="lg" onClick={onNext} disabled={busy}>Ahora no</Button>
       </Actions>
     </>
   );
@@ -487,8 +488,8 @@ function CuentaStep({ preview, personalId, shared, onSaved, onSkip }: { preview:
       </div>
 
       <Actions>
-        <button className="btn-dark big" onClick={save} disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</button>
-        <button className="ob-later" onClick={onSkip} disabled={busy}>Ahora no</button>
+        <Button variant="primary" size="xl" onClick={save} disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button>
+        <Button variant="ghost" size="lg" onClick={onSkip} disabled={busy}>Ahora no</Button>
       </Actions>
     </>
   );
@@ -514,8 +515,8 @@ function ListoStep({ first, done, busy, finish }: { first: string; done: string[
         <span>Anotá tu primer gasto. Toma unos segundos y ya ves cómo va tu mes.</span>
       </div>
       <Actions>
-        <button className="btn-dark big" onClick={() => finish('/agregar')} disabled={busy}><Icon name="plusCircle" size={20} />Anotar mi primer gasto</button>
-        <button className="ob-later" onClick={() => finish('/')} disabled={busy}>Ir al inicio</button>
+        <Button variant="primary" size="xl" onClick={() => finish('/agregar')} disabled={busy} leading={<Icon name="plusCircle" size={20} />}>Anotar mi primer gasto</Button>
+        <Button variant="ghost" size="lg" onClick={() => finish('/')} disabled={busy}>Ir al inicio</Button>
         <span className="ob-foot">En Inicio te dejamos unos primeros pasos para cuando tengás tiempo.</span>
       </Actions>
     </>

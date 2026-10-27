@@ -1,20 +1,20 @@
 /* Button: one component for every clickable action. Only tokens here. */
 .ds-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0;
-  border: none; border-radius: var(--radius-full); text-decoration: none; white-space: nowrap;
-  font: inherit; font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-normal);
+  border: none; border-radius: var(--radius-2xl); text-decoration: none; white-space: nowrap;
+  font: inherit; font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-normal);
   transition: background-color .15s, filter .15s, box-shadow .15s;
   -webkit-tap-highlight-color: transparent;
 }
 .ds-btn__label { overflow: hidden; text-overflow: ellipsis; }
 .ds-btn--block { width: 100%; }
 
-/* sizes */
-.ds-btn--xs { height: 28px; padding: 0 10px; gap: 4px; font-size: var(--text-sm); }
-.ds-btn--sm { height: 36px; padding: 0 14px; gap: 6px; font-size: var(--text-sm); }
+/* sizes: radius steps with height (Figma): xs lg · sm xl · md/lg 2xl · xl 3xl */
+.ds-btn--xs { height: 28px; padding: 0 10px; gap: 4px; font-size: var(--text-sm); border-radius: var(--radius-lg); }
+.ds-btn--sm { height: 36px; padding: 0 14px; gap: 6px; font-size: var(--text-sm); border-radius: var(--radius-xl); }
 .ds-btn--md { height: 44px; padding: 0 16px; font-size: var(--text-sm); }
 .ds-btn--lg { height: 52px; padding: 0 20px; font-size: var(--text-base); }
-.ds-btn--xl { height: 60px; padding: 0 24px; font-size: var(--text-base); }
+.ds-btn--xl { height: 60px; padding: 0 24px; font-size: var(--text-base); border-radius: var(--radius-3xl); }
 .ds-btn--icon { padding: 0; aspect-ratio: 1; }
 
 /* variants */
@@ -24,7 +24,7 @@
 .ds-btn--muted { background: var(--muted); color: var(--foreground); }
 .ds-btn--outline { background: transparent; color: var(--foreground); box-shadow: inset 0 0 0 1.5px var(--input); }
 .ds-btn--ghost { background: transparent; color: var(--foreground); }
-.ds-btn--link { background: none; color: var(--foreground); height: auto; padding: 4px 0; }
+.ds-btn--link { background: none; color: var(--foreground); height: auto; padding: 4px 0; border-radius: var(--radius-sm); }
 .ds-btn--link .ds-btn__label { text-decoration: underline; text-underline-offset: 3px; }
 .ds-btn--destructive { background: var(--destructive); color: var(--destructive-foreground); }
 .ds-btn--destructive-outline { background: transparent; color: var(--destructive); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--destructive) 40%, transparent); }

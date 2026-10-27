@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Button, EmptyState, Grabber, SheetHeader } from '../ds';
 import type { Tx } from '../lib/types';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { Icon } from '.';
@@ -110,11 +111,10 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
       aria-label="Movimientos"
     >
       <div ref={head} className="tx-sheet-head">
-        <button className="tx-sheet-grab" onClick={() => setOpen(!open)} aria-label={open ? 'Cerrar movimientos' : 'Ver todos los movimientos'} aria-expanded={open} />
-        <div className="tx-sheet-bar">
-          <button className="tx-sheet-title" onClick={() => setOpen(!open)}>Movimientos</button>
-          {open && <button className="icon-btn tx-sheet-close" onClick={() => setOpen(false)} aria-label="Cerrar"><Icon name="chevDown" size={20} /></button>}
-        </div>
+        <button className="tx-sheet-grab" onClick={() => setOpen(!open)} aria-label={open ? 'Cerrar movimientos' : 'Ver todos los movimientos'} aria-expanded={open}><Grabber /></button>
+        <SheetHeader layout="center" grabber={false} title="Movimientos" onTitleClick={() => setOpen(!open)}>
+          {open && <Button iconOnly variant="ghost" size="md" className="tx-sheet-close" onClick={() => setOpen(false)} aria-label="Cerrar"><Icon name="chevDown" size={20} /></Button>}
+        </SheetHeader>
       </div>
       <div ref={body} className="tx-sheet-body">
         {open ? (
@@ -124,7 +124,7 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
             <GettingStarted variant="sheet" />
             <PendingPayments />
             {recent.length === 0 ? (
-              <div className="empty center-text">Todavía no hay movimientos. Tocá “Gasto” para agregar uno.</div>
+              <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá “Gasto” para agregar uno.</EmptyState>
             ) : (
               <div className="tx-sheet-recent">
                 {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}

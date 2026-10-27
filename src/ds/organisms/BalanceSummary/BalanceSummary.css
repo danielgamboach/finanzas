@@ -1,0 +1,4 @@
+.ds-balance { display: flex; flex-direction: column; gap: 4px; padding: 16px 0 0 2px; position: relative; z-index: 2; }
+.ds-balance__label { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
+.ds-balance__row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.ds-balance__actions { display: flex; gap: 8px; margin-top: 4px; }

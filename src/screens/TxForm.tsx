@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
@@ -238,9 +239,7 @@ export function TxForm({ id }: { id?: string }) {
         <div className="grabber" />
         <div className="row between">
           <h1 className="h2">{id ? 'Editar movimiento' : 'Nuevo movimiento'}</h1>
-          <button className="round light" onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar">
-            <Icon name="close" size={18} stroke={2.4} />
-          </button>
+          <Button variant="muted" size="md" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={20} /></Button>
         </div>
 
         {orig?.raw_merchant && (
@@ -385,9 +384,7 @@ export function TxForm({ id }: { id?: string }) {
                 <span>🔁 Repetir cada mes</span>
                 <small>{repeat ? 'Queda en Recurrentes y te avisamos el próximo mes' : 'Para alquiler, suscripciones o salario'}</small>
               </span>
-              <button role="switch" aria-checked={repeat} aria-label="Repetir cada mes" className={repeat ? 'switch on' : 'switch'} onClick={() => setRepeat((r) => !r)}>
-                <span />
-              </button>
+              <Switch checked={repeat} label="Repetir cada mes" onChange={() => setRepeat((r) => !r)} />
             </div>
           )}
         </div>
@@ -400,14 +397,11 @@ export function TxForm({ id }: { id?: string }) {
 
         {error && <div className="error">{error}</div>}
 
-        <button className="btn-dark big" disabled={!canSave || busy} onClick={save}>
+        <Button variant="primary" size="xl" disabled={!canSave || busy} onClick={save} trailing={<Icon name="arrowRight" />}>
           {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
-          <Icon name="arrowRight" />
-        </button>
+        </Button>
         {id && (
-          <button className="btn-danger" onClick={remove}>
-            <Icon name="trash" size={18} /> Eliminar movimiento
-          </button>
+          <Button variant="destructive-outline" size="lg" onClick={remove} leading={<Icon name="trash" size={18} />}>Eliminar movimiento</Button>
         )}
       </div>
     </div>

@@ -1,0 +1,4 @@
+.ds-card { display: block; border-radius: var(--radius-3xl); color: var(--foreground); text-decoration: none; border: none; text-align: left; font: inherit; --secondary: var(--secondary-on-card); }
+.ds-card--card { background: var(--card); }
+.ds-card--muted { background: var(--muted); }
+.ds-card--pad { padding: 16px; }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button, Progress, Switch } from '../ds';
 import { db } from '../lib/api';
 import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
 import { crIso, money, monthName, monthShort, parseAmount, shortK, todayCR } from '../lib/format';
@@ -97,7 +98,7 @@ export function CategoryEdit({ id }: { id: string }) {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">{isNew ? (parent ? 'Nueva subcategoría' : 'Nueva categoría') : parent ? 'Editar subcategoría' : 'Editar categoría'}</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -165,7 +166,7 @@ export function CategoryEdit({ id }: { id: string }) {
                 <span>Gasto fijo</span>
                 <small>Alquiler, servicios… no genera alertas al llegar al 100%</small>
               </span>
-              <button role="switch" aria-checked={fixed} aria-label="Gasto fijo" className={fixed ? 'switch on' : 'switch'} onClick={() => setFixed((f) => !f)}><span /></button>
+              <Switch checked={fixed} label="Gasto fijo" onChange={() => setFixed((f) => !f)} />
             </div>
           </>
         )}
@@ -176,7 +177,7 @@ export function CategoryEdit({ id }: { id: string }) {
         <section className="card pad col gap10">
           <div className="row between">
             <h2 className="h3">Subcategorías</h2>
-            <a className="btn-light sm" href={`#/categoria/nueva?parent=${existing.id}`}><Icon name="plus" size={16} stroke={2.6} />Subcategoría</a>
+            <Button variant="secondary" size="md" leading={<Icon name="plus" size={16} stroke={2.6} />} href={`#/categoria/nueva?parent=${existing.id}`}>Subcategoría</Button>
           </div>
           {kids.length === 0 ? (
             <span className="muted small">Sin subcategorías. Sirven para detallar sin partir el presupuesto, por ejemplo Bares y Café dentro de Salidas.</span>
@@ -194,7 +195,7 @@ export function CategoryEdit({ id }: { id: string }) {
         </section>
       )}
 
-      <button className="btn-dark big" onClick={save} disabled={busy || !name.trim()}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      <Button variant="primary" size="xl" onClick={save} disabled={busy || !name.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
 
       {!isNew && (
         <>
@@ -221,9 +222,9 @@ export function CategoryEdit({ id }: { id: string }) {
           )}
 
           <div className="card pad col gap10">
-            <button className="btn-light" onClick={archive}>{existing?.archived ? '♻️ Restaurar categoría' : '🗄️ Archivar (oculta, conserva historial)'}</button>
+            <Button variant="secondary" size="lg" onClick={archive}>{existing?.archived ? '♻️ Restaurar categoría' : '🗄️ Archivar (oculta, conserva historial)'}</Button>
             {!confirmDelete ? (
-              <button className="btn-danger" onClick={() => setConfirmDelete(true)}><Icon name="trash" size={18} /> Eliminar categoría</button>
+              <Button variant="destructive-outline" size="lg" onClick={() => setConfirmDelete(true)} leading={<Icon name="trash" size={18} />}>Eliminar categoría</Button>
             ) : (
               <div className="col gap10">
                 <label className="col gap6">
@@ -235,7 +236,7 @@ export function CategoryEdit({ id }: { id: string }) {
                     ))}
                   </select>
                 </label>
-                <button className="btn-danger solid" onClick={remove}>Eliminar definitivamente</button>
+                <Button variant="destructive" size="lg" onClick={remove}>Eliminar definitivamente</Button>
               </div>
             )}
           </div>
@@ -290,7 +291,7 @@ export function CategoryView({ id }: { id: string }) {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2 row gap8 title-cat">
           <span aria-hidden="true">{cat.emoji}</span>
           <span className="col">
@@ -298,7 +299,7 @@ export function CategoryView({ id }: { id: string }) {
             {cat.name}
           </span>
         </h1>
-        <button className="round" onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" /></Button>
       </header>
 
       <section className="hero small" aria-label="Total de la categoría">
@@ -331,7 +332,7 @@ export function CategoryView({ id }: { id: string }) {
             <span>{weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
             <span className={pct !== null && pct >= 100 ? 'danger' : ''}>{money(periodSpent, cur, fx)} de {money(limit, cur, fx)}</span>
           </div>
-          <div className="bar"><div className="bar-fill" style={{ width: `${Math.min(pct || 0, 100)}%`, background: (pct || 0) >= 100 ? 'var(--destructive)' : (pct || 0) >= 80 ? 'var(--warning)' : 'var(--primary)' }} /></div>
+          <Progress value={(pct || 0) / 100} tone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'} />
         </div>
       )}
 

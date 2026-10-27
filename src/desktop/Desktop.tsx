@@ -4,6 +4,7 @@ import { accountColor } from '../lib/accounts';
 import { money } from '../lib/format';
 import { go, useApp } from '../store';
 import { Icon, tint } from '../ui';
+import { Badge, Button, Progress } from '../ds';
 import { txPhoto } from '../lib/merchants';
 import { MerchantFace, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
@@ -61,7 +62,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
       <aside className="dside" aria-label="Navegación">
         <div className="dbrand"><span className="dbrand-mark" aria-hidden="true">¢</span>Finanzas</div>
         <SpaceSwitch />
-        <a href="#/agregar" className="dnew"><Icon name="plus" size={18} stroke={2.4} />Nuevo movimiento<kbd>N</kbd></a>
+        <Button variant="primary" size="md" className="dnew" href="#/agregar" leading={<Icon name="plus" size={18} />} trailing={<kbd>N</kbd>}>Nuevo movimiento</Button>
         <button className="dkai" onClick={() => openKai()}><Icon name="sparkle" size={18} />Preguntale a Kai<kbd>K</kbd></button>
         <nav className="dnav">
           {NAV.map((n) => (
@@ -74,7 +75,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
           <a href="#/recurrentes" className={route === 'recurrentes' || route === 'recurrente' ? 'dnav-item on' : 'dnav-item'}>
             <Icon name="repeat" size={18} />
             Recurrentes
-            {pending > 0 && <span className="count-badge">{pending}</span>}
+            {pending > 0 && <Badge className="count-badge" count={pending} />}
           </a>
           <a href="#/ajustes" className={route === 'ajustes' ? 'dnav-item on' : 'dnav-item'}>
             <Icon name="gear" size={18} />
@@ -180,7 +181,7 @@ export function DesktopHome() {
             {delta && <span className={delta.good ? 'balance-delta good' : 'balance-delta bad'} title={`Comparado con el ${vsLabel.slice(4)}`}>{delta.text}</span>}
           </div>
           <div className="balance-actions">
-            <a href="#/agregar" className="pill-btn light"><Icon name="plusCircle" size={16} />Nuevo gasto</a>
+            <Button variant="primary" size="sm" href="#/agregar" leading={<Icon name="plusCircle" size={16} />}>Nuevo gasto</Button>
           </div>
         </section>
 
@@ -188,7 +189,7 @@ export function DesktopHome() {
           <span className="spend-label">{cardLabel}</span>
           <span className="dspend-value">{money(cardValue, cur, fx)}</span>
           {budget > 0 && (
-            <span className="bar"><span className="bar-fill" style={{ width: `${used}%`, background: used >= 100 ? 'var(--destructive)' : used >= 80 ? 'var(--warning)' : 'var(--primary)' }} /></span>
+            <Progress value={used / 100} tone={used >= 100 ? 'destructive' : used >= 80 ? 'warning' : 'default'} />
           )}
           {faces.length > 0 && (
             <span className="dfaces" aria-label="Comercios recientes">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button, Chip, Switch } from '../ds';
 import { pickerOrder } from '../lib/cats';
 import { namePhoto } from '../lib/merchants';
 import { db } from '../lib/api';
@@ -72,8 +73,8 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
         <div className="rec-ask">
           <span>¿Ya se pagó?</span>
           <span className="row gap6">
-            <button className="btn-light sm" onClick={skip} disabled={busy}>Saltar</button>
-            <button className="btn-dark sm" onClick={paid} disabled={busy}>Ya pagué</button>
+            <Button variant="secondary" size="md" onClick={skip} disabled={busy}>Saltar</Button>
+            <Button variant="primary" size="md" onClick={paid} disabled={busy}>Ya pagué</Button>
           </span>
         </div>
       )}
@@ -115,7 +116,7 @@ export function CardPayment() {
         </div>
         <div className="rec-ask">
           <span>¿Ya se pagó la tarjeta?</span>
-          <button className="btn-dark sm" onClick={paid}>Ya pagué</button>
+          <Button variant="primary" size="md" onClick={paid}>Ya pagué</Button>
         </div>
       </div>
     </div>
@@ -225,14 +226,14 @@ export function Recurrentes() {
       {items.length > 0 && (
         <div className="hscroll rec-filters" role="toolbar" aria-label="Filtrar recurrentes">
           {chips.map(([k, n]) => (
-            <button key={k} className={current === k ? 'filter on' : 'filter'} aria-pressed={current === k} onClick={() => pick(k)}>
+            <Chip key={k} selected={current === k} size="lg" onClick={() => pick(k)}>
               {FILTER_LABEL[k]}{k !== 'todos' && <span className="filter-n">{n}</span>}
-            </button>
+            </Chip>
           ))}
         </div>
       )}
 
-      <a className="action dark self-start" href="#/recurrente/nueva"><span>➕</span>Nuevo recurrente</a>
+      <Button variant="primary" size="md" className="self-start" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} />}>Nuevo recurrente</Button>
 
       {current !== 'todos' ? (
         <section className="col gap8">
@@ -257,8 +258,8 @@ export function Recurrentes() {
                     </span>
                   </span>
                   <span className="row gap6">
-                    <button className="btn-light sm" onClick={() => dismiss(s)} aria-label={`${s.merchant} no es recurrente`}>No</button>
-                    <button className="btn-dark sm" onClick={() => addSuggestion(s)}>Agregar</button>
+                    <Button variant="secondary" size="md" onClick={() => dismiss(s)} aria-label={`${s.merchant} no es recurrente`}>No</Button>
+                    <Button variant="primary" size="md" onClick={() => addSuggestion(s)}>Agregar</Button>
                   </span>
                 </div>
               );
@@ -398,7 +399,7 @@ export function RecurringEdit({ id }: { id: string }) {
   return (
     <div className="screen no-nav">
       <header className="topbar">
-        <button className="round" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></button>
+        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
         <h1 className="h2">{isNew ? 'Nuevo recurrente' : 'Editar recurrente'}</h1>
         <span style={{ width: 48 }} />
       </header>
@@ -422,7 +423,7 @@ export function RecurringEdit({ id }: { id: string }) {
             <span>Monto variable</span>
             <small>{r.variable ? 'Se reconoce aunque cambie el monto. El monto se actualiza solo con el promedio de los últimos 3 pagos.' : 'Para luz, agua o internet, que cambian cada mes'}</small>
           </span>
-          <button role="switch" aria-checked={!!r.variable} aria-label="Monto variable" className={r.variable ? 'switch on' : 'switch'} onClick={() => set('variable', !r.variable)}><span /></button>
+          <Switch checked={!!r.variable} label="Monto variable" onChange={() => set('variable', !r.variable)} />
         </div>
         <label className="col gap6"><span className="field-label">Cada cuánto</span>
           <select className="input" value={r.frequency} onChange={(e) => set('frequency', e.target.value as Frequency)}>
@@ -474,13 +475,13 @@ export function RecurringEdit({ id }: { id: string }) {
       {!isNew && (
         <div className="field-row card pad">
           <span className="col"><span>Activo</span><small>Pausalo si ya no se paga, sin perder el historial</small></span>
-          <button role="switch" aria-checked={!!r.active} aria-label="Activo" className={r.active ? 'switch on' : 'switch'} onClick={() => set('active', !r.active)}><span /></button>
+          <Switch checked={!!r.active} label="Activo" onChange={() => set('active', !r.active)} />
         </div>
       )}
 
-      <button className="btn-dark big" onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      <Button variant="primary" size="xl" onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</Button>
       {!isNew && r.last_paid_on && <span className="muted small center-text">Último pago registrado: {shortDay(r.last_paid_on)}</span>}
-      {!isNew && <button className="btn-danger" onClick={remove}><Icon name="trash" size={18} /> Eliminar recurrente</button>}
+      {!isNew && <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove}>Eliminar recurrente</Button>}
     </div>
   );
 }

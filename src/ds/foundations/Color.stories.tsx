@@ -25,7 +25,7 @@ const source = (name: string, mode: 'dark' | 'light') => {
 function Swatch({ name, mode }: { name: string; mode: 'dark' | 'light' }) {
   return (
     <div className="ds-swatch">
-      <span className="ds-chip" style={{ background: `var(--${name})` }} />
+      <span className="ds-swatch-chip" style={{ background: `var(--${name})` }} />
       <span style={{ minWidth: 0 }}>
         <div className="ds-name">{name}</div>
         <div className="ds-meta">var(--{name}) · {source(name, mode)}</div>

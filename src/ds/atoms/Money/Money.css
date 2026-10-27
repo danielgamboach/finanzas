@@ -1,0 +1,9 @@
+.ds-money { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: var(--font-weight-medium); }
+.ds-money--row { font-size: var(--text-base); line-height: var(--text-base--line-height); }
+.ds-money--large { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.ds-money--hero { display: inline-flex; align-items: flex-start; gap: 2px; font-size: var(--text-6xl); line-height: 1; font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tighter); }
+.ds-money__sym { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); letter-spacing: 0; margin-top: .3em; }
+.ds-money--positive { color: var(--success); }
+.ds-money--negative { color: var(--destructive); }
+.ds-money--muted { color: var(--muted-foreground); }
+.ds-money--strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }

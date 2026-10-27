@@ -4,7 +4,7 @@ import { money, moneyRaw } from '../lib/format';
 import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
-import { Emo, Icon } from '.';
+import { PendingPaymentRow, PendingPayments as PendingPaymentsView } from '../ds';
 import { CardPayment, recEmoji } from '../screens/Recurrentes';
 import { Holds } from './Holds';
 
@@ -47,17 +47,11 @@ function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
     </>
   );
 
+  const list = pending.length > 0 || done.length > 0;
   return (
-    <section className={variant === 'card' ? 'pp pp-card' : 'pp'} aria-label="Pagos pendientes">
-      {(pending.length > 0 || done.length > 0) && (
-        <div className="pp-head">
-          <span>Pagos pendientes</span>
-          {pending.length > 0 && <span className="pp-count">{pending.length}</span>}
-        </div>
-      )}
-      {card && <CardPayment />}
-      {(pending.length > 0 || done.length > 0) && <div className="pp-list">{body}</div>}
-    </section>
+    <div className={variant === 'card' ? 'pp-wrap pp-card' : 'pp-wrap'}>
+      <PendingPaymentsView count={pending.length} top={card ? <CardPayment /> : null}>{list ? body : null}</PendingPaymentsView>
+    </div>
   );
 }
 
@@ -89,20 +83,17 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
   }
 
   return (
-    <div className={overdue ? 'pp-row overdue' : 'pp-row'}>
-      <button className="pp-main" onClick={() => go(`/recurrente/${r.id}`)}>
-        <Emo e={recEmoji(r, categories)} color={categories.find((c) => c.id === r.category_id)?.color || 'gray'} img={photo} size={40} />
-        <span className="pp-mid">
-          <span className="pp-name">{r.merchant}</span>
-          <span className="pp-sub">{dueLabel(r.next_due)}</span>
-        </span>
-        <span className="pp-amt">{amountOf(r, cur, fx)}</span>
-      </button>
-      <button className="pp-pay" onClick={paid} disabled={busy} aria-label={`Ya pagué ${r.merchant}`}>
-        <Icon name="check" size={18} stroke={2.6} />
-        <span className="pp-pay-label">Ya lo pagué</span>
-      </button>
-    </div>
+    <PendingPaymentRow
+      state={overdue ? 'overdue' : 'due'}
+      face={{ emoji: recEmoji(r, categories), color: categories.find((c) => c.id === r.category_id)?.color || 'gray', img: photo }}
+      name={r.merchant}
+      detail={dueLabel(r.next_due)}
+      amount={amountOf(r, cur, fx)}
+      onOpen={() => go(`/recurrente/${r.id}`)}
+      onPay={paid}
+      busy={busy}
+      payLabel={`Ya pagué ${r.merchant}`}
+    />
   );
 }
 
@@ -123,19 +114,14 @@ function DoneRow({ r, undo, onUndone }: { r: Recurring; undo?: { before: Recurri
     }
   }
   return (
-    <div className="pp-row done">
-      <div className="pp-main">
-        <span className="pp-emo-done">
-          <Emo e={recEmoji(r, categories)} color="gray" img={photo} size={40} />
-          <span className="pp-check" aria-hidden="true"><Icon name="check" size={12} stroke={3} /></span>
-        </span>
-        <span className="pp-mid">
-          <span className="pp-name">{r.merchant}</span>
-          <span className="pp-sub pos">Pagado · {r.last_paid_on ? shortDay(r.last_paid_on) : 'hoy'}</span>
-        </span>
-        <span className="pp-amt muted">{amountOf(r, cur, fx)}</span>
-      </div>
-      {undo && <button className="pp-undo" onClick={revert} disabled={busy}>Deshacer</button>}
-    </div>
+    <PendingPaymentRow
+      state="done"
+      face={{ emoji: recEmoji(r, categories), color: 'gray', img: photo }}
+      name={r.merchant}
+      detail={`Pagado · ${r.last_paid_on ? shortDay(r.last_paid_on) : 'hoy'}`}
+      amount={amountOf(r, cur, fx)}
+      onUndo={undo ? revert : undefined}
+      busy={busy}
+    />
   );
 }

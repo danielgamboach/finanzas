@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '../ds';
 import { db } from '../lib/api';
 import {
   addPattern,
@@ -156,9 +157,9 @@ export function PhotoSheet({ spaceId, merchant, suggestion = '', onClose }: { sp
                 ? `Ojo: “${suggestion}” no contiene “${clean}”, así que este movimiento no la mostraría.`
                 : 'Usá la parte que se repite, sin la sucursal. “Starbucks” sirve para Starbucks Multiplaza y Starbucks Escazú.'}
         </span>
-        {!locked && <button className="btn-dark big" onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : 'Guardar'}</button>}
+        {!locked && <Button variant="primary" size="xl" onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : 'Guardar'}</Button>}
         {merchant && current && isAdmin && (
-          <button className="btn-danger" onClick={remove} disabled={busy}><Icon name="trash" size={18} /> Quitar foto</button>
+          <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove} disabled={busy}>Quitar foto</Button>
         )}
       </div>
     </Sheet>
@@ -240,9 +241,7 @@ export function MergeSheet({ t, preset, onClose }: { t: Tx; preset?: Merchant | 
             ))}
             {list.length === 0 && <span className="empty">No hay comercios con ese nombre.</span>}
           </div>
-          <button type="button" className="btn-light" onClick={() => { if (q.trim()) setNewName(q.trim()); setPick('new'); }}>
-            <Icon name="plus" size={18} /> Crear comercio{q.trim() ? ` “${q.trim()}”` : ''}
-          </button>
+          <Button variant="secondary" size="lg" onClick={() => { if (q.trim()) setNewName(q.trim()); setPick('new'); }} leading={<Icon name="plus" size={18} />}>Crear comercio{q.trim() ? ` “${q.trim()}”` : ''}</Button>
         </div>
       </Sheet>
     );
@@ -260,7 +259,7 @@ export function MergeSheet({ t, preset, onClose }: { t: Tx; preset?: Merchant | 
           <div className="row gap12 m-picked">
             <Face m={pick} size={44} />
             <strong className="grow">{pick.name}</strong>
-            {!preset && <button type="button" className="link-btn" onClick={() => setPick(null)}>Cambiar</button>}
+            {!preset && <Button variant="link" onClick={() => setPick(null)}>Cambiar</Button>}
           </div>
         )}
         <label className="col gap6">
@@ -274,7 +273,7 @@ export function MergeSheet({ t, preset, onClose }: { t: Tx; preset?: Merchant | 
               ? `“${clean}” ya lleva a ${current!.name}. Usá algo más largo, como el nombre completo de esta sucursal.`
               : `Todo lo que diga “${clean}”, de antes y de ahora, queda en ${target || 'este comercio'}. Sirve para todos.`}
         </span>
-        <button className="btn-dark big" onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : pick === 'new' ? 'Crear y unir' : 'Unir'}</button>
+        <Button variant="primary" size="xl" onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : pick === 'new' ? 'Crear y unir' : 'Unir'}</Button>
       </div>
     </Sheet>
   );

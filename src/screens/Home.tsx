@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
 import { cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
-import { accountColor, byKind } from '../lib/accounts';
+import { byKind } from '../lib/accounts';
 import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
-import { Emo, Icon, Loading, tint } from '../ui';
+import { Icon, Loading } from '../ui';
+import { AccountStack, BalanceSummary, Button, HomeHeader, KaiButton, SpendCard } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { ProfileButton } from '../ui/ProfileMenu';
 import { openKai } from '../ui/Kai';
@@ -19,13 +20,9 @@ export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [numb
   };
   return (
     <div className="month-nav">
-      <button className="icon-btn" onClick={() => shift(-1)} aria-label="Mes anterior">
-        <Icon name="chevLeft" />
-      </button>
+      <Button variant="ghost" size="md" iconOnly onClick={() => shift(-1)} aria-label="Mes anterior"><Icon name="chevLeft" /></Button>
       <span>{cap(monthName(ym[1]))} {ym[0]}</span>
-      <button className="icon-btn" onClick={() => shift(1)} aria-label="Mes siguiente" disabled={isCurrent}>
-        <Icon name="chevRight" />
-      </button>
+      <Button variant="ghost" size="md" iconOnly onClick={() => shift(1)} aria-label="Mes siguiente" disabled={isCurrent}><Icon name="chevRight" /></Button>
     </div>
   );
 }
@@ -54,15 +51,6 @@ export function groupByDay(txs: Tx[]) {
 export function goAdd(tipo: string) {
   go(`/agregar?tipo=${tipo}`);
 }
-
-// where each merchant bubble sits in the cluster (from the design): left, top, size
-const BUBBLES: [number, number, number][] = [
-  [0, 34, 44],
-  [47, 4, 32],
-  [51, 48, 28],
-  [88, 32, 29],
-  [15, 0, 22],
-];
 
 /** Everything the home summary shows; shared by the phone and desktop homes. */
 export function useHomeSummary() {
@@ -152,62 +140,33 @@ export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen
   const h = useHomeSummary();
   if (!h) return <Loading />;
   const { label, value, negative, delta, vsLabel, cardLabel, cardValue, merchants, peek, recent } = h;
-  const shown = merchants.slice(0, BUBBLES.length);
-  const more = merchants.length - shown.length;
+  // latest merchants as bubbles: the logo when there is one, the category emoji otherwise
+  const bubbles = merchants.map((m) => {
+    const cat = categories.find((c) => c.id === m.tx.category_id);
+    return { key: m.key, emoji: cat?.emoji || '🛍️', color: cat?.color || 'gray', img: txPhoto(catalog, m.tx) };
+  });
 
   return (
     <div className="home">
       <div className="home-top">
-        <header className="home-bar">
+        <HomeHeader>
           <ProfileButton />
-          <button className="kai-chip round" onClick={() => openKai()} aria-label="Preguntale a Kai">
-            <Icon name="sparkle" size={18} />
-          </button>
-        </header>
+          <KaiButton onClick={() => openKai()} />
+        </HomeHeader>
 
-        <section className="balance" aria-label="Resumen del mes">
-          <span className="balance-label">{label}</span>
-          <div className="balance-row">
-            <span className={negative ? 'balance-num neg' : 'balance-num'}>{negative ? '−' : ''}{money(value, cur, fx)}</span>
-            {delta && (
-              <span className={delta.good ? 'balance-delta good' : 'balance-delta bad'} title={`Comparado con el ${vsLabel.slice(4)}`}>
-                {delta.text}
-              </span>
-            )}
-          </div>
-          <div className="balance-actions">
-            <a href="#/agregar" className="pill-btn light"><Icon name="plusCircle" size={16} />Gasto</a>
-          </div>
-        </section>
+        <BalanceSummary
+          label={label}
+          value={`${negative ? '−' : ''}${money(value, cur, fx)}`}
+          negative={negative}
+          delta={delta}
+          deltaTitle={`Comparado con el ${vsLabel.slice(4)}`}
+          action={<Button variant="primary" size="sm" href="#/agregar" leading={<Icon name="plusCircle" size={18} />}>Gasto</Button>}
+        />
 
-        {peek.length > 0 && (
-          <button className="card-peek" onClick={() => goPanel(2)} aria-label="Ver cuentas">
-            {peek.map((a, i) => (
-              <span key={a.id} data-acc={a.id} style={{ background: accountColor(a).bg, left: i * 19, zIndex: i }} />
-            ))}
-          </button>
-        )}
+        {peek.length > 0 && <AccountStack className="card-peek" accounts={peek} onClick={() => goPanel(2)} />}
 
         <div ref={topRef} className="spend-card-wrap">
-          <button className="spend-card" onClick={() => goPanel(0)} aria-label={`${cardLabel}: ${money(cardValue, cur, fx)}. Ver análisis`}>
-            <span className="spend-label">{cardLabel}</span>
-            <span className="spend-value">{money(cardValue, cur, fx)}</span>
-          </button>
-          {shown.length > 0 && (
-            <div className="bubbles" aria-hidden="true">
-              {shown.map((m, i) => {
-                const [l, tp, sz] = BUBBLES[i];
-                const ph = txPhoto(catalog, m.tx);
-                const cat = categories.find((c) => c.id === m.tx.category_id);
-                return (
-                  <span key={m.key} className="bubble" style={{ left: l, top: tp, width: sz, height: sz, background: ph ? 'var(--color-white)' : tint(cat?.color) }}>
-                    {ph ? <img src={ph} alt="" /> : <span style={{ fontSize: sz * 0.5 }}>{cat?.emoji || '🛍️'}</span>}
-                  </span>
-                );
-              })}
-              {more > 0 && <span className="bubble more" style={{ left: 97, top: 6 }}>+{more > 99 ? 99 : more}</span>}
-            </div>
-          )}
+          <SpendCard label={cardLabel} value={money(cardValue, cur, fx)} bubbles={bubbles} onClick={() => goPanel(0)} ariaLabel={`${cardLabel}: ${money(cardValue, cur, fx)}. Ver análisis`} />
         </div>
       </div>
 

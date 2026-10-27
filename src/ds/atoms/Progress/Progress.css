@@ -1,0 +1,10 @@
+.ds-progress { position: relative; display: block; width: 100%; border-radius: var(--radius-full); background: var(--muted); overflow: hidden; }
+.ds-progress--sm { height: 5px; }
+.ds-progress--md { height: 8px; }
+.ds-progress--lg { height: 12px; }
+.ds-progress__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--primary); transition: width .4s cubic-bezier(.2,.8,.2,1); }
+.ds-progress--muted .ds-progress__fill { background: var(--muted-foreground); }
+.ds-progress--success .ds-progress__fill { background: var(--success); }
+.ds-progress--warning .ds-progress__fill { background: var(--warning); }
+.ds-progress--destructive .ds-progress__fill { background: var(--destructive); }
+.ds-progress__marker { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--primary); }

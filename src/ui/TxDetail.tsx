@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Tag } from '../ds';
 import { createPortal } from 'react-dom';
 import { db } from '../lib/api';
 import { catLabel } from '../lib/cats';
@@ -82,14 +83,8 @@ export function TxDetail({ id }: { id: string }) {
       <div ref={setPanel} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)} className={desk ? 'txd side' : 'txd'} role="dialog" aria-modal="true" aria-label="Detalle del movimiento" onClick={(e) => e.stopPropagation()}>
         <div className={scrolled ? 'txd-bar scrolled' : 'txd-bar'}>
           {!desk && <div className="grabber" />}
-          <button className="round light" onClick={close} aria-label="Cerrar">
-            <Icon name="close" size={18} stroke={2.4} />
-          </button>
-          <button className="txd-edit" onClick={() => go(`/mov/${id}/editar`)} disabled={!t}>
-            <Icon name="pencil" size={16} />
-            Editar
-            {desk && <kbd>E</kbd>}
-          </button>
+          <Button variant="muted" size="md" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={20} /></Button>
+          <Button variant="primary" size="sm" className="txd-edit" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={16} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
         </div>
         {t ? <Body t={t} /> : <Loading />}
       </div>
@@ -127,11 +122,11 @@ function Body({ t }: { t: Tx }) {
         <span className={t.hold === 'void' ? 'txd-amt muted void' : inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
         {conv && <span className="txd-conv">{conv}</span>}
         <span className="chips center">
-          {t.hold === 'pending' && <span className="chip warn">Por confirmar</span>}
-              {review && !suggested && <span className="chip warn">Por revisar</span>}
-          {review && suggested && <span className="chip ai">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</span>}
-          {t.recurring_id && <span className="chip">🔁 Recurrente</span>}
-          {tags.map((g) => <span key={g} className="chip">{g}</span>)}
+          {t.hold === 'pending' && <Tag tone="warning" size="sm">Por confirmar</Tag>}
+              {review && !suggested && <Tag tone="warning" size="sm">Por revisar</Tag>}
+          {review && suggested && <Tag tone="ai" size="sm">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</Tag>}
+          {t.recurring_id && <Tag size="sm">🔁 Recurrente</Tag>}
+          {tags.map((g) => <Tag key={g} size="sm">{g}</Tag>)}
         </span>
       </header>
 
@@ -217,16 +212,16 @@ function MerchantRow({ t, merchant }: { t: Tx; merchant: Merchant | null }) {
         {merchant ? (
           <>
             {merchant.name}
-            <button className="txd-mini" onClick={() => setOpen('pick')}>Cambiar</button>
+            <Button variant="muted" size="xs" onClick={() => setOpen('pick')}>Cambiar</Button>
           </>
         ) : suggested ? (
           <>
             ¿Es {suggested.name}?
-            <button className="txd-mini dark" onClick={() => setOpen(suggested)}>Sí</button>
-            <button className="txd-mini" onClick={dismiss}>No</button>
+            <Button variant="primary" size="xs" onClick={() => setOpen(suggested)}>Sí</Button>
+            <Button variant="muted" size="xs" onClick={dismiss}>No</Button>
           </>
         ) : (
-          <button className="txd-mini" onClick={() => setOpen('pick')}>Unir con otro comercio</button>
+          <Button variant="muted" size="xs" onClick={() => setOpen('pick')}>Unir con otro comercio</Button>
         )}
       </span>
       {open && <MergeSheet t={t} preset={open === 'pick' ? null : open} onClose={() => setOpen(null)} />}
@@ -279,8 +274,8 @@ function HoldBox({ t }: { t: Tx }) {
     <section className="hold-box" aria-label="Cobro">
       <p>Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; {settlesIn(t)} si no la marcás. Si no se cobró, se elimina.</p>
       <div className="hold-btns">
-        <button className="hold-btn" disabled={busy} onClick={() => set('void', `${t.merchant || 'Movimiento'}: eliminado, no se cobró`)}>No se cobró</button>
-        <button className="hold-btn dark" disabled={busy} onClick={() => set(null, 'Confirmado')}>Se cobró</button>
+        <Button variant="outline" size="md" disabled={busy} onClick={() => set('void', `${t.merchant || 'Movimiento'}: eliminado, no se cobró`)}>No se cobró</Button>
+        <Button variant="primary" size="md" disabled={busy} onClick={() => set(null, 'Confirmado')}>Se cobró</Button>
       </div>
     </section>
   );
@@ -359,7 +354,7 @@ function SameMerchant({ t, name, merchant }: { t: Tx; name: string; merchant: Me
             <div className="txd-list">
               {others.slice(0, shown).map((x) => <TxRow key={x.id} t={x} showDate />)}
               {others.length > shown && (
-                <button className="tt-more" onClick={() => setShown((n) => n + 40)}>Ver {Math.min(40, others.length - shown)} más</button>
+                <Button variant="secondary" size="sm" onClick={() => setShown((n) => n + 40)}>Ver {Math.min(40, others.length - shown)} más</Button>
               )}
             </div>
           )}

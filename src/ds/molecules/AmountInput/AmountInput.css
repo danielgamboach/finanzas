@@ -1,0 +1,9 @@
+.ds-amount { display: flex; align-items: flex-start; justify-content: center; gap: 4px; color: var(--foreground); }
+.ds-amount__sym { color: var(--muted-foreground); font-weight: var(--font-weight-semibold); }
+.ds-amount__field { min-width: 0; width: 100%; border: none; background: none; outline: none; padding: 0; color: inherit; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; text-align: left; field-sizing: content; max-width: 100%; }
+.ds-amount__field::placeholder { color: var(--muted-foreground); }
+.ds-amount--large .ds-amount__sym { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); margin-top: 10px; }
+.ds-amount--large .ds-amount__field { font-size: var(--text-6xl); line-height: 1; letter-spacing: var(--tracking-tighter); }
+.ds-amount--small { align-items: center; padding: 16px; border-radius: var(--radius-3xl); background: var(--muted); }
+.ds-amount--small .ds-amount__sym { font-size: var(--text-xl); }
+.ds-amount--small .ds-amount__field { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); letter-spacing: var(--tracking-tight); }

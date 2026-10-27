@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Badge, Button, Chip, SearchField } from '../ds';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, type PeriodKey } from '../lib/period';
@@ -153,32 +154,20 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   return (
     <div className={table ? 'mb mb-table' : 'mb'}>
       <div className="mb-top">
-        <label className="search">
-          <Icon name="search" />
-          <span className="sr">Buscar movimientos</span>
-          <input ref={search} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" />
-        </label>
-        <button className={count ? 'mb-filter-btn on' : 'mb-filter-btn'} onClick={() => setSheet(true)} aria-label={count ? `Filtros, ${count} activos` : 'Filtros'}>
+        <SearchField ref={search} wrapClassName="mb-search" size="md" value={q} onChange={setQ} aria-label="Buscar movimientos" />
+        <Button variant={count ? 'primary' : 'secondary'} size="md" iconOnly className="mb-filter-btn" onClick={() => setSheet(true)} aria-label={count ? `Filtros, ${count} activos` : 'Filtros'}>
           <Icon name="sliders" size={18} />
-          {count > 0 && <span className="mb-badge">{count}</span>}
-        </button>
+          {count > 0 && <Badge className="mb-badge" count={count} />}
+        </Button>
       </div>
 
       <div className="mb-chips" aria-label="Filtros activos">
-        <button className="mb-chip period" onClick={() => setSheet(true)}>
-          {period.label}
-          <Icon name="chevDown" size={14} stroke={2.4} />
-        </button>
+        <Chip size="sm" trailing="chevron" onClick={() => setSheet(true)}>{period.label}</Chip>
         {active.map(([k, label, clear]) => (
-          <button key={k} className="mb-chip on" onClick={clear} aria-label={`Quitar ${label}`}>
-            {label}
-            <Icon name="close" size={13} stroke={2.6} />
-          </button>
+          <Chip key={k} size="sm" selected trailing="remove" onRemove={clear} aria-label={`Quitar ${label}`}>{label}</Chip>
         ))}
         {!f.review && review.length > 0 && (
-          <button className="mb-chip hint" onClick={() => setF({ ...f, review: true })}>
-            {review.length} por revisar
-          </button>
+          <Chip size="sm" className="mb-chip-hint" onClick={() => setF({ ...f, review: true })}>{review.length} por revisar</Chip>
         )}
       </div>
 
@@ -189,9 +178,9 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             <span>{withSuggestion.length > 0 ? `${withSuggestion.length} con sugerencia lista` : `${unchecked.length} sin analizar`}</span>
           </span>
           {withSuggestion.length > 0 ? (
-            <button className="btn-dark sm" disabled={aiBusy} onClick={acceptAll}>Aceptar todas</button>
+            <Button variant="primary" size="md" disabled={aiBusy} onClick={acceptAll}>Aceptar todas</Button>
           ) : (
-            <button className="btn-dark sm" disabled={aiBusy} onClick={askAi}>{aiBusy ? 'Pensando…' : 'Sugerir'}</button>
+            <Button variant="primary" size="md" disabled={aiBusy} onClick={askAi}>{aiBusy ? 'Pensando…' : 'Sugerir'}</Button>
           )}
         </div>
       )}
@@ -216,7 +205,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         <div className="mb-empty">
           <span>{empty}</span>
           {(count > 0 || q) && (
-            <button className="link-btn" onClick={() => { setF(EMPTY); setPk('month'); setQ(''); }}>Quitar filtros</button>
+            <Button variant="link" onClick={() => { setF(EMPTY); setPk('month'); setQ(''); }}>Quitar filtros</Button>
           )}
         </div>
       ) : table ? (
@@ -234,7 +223,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             </div>
           ))}
           {filtered.length > shown && (
-            <button className="tt-more" onClick={() => setShown((n) => n + 150)}>Mostrar más</button>
+            <Button variant="secondary" size="sm" onClick={() => setShown((n) => n + 150)}>Mostrar más</Button>
           )}
         </div>
       ) : (
@@ -305,9 +294,9 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
           <h3 className="fs-h">Período</h3>
           <div className="fs-chips">
             {PRESETS.filter(([k]) => ['month', 'lastmonth', 'week', '30d', '90d', 'year'].includes(k)).map(([k, label]) => (
-              <button key={k} className={p === k && !custom ? 'fs-chip on' : 'fs-chip'} aria-pressed={p === k && !custom} onClick={() => { setP(k); setCustom(false); }}>{label}</button>
+              <Chip key={k} selected={p === k && !custom} onClick={() => { setP(k); setCustom(false); }}>{label}</Chip>
             ))}
-            <button className={custom ? 'fs-chip on' : 'fs-chip'} aria-pressed={custom} onClick={() => setCustom(true)}>Fechas…</button>
+            <Chip selected={custom} onClick={() => setCustom(true)}>Fechas…</Chip>
           </div>
           {custom ? (
             <div className="grid2">
@@ -344,11 +333,11 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
         <section className="fs-sec">
           <h3 className="fs-h">Categoría</h3>
           <div className="fs-chips">
-            <button className={!x.cat ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ cat: '' })}>Todas</button>
+            <Chip selected={!x.cat} onClick={() => set({ cat: '' })}>Todas</Chip>
             {categories.filter((c) => !c.parent_id).map((c) => (
-              <button key={c.id} className={x.cat === c.id ? 'fs-chip on' : 'fs-chip'} aria-pressed={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? '' : c.id })}>{c.emoji} {c.name}</button>
+              <Chip key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? '' : c.id })}>{c.emoji} {c.name}</Chip>
             ))}
-            <button className={x.cat === 'none' ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ cat: x.cat === 'none' ? '' : 'none' })}>Sin categoría</button>
+            <Chip selected={x.cat === 'none'} onClick={() => set({ cat: x.cat === 'none' ? '' : 'none' })}>Sin categoría</Chip>
           </div>
           {(() => {
             const parent = x.cat && x.cat !== 'none' ? categories.find((c) => c.id === x.cat)?.parent_id || x.cat : '';
@@ -356,7 +345,7 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
             return subs.length > 0 ? (
               <div className="fs-chips sub">
                 {subs.map((c) => (
-                  <button key={c.id} className={x.cat === c.id ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ cat: x.cat === c.id ? parent : c.id })}>{c.emoji} {c.name}</button>
+                  <Chip key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? parent : c.id })}>{c.emoji} {c.name}</Chip>
                 ))}
               </div>
             ) : null;
@@ -367,11 +356,11 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
           <section className="fs-sec">
             <h3 className="fs-h">Cuenta</h3>
             <div className="fs-chips">
-              <button className={!x.acc ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ acc: '' })}>Todas</button>
+              <Chip selected={!x.acc} onClick={() => set({ acc: '' })}>Todas</Chip>
               {accounts.map((a) => (
-                <button key={a.id} className={x.acc === a.id ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ acc: x.acc === a.id ? '' : a.id })}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</button>
+                <Chip key={a.id} selected={x.acc === a.id} onClick={() => set({ acc: x.acc === a.id ? '' : a.id })}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</Chip>
               ))}
-              <button className={x.acc === 'none' ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ acc: x.acc === 'none' ? '' : 'none' })}>Efectivo / SINPE</button>
+              <Chip selected={x.acc === 'none'} onClick={() => set({ acc: x.acc === 'none' ? '' : 'none' })}>Efectivo / SINPE</Chip>
             </div>
           </section>
         )}
@@ -381,7 +370,7 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
             <h3 className="fs-h">Etiqueta</h3>
             <div className="fs-chips">
               {tags.map((t) => (
-                <button key={t} className={x.tag === t ? 'fs-chip on' : 'fs-chip'} onClick={() => set({ tag: x.tag === t ? '' : t })}>{t}</button>
+                <Chip key={t} selected={x.tag === t} onClick={() => set({ tag: x.tag === t ? '' : t })}>{t}</Chip>
               ))}
             </div>
           </section>
@@ -389,10 +378,10 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
       </div>
 
       <div className="fs-foot">
-        <button className="link-btn" onClick={() => { setX(EMPTY); setP('month'); setCustom(false); }}>Limpiar</button>
-        <button className="btn-dark grow" disabled={custom && (!from || !to || from > to)} onClick={() => onApply(x, p)}>
+        <Button variant="link" onClick={() => { setX(EMPTY); setP('month'); setCustom(false); }}>Limpiar</Button>
+        <Button variant="primary" size="lg" className="grow" disabled={custom && (!from || !to || from > to)} onClick={() => onApply(x, p)}>
           {samePeriod ? (n === 1 ? 'Ver 1 movimiento' : `Ver ${n} movimientos`) : 'Ver resultados'}
-        </button>
+        </Button>
       </div>
     </Sheet>
   );
@@ -411,7 +400,7 @@ function BulkBar({ ids, all, kinds, busy, onAll, onPick, onClose }: { ids: Set<s
   const showExpense = kinds.has('expense') || kinds.size === 0;
   return (
     <div className="mb-bulk" role="toolbar" aria-label="Cambiar categoría a varios">
-      <button className="icon-btn" onClick={onClose} aria-label="Cancelar selección"><Icon name="close" size={18} /></button>
+      <Button variant="ghost" size="md" iconOnly onClick={onClose} aria-label="Cancelar selección"><Icon name="close" size={18} /></Button>
       <span className="mb-bulk-n" aria-live="polite">{n === 0 ? 'Elegí movimientos' : `${n} de ${all.length}`}</span>
       <button className="mb-bulk-all" onClick={() => onAll(!allOn)}>{allOn ? 'Ninguno' : 'Todos'}</button>
       <label className={n && !busy ? 'mb-bulk-cat' : 'mb-bulk-cat off'}>
