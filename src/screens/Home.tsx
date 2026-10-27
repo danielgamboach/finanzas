@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
-import { cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
+import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
+import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
 import { byKind } from '../lib/accounts';
 import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { AccountStack, BalanceSummary, Button, HomeHeader, KaiButton, SpendCard } from '../ds';
+import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, SpendChart } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { ProfileButton } from '../ui/ProfileMenu';
 import { openKai } from '../ui/Kai';
@@ -123,7 +124,71 @@ export function useHomeSummary() {
 
   const peek = accounts.filter((a) => !a.archived).sort(byKind).slice(0, 3);
   const recent = txs.filter((x) => x.occurred_at <= nowIso).slice(0, 14);
-  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, merchants, peek, recent, loading };
+  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, merchants, peek, recent, loading, txs };
+}
+
+type HomeSummary = NonNullable<ReturnType<typeof useHomeSummary>>;
+
+function readSpan(): Span {
+  try {
+    const v = localStorage.getItem('finanzas.home.span') as Span | null;
+    return v && SPANS.some((s) => s.value === v) ? v : 'M';
+  } catch {
+    return 'M';
+  }
+}
+
+/**
+ * The top of Inicio (phone and desktop): what went out in the chosen range, the change against the
+ * previous one, what's left of the month's budget, and the bars with the quick ranges (D S M 6M 1A YTD).
+ */
+export function SpendOverview({ h }: { h: HomeSummary }) {
+  const { cur, fx, version } = useApp();
+  const [span, setSpanState] = useState<Span>(readSpan);
+  const setSpan = (v: Span) => {
+    setSpanState(v);
+    try {
+      localStorage.setItem('finanzas.home.span', v);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const s = useSpendSeries(span, { spaceId: h.space.id, weekStart: h.space.week_start ?? 5, version, txs: h.txs });
+  // keep the last numbers on screen while a new range loads
+  const last = useRef<{ span: Span; s: typeof s } | null>(null);
+  if (s.ready) last.current = { span, s };
+  const shown = s.ready ? s : last.current?.s ?? null;
+  const unit = unitOf(cur);
+  const total = shown ? shown.total : span === 'M' ? h.spent : 0;
+
+  let delta = null;
+  if (s.ready && s.hasPrev && s.prevTotal > 0) {
+    const pct = Math.round(((s.total - s.prevTotal) / s.prevTotal) * 100);
+    delta = {
+      value: `${Math.abs(pct)}%`,
+      good: s.total <= s.prevTotal,
+      direction: pct < 0 ? ('down' as const) : pct > 0 ? ('up' as const) : undefined,
+      vs: s.def.vs,
+      title: `Gastado: ${amount(s.total, cur, fx)} ${unit}. Antes, a esta altura: ${amount(s.prevTotal, cur, fx)} ${unit}`,
+    };
+  }
+  const avail = h.budget - h.spent;
+  const available = h.budget > 0 ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0 } : null;
+
+  return (
+    <>
+      <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} />
+      <SpendChart
+        bars={shown?.bars ?? []}
+        format={(n) => amount(n, cur, fx)}
+        unit={unit}
+        ranges={SPANS.map((x) => ({ value: x.value, label: x.label, ariaLabel: x.aria }))}
+        range={span}
+        onRange={setSpan}
+        label={`Gasto, ${s.def.label}`}
+      />
+    </>
+  );
 }
 
 /** A merchant's face: its photo, or the emoji of its category on the category color. */
@@ -134,43 +199,23 @@ export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
   return ph ? <img src={ph} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
 }
 
-export function Home({ open, setOpen, goPanel, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
-  const { categories, cur, fx, merchants: catalog } = useApp();
+export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
   const topRef = useRef<HTMLDivElement>(null);
   const h = useHomeSummary();
   if (!h) return <Loading />;
-  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, merchants, peek, recent } = h;
-  // latest merchants as bubbles: the logo when there is one, the category emoji otherwise
-  const bubbles = merchants.map((m) => {
-    const cat = categories.find((c) => c.id === m.tx.category_id);
-    return { key: m.key, emoji: cat?.emoji || '🛍️', color: cat?.color || 'gray', img: txPhoto(catalog, m.tx) };
-  });
 
   return (
     <div className="home">
       <div className="home-top">
-        <HomeHeader>
+        <HomeHeader actions={<><HomeHeaderButton icon="plus" label="Agregar gasto" href="#/agregar" /><KaiButton onClick={() => openKai()} /></>}>
           <ProfileButton />
-          <KaiButton onClick={() => openKai()} />
         </HomeHeader>
-
-        <BalanceSummary
-          label={label}
-          value={`${negative ? '−' : ''}${money(value, cur, fx)}`}
-          negative={negative}
-          delta={delta}
-          deltaTitle={`Comparado con el ${vsLabel.slice(4)}`}
-          action={<Button variant="primary" size="sm" href="#/agregar" leading={<Icon name="plusCircle" size={18} />}>Gasto</Button>}
-        />
-
-        {peek.length > 0 && <AccountStack className="card-peek" accounts={peek} onClick={() => goPanel(2)} />}
-
-        <div ref={topRef} className="spend-card-wrap">
-          <SpendCard label={cardLabel} value={money(cardValue, cur, fx)} bubbles={bubbles} onClick={() => goPanel(0)} ariaLabel={`${cardLabel}: ${money(cardValue, cur, fx)}. Ver análisis`} />
+        <div ref={topRef} className="home-summary">
+          <SpendOverview h={h} />
         </div>
       </div>
 
-      <TxSheet open={open} setOpen={setOpen} recent={recent} topRef={topRef} focus={focus} />
+      <TxSheet open={open} setOpen={setOpen} recent={h.recent} topRef={topRef} focus={focus} />
     </div>
   );
 }

@@ -70,7 +70,10 @@ for (const spec of shots) {
   await ctx.route('https://vzgnujopgryuskixcnnx.supabase.co/**', async (r) => {
     const u = new URL(r.request().url());
     const json = (body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
-    if (u.pathname.startsWith('/rest/v1/rpc/')) return json(fx.rpcs[u.pathname.split('/').pop()] ?? []);
+    if (u.pathname.startsWith('/rest/v1/rpc/')) {
+      const rpc = fx.rpcs[u.pathname.split('/').pop()];
+      return json(typeof rpc === 'function' ? rpc(JSON.parse(r.request().postData() || '{}')) : rpc ?? []);
+    }
     if (u.pathname.startsWith('/rest/v1/')) {
       const table = u.pathname.split('/').pop();
       if (r.request().method() !== 'GET') return json([]);

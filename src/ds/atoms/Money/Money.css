@@ -7,3 +7,6 @@
 .ds-money--negative { color: var(--destructive); }
 .ds-money--muted { color: var(--muted-foreground); }
 .ds-money--strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.ds-money--unit { display: inline-flex; align-items: baseline; gap: 4px; }
+.ds-money--large.ds-money--unit { gap: 8px; }
+.ds-money--default .ds-money__unit { color: var(--muted-foreground); }

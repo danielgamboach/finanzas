@@ -1,0 +1,14 @@
+.ds-chart { display: flex; flex-direction: column; gap: 8px; position: relative; }
+.ds-chart__plot { position: relative; height: 72px; padding-top: 40px; display: flex; align-items: flex-end; justify-content: space-between; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; cursor: default; }
+.ds-chart__plot:focus-visible { box-shadow: 0 0 0 2px var(--ring); border-radius: var(--radius-lg); }
+.ds-chart__slot { flex: 0 1 8px; min-width: 2px; height: 32px; padding: 4px 0; display: flex; align-items: flex-end; justify-content: center; }
+.ds-chart__bar { display: block; width: 2px; border-radius: var(--radius-full); background: var(--muted-foreground); transition: height .25s ease; }
+.ds-chart__slot.is-future .ds-chart__bar { opacity: .3; }
+.ds-chart__line { position: absolute; top: -16px; width: 2px; margin-left: -1px; background: var(--border); border-radius: var(--radius-full); pointer-events: none; }
+.ds-chart__tip { position: absolute; bottom: calc(100% + 22px); z-index: 4; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-xl); background: var(--card); box-shadow: inset 0 0 0 1px var(--border); white-space: nowrap; pointer-events: none; font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--foreground); font-variant-numeric: tabular-nums; }
+.ds-chart__tip-title { font-weight: var(--font-weight-medium); }
+.ds-chart__tip-row { display: flex; align-items: center; gap: 4px; }
+.ds-chart__tip-label { color: var(--muted-foreground); }
+.ds-chart__dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--muted-foreground); margin-right: 6px; flex-shrink: 0; }
+.ds-chart__dot.is-cur { background: var(--success); }
+@media (prefers-reduced-motion: reduce) { .ds-chart__bar { transition: none; } }

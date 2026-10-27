@@ -1,18 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import React from 'react';
 import { BalanceSummary } from './BalanceSummary';
-import { Button } from '../../atoms/Button/Button';
-import { Icon } from '../../atoms/Icon/Icon';
 
 const meta: Meta = { title: 'Organismos/BalanceSummary' };
 export default meta;
-const add = <Button variant="primary" size="sm" leading={<Icon name="plusCircle" size={18} />}>Gasto</Button>;
 export const Estados: StoryObj = {
   render: () => (
     <div className="ds-row" style={{ alignItems: 'flex-start', gap: 48 }}>
-      <BalanceSummary label="Disponible en octubre" value="¢312.450" delta={{ text: '+12%', good: true }} action={add} />
-      <BalanceSummary label="Te pasaste del presupuesto" value="−¢56.200" negative delta={{ text: '−8%', good: false }} action={add} />
-      <BalanceSummary label="Gastado en octubre" value="¢487.900" delta={{ text: '+5%', good: false }} action={add} />
+      <BalanceSummary label="Octubre 2026" value="312.450" unit="CRC" delta={{ value: '12%', good: true, direction: 'down', vs: 'vs Septiembre' }} available={{ value: '102.023', unit: 'CRC' }} />
+      <BalanceSummary label="Esta semana" value="84.300" unit="CRC" delta={{ value: '8%', good: false, direction: 'up', vs: 'vs semana pasada' }} available={{ value: '−56.200', unit: 'CRC', negative: true }} />
+      <BalanceSummary label="Octubre 2026" value="487.900" unit="CRC" />
     </div>
   ),
 };

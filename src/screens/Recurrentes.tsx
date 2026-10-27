@@ -3,7 +3,7 @@ import { Button, Chip, Switch } from '../ds';
 import { pickerOrder } from '../lib/cats';
 import { namePhoto } from '../lib/merchants';
 import { db } from '../lib/api';
-import { money, moneyRaw, parseAmount } from '../lib/format';
+import { amount, money, moneyRaw, parseAmount, unitOf } from '../lib/format';
 import {
   addPeriod, daysUntil, dueLabel, isManual, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
 } from '../lib/recurring';
@@ -112,7 +112,7 @@ export function CardPayment() {
             <span className="tx-cat">Semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
             <span className="tx-name">Pago de tarjeta</span>
           </span>
-          <span className="tx-amt"><span>{money(owed, cur, fx)}</span><span className="tx-sub strong">Toca pagar</span></span>
+          <span className="tx-amt"><span>{amount(owed, cur, fx)} {unitOf(cur)}</span><span className="tx-sub strong">Toca pagar</span></span>
         </div>
         <div className="rec-ask">
           <span>¿Ya se pagó la tarjeta?</span>

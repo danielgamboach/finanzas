@@ -20,12 +20,12 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
   const [drag, setDrag] = useState<number | null>(null);
   const focusKey = focus;
 
-  // collapsed position: just under the summary card
+  // collapsed position: right under the summary and its chart
   useLayoutEffect(() => {
     const measure = () => {
       const s = sheet.current, t = topRef.current;
       if (!s || !t) return;
-      setRest(Math.max(120, t.offsetTop + t.offsetHeight + 20 - s.offsetTop));
+      setRest(Math.max(120, t.offsetTop + t.offsetHeight - s.offsetTop));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -124,7 +124,7 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
             <GettingStarted variant="sheet" />
             <PendingPayments />
             {recent.length === 0 ? (
-              <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá “Gasto” para agregar uno.</EmptyState>
+              <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá + arriba para agregar uno.</EmptyState>
             ) : (
               <div className="tx-sheet-recent">
                 {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}

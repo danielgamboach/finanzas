@@ -21,6 +21,18 @@ export function moneyRaw(v: number, cur: Currency, opts: { sign?: '+' | '-' | ''
   return (opts.sign ?? '') + (cur === 'USD' ? '$' : '¢') + body;
 }
 
+/** Currency code shown after amounts in the main places (Inicio, movement rows): "CRC" or "USD". */
+export const unitOf = (cur: Currency) => (cur === 'USD' ? 'USD' : 'CRC');
+
+/** The number alone, without symbol, for places that put the code after it: "312.450", "+12,40". */
+export function amount(crc: number, cur: Currency, fx: number, opts: { sign?: '+' | '-' | '−' | ''; decimals?: boolean } = {}) {
+  const v = cur === 'USD' ? crc / fx : crc;
+  const showDec = opts.decimals ?? cur === 'USD';
+  const fixed = showDec ? Math.abs(v).toFixed(2) : Math.round(Math.abs(v)).toString();
+  const [int, dec] = fixed.split('.');
+  return (opts.sign ?? '') + thousands(int) + (dec !== undefined ? ',' + dec : '');
+}
+
 export function moneyParts(crc: number, cur: Currency, fx: number) {
   const v = cur === 'USD' ? crc / fx : crc;
   return { sym: cur === 'USD' ? '$' : '¢', num: thousands(Math.round(Math.abs(v)).toString()), negative: v < 0 };
@@ -62,11 +74,11 @@ export function dayLabel(iso: string) {
   const l = crLocal(iso);
   const t = todayCR();
   const y = l.getUTCFullYear(), m = l.getUTCMonth(), d = l.getUTCDate();
-  const base = `${DOW[l.getUTCDay()]} ${d} ${MONTHS_SHORT[m]}`;
+  const base = `${cap(DOW[l.getUTCDay()])} ${d} ${MONTHS_SHORT[m]}`;
   if (y === t.y && m === t.m && d === t.d) return `Hoy · ${base}`;
   const yest = crLocal(new Date(Date.now() - 86400000));
   if (y === yest.getUTCFullYear() && m === yest.getUTCMonth() && d === yest.getUTCDate()) return `Ayer · ${base}`;
-  return cap(base);
+  return base;
 }
 
 /** Compact age: "ahora", "5m", "3h", "2d", "1w", then a short date. */

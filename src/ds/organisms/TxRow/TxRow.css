@@ -11,3 +11,5 @@
 .ds-tx__amt.is-muted { color: var(--muted-foreground); }
 .ds-tx__amt.is-void { color: var(--muted-foreground); text-decoration: line-through; text-decoration-thickness: 1.5px; }
 .ds-tx.is-selected { background: color-mix(in srgb, var(--primary) 6%, transparent); border-radius: var(--radius-2xl); }
+.ds-tx__val { display: inline-flex; align-items: baseline; gap: 4px; }
+.ds-tx__amt.is-default .ds-tx__unit { color: var(--muted-foreground); }

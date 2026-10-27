@@ -1,5 +1,5 @@
 import { go, useApp } from '../store';
-import { money, relDay } from '../lib/format';
+import { amount, relDay, unitOf } from '../lib/format';
 import type { Tx } from '../lib/types';
 import { txBadge, txPhoto } from '../lib/merchants';
 import { Emo } from '.';
@@ -34,13 +34,14 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   if (t.hold === 'void') what = 'No se cobró';
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
-  const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const unit = unitOf(cur);
   const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t) };
   const context = showDate ? 'sheet' : 'list';
   const amountTone = amtTone(t, inflow, neutral);
   // selecting several: the whole row toggles
   if (pick) {
-    return <TxRowView context={context} face={face} name={name} detail={review ? reviewLabel(t, categories) : what} detailTone={review ? 'warning' : 'default'} amount={main} amountTone={amountTone} selecting selected={pick.selected} onClick={pick.onToggle} />;
+    return <TxRowView context={context} face={face} name={name} detail={review ? reviewLabel(t, categories) : what} detailTone={review ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} selecting selected={pick.selected} onClick={pick.onToggle} />;
   }
   // to review: the category line is a selector; the name still opens the detail
   if (review && t.kind !== 'transfer') {
@@ -52,12 +53,13 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
         name={<button className="tx-open" onClick={() => go(`/mov/${t.id}`)}>{name}</button>}
         detail={<span className="tx-pick-line">{showDate && <span>{relDay(t.occurred_at)}</span>}<CatPick t={t} /></span>}
         amount={main}
+        unit={unit}
         amountTone={inflow ? 'positive' : 'default'}
       />
     );
   }
   const detail = showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what;
-  return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold ? 'warning' : 'default'} amount={main} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
+  return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
 }
 
 function amtTone(t: Tx, inflow: boolean, neutral: boolean): TxAmountTone {
@@ -85,7 +87,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
   const color = review ? 'butter' : cat?.color || 'gray';
   const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
   const neutral = t.kind === 'transfer';
-  const main = money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const photo = txPhoto(merchants, t);
   const badge = txBadge(merchants, t);
   const open = pick ? pick.onToggle : () => go(`/mov/${t.id}`);
@@ -102,7 +104,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
         {review && t.kind !== 'transfer' && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'contribution' ? 'Aporte' : cat ? cat.name : KIND_LABEL[t.kind] || ''}
       </span>
       {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : t.kind === 'transfer' ? '' : 'Efectivo / SINPE'}</span>}
-      <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}</span>
+      <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}<span className="tt-unit">{unitOf(cur)}</span></span>
     </div>
   );
 }

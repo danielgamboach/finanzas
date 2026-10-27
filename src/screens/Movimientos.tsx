@@ -3,7 +3,7 @@ import { Badge, Button, Chip, SearchField } from '../ds';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, type PeriodKey } from '../lib/period';
-import { money } from '../lib/format';
+import { amount, unitOf } from '../lib/format';
 import { catLabel, familyIds, pickerOrder } from '../lib/cats';
 import { byKind } from '../lib/accounts';
 import { useApp, useTxs } from '../store';
@@ -135,7 +135,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
     bump();
   }
 
-  // active filters as chips; the period chip is always there and opens the sheet
+  // quick chips (este mes, mes pasado, categorías) and the active filters as removable chips
   const cat = categories.find((c) => c.id === f.cat);
   const acc = accounts.find((a) => a.id === f.acc);
   const active: [string, string, () => void][] = [];
@@ -154,15 +154,18 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   return (
     <div className={table ? 'mb mb-table' : 'mb'}>
       <div className="mb-top">
-        <SearchField ref={search} wrapClassName="mb-search" size="md" value={q} onChange={setQ} aria-label="Buscar movimientos" />
+        <SearchField ref={search} wrapClassName="mb-search" size="md" placeholder="Buscar movimientos" value={q} onChange={setQ} aria-label="Buscar movimientos" />
         <Button variant={count ? 'primary' : 'secondary'} size="md" iconOnly className="mb-filter-btn" onClick={() => setSheet(true)} aria-label={count ? `Filtros, ${count} activos` : 'Filtros'}>
           <Icon name="sliders" size={18} />
           {count > 0 && <Badge className="mb-badge" count={count} />}
         </Button>
       </div>
 
-      <div className="mb-chips" aria-label="Filtros activos">
-        <Chip size="sm" trailing="chevron" onClick={() => setSheet(true)}>{period.label}</Chip>
+      <div className="mb-chips" aria-label="Filtros">
+        {pk !== 'month' && pk !== 'lastmonth' && <Chip size="sm" selected trailing="chevron" onClick={() => setSheet(true)}>{period.label}</Chip>}
+        <Chip size="sm" selected={pk === 'month'} onClick={() => setPk('month')}>Este mes</Chip>
+        <Chip size="sm" selected={pk === 'lastmonth'} onClick={() => setPk(pk === 'lastmonth' ? 'month' : 'lastmonth')}>Mes pasado</Chip>
+        {!f.cat && <Chip size="sm" trailing="chevron" onClick={() => setSheet(true)}>Categorías</Chip>}
         {active.map(([k, label, clear]) => (
           <Chip key={k} size="sm" selected trailing="remove" onRemove={clear} aria-label={`Quitar ${label}`}>{label}</Chip>
         ))}
@@ -189,7 +192,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         <div className="mb-sum-row">
           <p className="mb-sum" aria-live="polite">
             {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
-            {total > 0 && <> · <strong>{money(total, cur, fx)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
+            {total > 0 && <> · <strong>{amount(total, cur, fx)} {unitOf(cur)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
           </p>
           {selectable.length > 1 && (
             <button className="mb-select-btn" onClick={() => setSel(sel ? null : new Set())} aria-pressed={!!sel}>

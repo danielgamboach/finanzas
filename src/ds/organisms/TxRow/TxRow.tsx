@@ -13,6 +13,8 @@ export interface TxRowProps {
   /** warning: to review or pending hold. */
   detailTone?: 'default' | 'warning';
   amount: React.ReactNode;
+  /** Currency code after the amount ("23.450 CRC"): muted on plain amounts, same color on green or quiet ones. */
+  unit?: string;
   amountTone?: TxAmountTone;
   /** sheet: Inicio sheet (14/500, face 40). list: Movimientos (16/500, face 48). */
   context?: 'sheet' | 'list';
@@ -24,7 +26,7 @@ export interface TxRowProps {
 }
 
 /** One movement: face, merchant, date and category, amount. */
-export function TxRow({ face, name, detail, detailTone = 'default', amount, amountTone = 'default', context = 'list', onClick, selected, selecting, className }: TxRowProps) {
+export function TxRow({ face, name, detail, detailTone = 'default', amount, unit, amountTone = 'default', context = 'list', onClick, selected, selecting, className }: TxRowProps) {
   const cls = ['ds-tx', `ds-tx--${context}`, selecting && 'is-selecting', selected && 'is-selected', className].filter(Boolean).join(' ');
   const inner = (
     <>
@@ -34,7 +36,7 @@ export function TxRow({ face, name, detail, detailTone = 'default', amount, amou
         <span className="ds-tx__name">{name}</span>
         {detail && <span className={detailTone === 'warning' ? 'ds-tx__detail is-warning' : 'ds-tx__detail'}>{detail}</span>}
       </span>
-      <span className={`ds-tx__amt is-${amountTone}`}>{amount}</span>
+      <span className={`ds-tx__amt is-${amountTone}`}>{unit ? <span className="ds-tx__val">{amount}<span className="ds-tx__unit">{unit}</span></span> : amount}</span>
     </>
   );
   // a row with an interactive detail (category picker) can't be a button: the name opens it instead

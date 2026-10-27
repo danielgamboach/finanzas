@@ -1,7 +1,6 @@
 import { TabBar } from '../ds';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../ui';
-import { CardMorph } from '../ui/CardMorph';
 import { Analisis } from './Presupuesto';
 import { Home } from './Home';
 import { Cuentas } from './Patrimonio';
@@ -129,7 +128,6 @@ export function Shell({ route }: { route: string }) {
           <Cuentas />
         </section>
       </div>
-      <CardMorph pager={pager} />
       <TabBar
         floating
         items={NAV.map(([icon, label]) => ({ icon, label }))}

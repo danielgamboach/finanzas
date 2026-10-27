@@ -5,7 +5,7 @@ Uso (una vez, solo al agregar o cambiar íconos):
   python3 scripts/uicons.py /tmp/uicons
 
 Saca el contorno de cada glifo de las fuentes Regular Rounded y Bold Rounded
-y lo deja como un path en una grilla de 24. Así el app no carga la fuente
+(y Solid Straight para los pocos de SOLID) y lo deja como un path en una grilla de 24. Así el app no carga la fuente
 entera (miles de íconos), solo los que usa.
 
 Licencia: gratis con atribución ("Uicons by Flaticon"), que está al pie de Ajustes.
@@ -57,9 +57,14 @@ MAP = {
     'deltaUp': 'arrow-small-up',
     'deltaDown': 'arrow-small-down',
     'spinner': 'spinner',
+    'wand': 'magic-wand',
 }
 
-STYLES = {'regular': ('rr', 'regular'), 'bold': ('br', 'bold')}
+# Los que además se usan rellenos (fi-ss-*): agregar y la flecha del cambio en Inicio.
+# magic-wand (Kai) existe en Figma como fi-ss pero no en las fuentes publicadas: usa Bold.
+SOLID = ['plus', 'deltaUp', 'deltaDown']
+
+STYLES = {'regular': ('rr', 'regular', 'rounded'), 'bold': ('br', 'bold', 'rounded'), 'solid': ('ss', 'solid', 'straight')}
 
 
 def fmt(m):
@@ -67,17 +72,18 @@ def fmt(m):
     return ('%g' % v) if v != int(v) else str(int(v))
 
 
-def extract(root: Path, style: str):
-    prefix, folder = STYLES[style]
-    css = (root / f'src/uicons/css/{folder}/rounded.css').read_text()
-    font = TTFont(root / f'src/uicons/webfonts/uicons-{folder}-rounded.woff')
+def extract(root: Path, style: str, names=None):
+    prefix, folder, shape = STYLES[style]
+    css = (root / f'src/uicons/css/{folder}/{shape}.css').read_text()
+    font = TTFont(root / f'src/uicons/webfonts/uicons-{folder}-{shape}.woff')
     upm = font['head'].unitsPerEm
     asc = font['hhea'].ascent
     cmap = font.getBestCmap()
     glyphs = font.getGlyphSet()
     s = 24 / upm
     out = {}
-    for name, ui in MAP.items():
+    for name in names or MAP:
+        ui = MAP[name]
         m = re.search(r'\.fi-%s-%s:before\s*\{\s*content:\s*"\\([0-9a-f]+)"' % (prefix, re.escape(ui)), css)
         if not m:
             sys.exit(f'No existe fi-{prefix}-{ui}')
@@ -90,9 +96,9 @@ def extract(root: Path, style: str):
 
 def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else '/tmp/uicons')
-    reg, bold = extract(root, 'regular'), extract(root, 'bold')
+    reg, bold, solid = extract(root, 'regular'), extract(root, 'bold'), extract(root, 'solid', SOLID)
     lines = [
-        '// Generado por scripts/uicons.py desde Flaticon UIcons (Regular y Bold Rounded). No editar a mano.',
+        '// Generado por scripts/uicons.py desde Flaticon UIcons (Regular y Bold Rounded, Solid Straight). No editar a mano.',
         '// Licencia: gratis con atribución. El crédito "Uicons by Flaticon" está al pie de Ajustes.',
         '',
         'export const UICON: Record<string, string> = {',
@@ -105,6 +111,10 @@ def main():
         '',
         'export const bold: Record<string, string> = {',
         *[f"  {k}: '{v}'," for k, v in bold.items()],
+        '};',
+        '',
+        'export const solid: Record<string, string> = {',
+        *[f"  {k}: '{v}'," for k, v in solid.items()],
         '};',
         '',
     ]

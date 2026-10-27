@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { dueLabel, isManual, justPaid, needsConfirm, payRecurring, recState, shortDay, undoPayRecurring, useRecurring } from '../lib/recurring';
-import { money, moneyRaw } from '../lib/format';
+import { amount, unitOf } from '../lib/format';
 import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
@@ -57,8 +57,10 @@ function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
 
 function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {
   const crc = r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount);
-  const shown = r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx);
-  return r.variable ? `≈ ${shown}` : shown;
+  // a dollar payment stays in dollars while the app shows colones
+  const own = r.currency === 'USD' && cur === 'CRC';
+  const num = own ? amount(Number(r.amount), 'USD', 1) : amount(crc, cur, fx);
+  return <>{r.variable ? '≈ ' : ''}{num}<span className="amt-unit"> {own ? 'USD' : unitOf(cur)}</span></>;
 }
 
 /** One line: who, when, how much, and a check to confirm it was paid. Skipping lives in Recurrentes. */

@@ -5,3 +5,6 @@
 .ds-delta--text { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
 .ds-delta--text.ds-delta--good { color: var(--success); }
 .ds-delta--text.ds-delta--bad { color: var(--destructive); }
+.ds-delta--arrow { gap: 0; font-size: var(--text-xs); line-height: var(--text-xs--line-height); }
+.ds-delta--arrow.ds-delta--good { color: var(--success); }
+.ds-delta--arrow.ds-delta--bad { color: var(--destructive); }

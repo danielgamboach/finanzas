@@ -5,3 +5,7 @@
 .ds-seg--md button { height: 44px; padding: 0 12px; border-radius: var(--radius-xl); font-size: var(--text-sm); }
 .ds-seg--sm { display: inline-flex; gap: 2px; border-radius: var(--radius-xl); }
 .ds-seg--sm button { height: 28px; padding: 0 10px; border-radius: var(--radius-lg); font-size: var(--text-xs); color: var(--muted-foreground); }
+.ds-seg--ghost { display: flex; justify-content: center; gap: 8px; padding: 0; background: none; }
+.ds-seg--ghost button { height: 28px; padding: 0 10px; border-radius: var(--radius-lg); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
+.ds-seg--ghost button.is-on { background: none; color: var(--foreground); }
+.ds-seg--ghost button:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }

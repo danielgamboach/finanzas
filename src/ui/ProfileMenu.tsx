@@ -4,7 +4,7 @@ import { go, useApp } from '../store';
 import { Icon, Segmented, Sheet } from '.';
 import { Badge, ProfileButton as ProfileButtonView } from '../ds';
 
-/** "🦥 Dani G ⌄" with the current space underneath; opens the profile menu. */
+/** "🌱 Simbiosis ⌄": the current space; opens the profile menu (profile, spaces, settings). */
 export function ProfileButton() {
   const { profile, space, accounts } = useApp();
   const [open, setOpen] = useState(false);
@@ -13,9 +13,8 @@ export function ProfileButton() {
   return (
     <>
       <ProfileButtonView
-        emoji={profile?.emoji || (profile?.name || 'U').charAt(0).toUpperCase()}
-        name={profile?.name || 'Perfil'}
-        space={space ? `${space.emoji} ${space.name}` : undefined}
+        emoji={space?.emoji || profile?.emoji || (profile?.name || 'U').charAt(0).toUpperCase()}
+        name={space?.name || profile?.name || 'Perfil'}
         dot={pending > 0}
         dotLabel={`${pending} pagos por confirmar`}
         onClick={() => setOpen(true)}

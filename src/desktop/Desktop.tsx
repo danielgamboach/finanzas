@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { needsConfirm, useRecurring } from '../lib/recurring';
 import { accountColor } from '../lib/accounts';
-import { money } from '../lib/format';
 import { go, useApp } from '../store';
-import { Icon, tint } from '../ui';
-import { Badge, Button, Progress } from '../ds';
-import { txPhoto } from '../lib/merchants';
-import { MerchantFace, useHomeSummary } from '../screens/Home';
+import { Icon } from '../ui';
+import { Badge, Button } from '../ds';
+import { SpendOverview, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { openKai } from '../ui/Kai';
 import { PendingPayments } from '../ui/PendingPayments';
@@ -157,15 +155,12 @@ function SpaceSwitch() {
   );
 }
 
-/** Desktop home: the month in three cards, then the latest movements as a table. */
+/** Desktop home: the spend summary with its chart, the accounts, then the latest movements as a table. */
 export function DesktopHome() {
-  const { cur, fx, merchants: catalog, categories, profile } = useApp();
+  const { profile } = useApp();
   const h = useHomeSummary();
   if (!h) return null;
-  const { label, value, negative, delta, vsLabel, cardLabel, cardValue, spent, budget, merchants, peek, recent } = h;
-  const used = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
-  const faces = merchants.slice(0, 8);
-  const more = merchants.length - faces.length;
+  const { peek, recent } = h;
 
   return (
     <div className="dpage">
@@ -174,34 +169,9 @@ export function DesktopHome() {
       </header>
 
       <div className="dhome-top">
-        <section className="dcard dhero" aria-label="Resumen del mes">
-          <span className="balance-label">{label}</span>
-          <div className="balance-row">
-            <span className={negative ? 'dhero-num neg' : 'dhero-num'}>{negative ? '−' : ''}{money(value, cur, fx)}</span>
-            {delta && <span className={delta.good ? 'balance-delta good' : 'balance-delta bad'} title={`Comparado con el ${vsLabel.slice(4)}`}>{delta.text}</span>}
-          </div>
-          <div className="balance-actions">
-            <Button variant="primary" size="sm" href="#/agregar" leading={<Icon name="plusCircle" size={16} />}>Nuevo gasto</Button>
-          </div>
+        <section className="dcard dhero" aria-label="Resumen">
+          <SpendOverview h={h} />
         </section>
-
-        <a className="dcard dspend" href="#/analisis" aria-label={`${cardLabel}: ${money(cardValue, cur, fx)}`}>
-          <span className="spend-label">{cardLabel}</span>
-          <span className="dspend-value">{money(cardValue, cur, fx)}</span>
-          {budget > 0 && (
-            <Progress value={used / 100} tone={used >= 100 ? 'destructive' : used >= 80 ? 'warning' : 'default'} />
-          )}
-          {faces.length > 0 && (
-            <span className="dfaces" aria-label="Comercios recientes">
-              {faces.map((m) => (
-                <span key={m.key} className="dface" title={m.tx.merchant || ''} style={{ background: txPhoto(catalog, m.tx) ? 'var(--color-white)' : tint(categories.find((c) => c.id === m.tx.category_id)?.color) }}>
-                  <MerchantFace tx={m.tx} size={30} />
-                </span>
-              ))}
-              {more > 0 && <span className="dface more">+{more > 99 ? 99 : more}</span>}
-            </span>
-          )}
-        </a>
 
         <a className="dcard dwallet" href="#/cuentas" aria-label="Ver cuentas">
           <span className="row between"><span className="spend-label">Cuentas</span><Icon name="arrowRight" size={16} /></span>

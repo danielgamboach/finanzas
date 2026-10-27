@@ -113,7 +113,26 @@ export const tables = {
   push_subscriptions: [],
 };
 
+// daily_spend: the movements above, plus a made-up history so 6M / 1A / YTD have something to draw
+function dailySpend({ p_from, p_to }) {
+  const map = new Map();
+  for (const t of transactions) {
+    if (t.hold || (t.kind !== 'expense' && t.kind !== 'refund')) continue;
+    const k = new Date(new Date(t.occurred_at).getTime() - 6 * 3600e3).toISOString().slice(0, 10);
+    map.set(k, (map.get(k) || 0) + (t.kind === 'refund' ? -1 : 1) * t.amount_crc);
+  }
+  const old = day(-45);
+  for (let d = new Date(p_from + 'T00:00:00Z'); d.toISOString().slice(0, 10) < p_to; d.setUTCDate(d.getUTCDate() + 1)) {
+    const k = d.toISOString().slice(0, 10);
+    if (k >= old || k < '2025-12-01') continue;
+    const n = d.getUTCDate() * 7 + d.getUTCMonth() * 13;
+    map.set(k, (n % 5 === 0 ? 0 : 6000 + (n * 7919) % 42000) + (d.getUTCDate() === 1 ? 350000 : 0));
+  }
+  return [...map].filter(([k]) => k >= p_from && k < p_to).sort().map(([day, spend]) => ({ day, spend }));
+}
+
 export const rpcs = {
+  daily_spend: dailySpend,
   is_app_admin: true,
   recurring_suggestions: [],
   vapid_public_key: null,

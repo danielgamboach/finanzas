@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge, Button } from '../ds';
 import { setHold, usePendingHolds } from '../lib/holds';
-import { money, relDay } from '../lib/format';
+import { amount, relDay, unitOf } from '../lib/format';
 import { txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp } from '../store';
@@ -79,7 +79,7 @@ function HoldRow({ t, busy, onResolve }: { t: Tx; busy: boolean; onResolve: (hol
           <span className="pp-name">{name}</span>
           <span className="pp-sub">{relDay(t.occurred_at)} · {timeFmt.format(new Date(t.occurred_at))}</span>
         </span>
-        <span className="pp-amt">{money(Number(t.amount_crc), cur, fx)}</span>
+        <span className="pp-amt">{amount(Number(t.amount_crc), cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></span>
       </button>
       <Button variant="outline" size="sm" iconOnly onClick={() => onResolve('void')} disabled={busy} aria-label={`${name}: no se cobró`} title="No se cobró"><Icon name="close" size={18} /></Button>
       <Button variant="outline" size="sm" iconOnly onClick={() => onResolve(null)} disabled={busy} aria-label={`${name}: se cobró`} title="Se cobró"><Icon name="check" size={18} /></Button>
