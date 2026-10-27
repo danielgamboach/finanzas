@@ -8,8 +8,9 @@ import { PendingPayments } from './PendingPayments';
 import { GettingStarted } from './GettingStarted';
 
 /**
- * The white sheet on the home screen. Collapsed it shows the latest movements under the summary;
- * pulled up it becomes the full list with search and filters. Horizontal swipes keep moving
+ * The sheet on the home screen. Collapsed it shows what needs attention and the latest movements under
+ * the summary; pulled up, the same highlights stay on top and the list below becomes the full one with
+ * search and filters. Horizontal swipes keep moving
  * between panels while it's collapsed.
  */
 export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolean; setOpen: (v: boolean) => void; recent: Tx[]; topRef: React.RefObject<HTMLElement | null>; focus: number }) {
@@ -117,20 +118,17 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
         </SheetHeader>
       </div>
       <div ref={body} className="tx-sheet-body">
+        {/* what needs attention (rides to confirm, payments due, first steps) stays put when the sheet opens */}
+        <GettingStarted variant="sheet" />
+        <PendingPayments />
         {open ? (
           <MovementsBrowser autoFocus={focusKey > 0} key={focusKey} />
+        ) : recent.length === 0 ? (
+          <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá + arriba para agregar uno.</EmptyState>
         ) : (
-          <>
-            <GettingStarted variant="sheet" />
-            <PendingPayments />
-            {recent.length === 0 ? (
-              <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá + arriba para agregar uno.</EmptyState>
-            ) : (
-              <div className="tx-sheet-recent">
-                {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}
-              </div>
-            )}
-          </>
+          <div className="tx-sheet-recent">
+            {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}
+          </div>
         )}
       </div>
       {!open && <div className="tx-sheet-fade" aria-hidden="true" />}

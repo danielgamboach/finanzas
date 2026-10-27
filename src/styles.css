@@ -858,8 +858,11 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 .tt-date { display: inline-flex; align-items: center; gap: 10px; }
 .tt-review { color: var(--warning); }
 .sel-dim { opacity: .35; pointer-events: none; }
-.mb-bulk { position: sticky; bottom: 100px; z-index: 5; margin-top: 8px; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 4px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-.mb-table .mb-bulk { grid-column: 1 / -1; bottom: 20px; max-width: 560px; justify-self: center; width: 100%; }
+.mb-bulk-wrap { position: sticky; bottom: 100px; z-index: 5; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.mb-bulk-x.ds-btn { flex-shrink: 0; border-radius: var(--radius-full); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.mb-hold { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.mb-bulk { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 20px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.mb-table .mb-bulk-wrap { grid-column: 1 / -1; bottom: 20px; max-width: 620px; justify-self: center; width: 100%; }
 .mb-bulk .icon-btn { color: inherit; }
 .mb-bulk-n { flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: var(--font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-bulk-all { border: none; background: none; color: inherit; opacity: .75; font: inherit; font-size: var(--text-sm); font-weight: var(--font-weight-medium); padding: 8px; }
@@ -985,3 +988,18 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 
 /* currency code after an amount ("23.450 CRC") on dark rows */
 .amt-unit { color: var(--muted-foreground); }
+
+/* pull to refresh */
+.ptr { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%; z-index: 60; width: 40px; height: 40px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--card); color: var(--muted-foreground); box-shadow: inset 0 0 0 1px var(--border), 0 8px 24px rgba(0,0,0,.3); pointer-events: none; }
+.ptr.is-idle { transition: transform .2s ease; }
+.ptr-icon { display: grid; place-items: center; transition: color .15s ease; }
+.ptr-icon.is-ready { color: var(--foreground); }
+
+/* "¿Es una suscripción?" */
+.pp-row.sub-row { flex-direction: column; align-items: stretch; gap: 10px; }
+.sub-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sub-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.sub-freq { display: flex; flex-direction: column; gap: 8px; }
+.sub-freq-q { font-size: var(--text-sm); color: var(--muted-foreground); }
+.sub-freq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tx-sheet-body > .mb { margin-top: 6px; }

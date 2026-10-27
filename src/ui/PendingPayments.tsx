@@ -7,6 +7,7 @@ import { go, useApp } from '../store';
 import { PendingPaymentRow, PendingPayments as PendingPaymentsView } from '../ds';
 import { CardPayment, recEmoji } from '../screens/Recurrentes';
 import { Holds } from './Holds';
+import { SubAsk } from './SubAsk';
 
 /**
  * Payments someone has to make by hand (transfers, cash) that are due or overdue, plus the shared
@@ -17,6 +18,7 @@ export function PendingPayments({ variant = 'sheet' }: { variant?: 'sheet' | 'ca
   return (
     <>
       <Holds variant={variant} />
+      <SubAsk variant={variant} />
       <ManualPayments variant={variant} />
     </>
   );

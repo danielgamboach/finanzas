@@ -16,7 +16,8 @@ export const SPANS: { value: Span; label: string; aria: string }[] = [
 ];
 
 const DAY = 86400000;
-const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
 /** A Costa Rica calendar day as a UTC midnight Date (only its UTC getters mean anything). */
 const cd = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d));
@@ -30,12 +31,15 @@ export interface ChartBar {
   /** The same bar in the period it's compared with; null when that period has no such bar. */
   prev: number | null;
   title: string;
+  /** A second, quieter line under the title: the hours a bar covers. */
+  sub?: string;
   curLabel: string;
   prevLabel: string;
 }
 
 interface Def {
-  hourly: boolean;
+  /** Minutes per bar when the bars are finer than a day (built from the movements on hand). */
+  fine: number | null;
   from: Date;
   length: number; // days in the current range
   prevFrom: Date;
@@ -44,20 +48,29 @@ interface Def {
   step: number; // days per bar
   label: string; // "OCTUBRE 2026"
   vs: string; // "vs Septiembre"
-  bar: (i: number, start: Date, prevStart: Date) => Pick<ChartBar, 'title' | 'curLabel' | 'prevLabel'>;
+  /** Labels under both ends of the chart. */
+  ends: [string, string];
+  /** start and prevStart are CR wall-clock instants (UTC getters). */
+  bar: (i: number, start: Date, prevStart: Date) => Pick<ChartBar, 'title' | 'sub' | 'curLabel' | 'prevLabel'>;
 }
 
 function dm(d: Date, thisYear: number) {
   const y = d.getUTCFullYear();
   return `${d.getUTCDate()} ${monthShort(d.getUTCMonth())}${y !== thisYear ? ` ${y}` : ''}`;
 }
+/** "Martes 27 oct" */
+const longDay = (d: Date, y: number) => `${cap(WEEKDAYS[d.getUTCDay()])} ${dm(d, y)}`;
+/** "Mar 20 oct" */
+const shortDay = (d: Date, y: number) => `${cap(DOW[d.getUTCDay()])} ${dm(d, y)}`;
+const hm = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+const PARTS = ['Madrugada', 'Mañana', 'Tarde', 'Noche'];
 
 /** What each quick range covers and what it's compared with. */
 export function spanDef(span: Span, weekStart: number): Def {
   const t = todayCR();
   const today = cd(t.y, t.m, t.d);
   const weekly = (from: Date, prevFrom: Date, to: Date, prevTo: Date, label: string, vs: string): Def => ({
-    hourly: false,
+    fine: null,
     from,
     length: daysBetween(from, to),
     prevFrom,
@@ -66,12 +79,17 @@ export function spanDef(span: Span, weekStart: number): Def {
     step: 7,
     label,
     vs,
-    bar: (i, s, p) => ({ title: `Semana ${i + 1}`, curLabel: dm(s, t.y), prevLabel: dm(p, t.y) }),
+    ends: [cap(monthShort(from.getUTCMonth())), cap(monthShort(addDays(to, -1).getUTCMonth()))],
+    bar: (i, s, p) => {
+      const e = addDays(s, 6);
+      const range = s.getUTCMonth() === e.getUTCMonth() ? `${s.getUTCDate()} al ${dm(e, t.y)}` : `${dm(s, t.y)} al ${dm(e, t.y)}`;
+      return { title: `Semana del ${range}`, curLabel: dm(s, t.y), prevLabel: dm(p, t.y) };
+    },
   });
   switch (span) {
     case 'D':
       return {
-        hourly: true,
+        fine: 30,
         from: today,
         length: 1,
         prevFrom: addDays(today, -1),
@@ -80,12 +98,16 @@ export function spanDef(span: Span, weekStart: number): Def {
         step: 1,
         label: `Hoy · ${t.d} ${monthShort(t.m)}`,
         vs: 'vs ayer',
-        bar: (i) => ({ title: `${i}:00`, curLabel: 'Hoy', prevLabel: 'Ayer' }),
+        ends: ['0:00', '24:00'],
+        bar: (_, s) => {
+          const m = s.getUTCHours() * 60 + s.getUTCMinutes();
+          return { title: `Hoy, ${longDay(s, t.y).toLowerCase()}`, sub: `${hm(m)} a ${hm(m + 30)}`, curLabel: 'Hoy', prevLabel: 'Ayer' };
+        },
       };
     case 'S': {
       const from = addDays(today, -((t.dow - weekStart + 7) % 7));
       return {
-        hourly: false,
+        fine: 360,
         from,
         length: 7,
         prevFrom: addDays(from, -7),
@@ -94,7 +116,11 @@ export function spanDef(span: Span, weekStart: number): Def {
         step: 1,
         label: 'Esta semana',
         vs: 'vs semana pasada',
-        bar: (_, s, p) => ({ title: WEEKDAYS[s.getUTCDay()], curLabel: dm(s, t.y), prevLabel: dm(p, t.y) }),
+        ends: [cap(DOW[from.getUTCDay()]), cap(DOW[addDays(from, 6).getUTCDay()])],
+        bar: (_, s, p) => {
+          const h = s.getUTCHours();
+          return { title: longDay(s, t.y), sub: `${PARTS[h / 6]} · ${h}:00 a ${h + 6}:00`, curLabel: 'Esta semana', prevLabel: shortDay(p, t.y) };
+        },
       };
     }
     case '6M':
@@ -107,17 +133,19 @@ export function spanDef(span: Span, weekStart: number): Def {
       const from = cd(t.y, t.m, 1);
       const prevFrom = cd(t.y, t.m - 1, 1);
       const pm = prevFrom.getUTCMonth();
+      const length = daysBetween(from, cd(t.y, t.m + 1, 1));
       return {
-        hourly: false,
+        fine: null,
         from,
-        length: daysBetween(from, cd(t.y, t.m + 1, 1)),
+        length,
         prevFrom,
         prevLength: daysBetween(prevFrom, from),
         elapsed: t.d,
         step: 1,
         label: `${cap(monthName(t.m))} ${t.y}`,
         vs: `vs ${cap(monthName(pm))}`,
-        bar: (i) => ({ title: `Día ${i + 1}`, curLabel: cap(monthShort(t.m)), prevLabel: cap(monthShort(pm)) }),
+        ends: [`1 ${monthShort(t.m)}`, `${length} ${monthShort(t.m)}`],
+        bar: (_, s, p) => ({ title: longDay(s, t.y), curLabel: 'Este mes', prevLabel: shortDay(p, t.y) }),
       };
     }
   }
@@ -148,34 +176,42 @@ function useDaily(spaceId: string | undefined, from: string, to: string, version
 
 /**
  * Bars, total and comparison for one quick range. Days come from the daily_spend RPC (cheap even for
- * two years); "D" works by hour from the movements Inicio already has (today and yesterday).
+ * two years); "D" (every 30 min) and "S" (every 6 h) work from the movements Inicio already has,
+ * which reach back to the start of last month.
  */
 export function useSpendSeries(span: Span, opts: { spaceId?: string; weekStart: number; version: number; txs: Tx[] }) {
   const def = useMemo(() => spanDef(span, opts.weekStart), [span, opts.weekStart]);
   const fetchFrom = ymdOf(def.prevFrom);
   const fetchTo = ymdOf(addDays(def.from, def.length));
-  const daily = useDaily(opts.spaceId, fetchFrom, fetchTo, opts.version, def.hourly);
+  const daily = useDaily(opts.spaceId, fetchFrom, fetchTo, opts.version, def.fine !== null);
 
   return useMemo(() => {
-    if (def.hourly) {
-      const nowMs = Date.now();
-      const cur = new Array(24).fill(0), prev = new Array(24).fill(0);
+    if (def.fine !== null) {
+      const slot = def.fine * 60000;
+      const n = Math.round((def.length * DAY) / slot);
+      const cur = new Array(n).fill(0), prev = new Array(n).fill(0);
+      // the dates are CR wall-clock at UTC midnight, so compare against CR-local instants
+      const start = def.from.getTime(), pStart = def.prevFrom.getTime();
+      const now = crLocal().getTime();
+      const elapsed = now - start; // how far into the current range we are
       let curTotal = 0, prevTotal = 0;
-      const todayKey = ymdOf(def.from), yKey = ymdOf(def.prevFrom);
       for (const x of opts.txs) {
         const v = spend(x);
         if (!v) continue;
-        const l = crLocal(x.occurred_at);
-        const k = l.toISOString().slice(0, 10);
-        const h = l.getUTCHours();
-        if (k === todayKey) { cur[h] += v; curTotal += v; }
-        else if (k === yKey) {
-          prev[h] += v;
-          if (new Date(x.occurred_at).getTime() < nowMs - DAY) prevTotal += v;
+        const at = crLocal(x.occurred_at).getTime();
+        if (at >= start && at < start + n * slot) {
+          cur[Math.floor((at - start) / slot)] += v;
+          if (at <= now) curTotal += v;
+        } else if (at >= pStart && at < pStart + n * slot) {
+          prev[Math.floor((at - pStart) / slot)] += v;
+          if (at - pStart <= elapsed) prevTotal += v;
         }
       }
-      const hourNow = crLocal().getUTCHours();
-      const bars: ChartBar[] = cur.map((v, i) => ({ value: i > hourNow ? null : v, prev: prev[i], ...def.bar(i, def.from, def.prevFrom) }));
+      const bars: ChartBar[] = cur.map((v, i) => ({
+        value: i * slot > elapsed ? null : v,
+        prev: prev[i],
+        ...def.bar(i, new Date(start + i * slot), new Date(pStart + i * slot)),
+      }));
       return { def, bars, total: curTotal, prevTotal, hasPrev: true, ready: true };
     }
     if (!daily) return { def, bars: [] as ChartBar[], total: 0, prevTotal: 0, hasPrev: false, ready: false };

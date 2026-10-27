@@ -1,5 +1,6 @@
 // Local QA: serves dist/ and opens the app with Supabase mocked by qa/fixtures.mjs.
 // Usage: node qa/shoot.mjs [outDir] [route[@width]] ...   e.g. node qa/shoot.mjs qa/out / /movimientos@1440
+// QA_ACTION=path/to/module.mjs runs its default export (page, route) before each screenshot (taps, drags).
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
@@ -58,11 +59,12 @@ function filterRows(rows, params) {
   return limit ? out.slice(0, limit) : out;
 }
 
+const action = process.env.QA_ACTION ? (await import(resolve(process.env.QA_ACTION))).default : null;
 const browser = await playwright.chromium.launch();
 for (const spec of shots) {
   const [route, w] = spec.split('@');
   const width = Number(w) || 390;
-  const ctx = await browser.newContext({ viewport: { width, height: width > 800 ? 900 : 844 }, deviceScaleFactor: 2, timezoneId: 'America/Costa_Rica', locale: 'es-CR' });
+  const ctx = await browser.newContext({ viewport: { width, height: width > 800 ? 900 : 844 }, deviceScaleFactor: 2, hasTouch: width < 800, timezoneId: 'America/Costa_Rica', locale: 'es-CR' });
   await ctx.addInitScript(({ session, ls }) => {
     localStorage.setItem('finanzas.session', JSON.stringify(session));
     for (const [k, v] of Object.entries(ls)) localStorage.setItem(k, v);
@@ -88,6 +90,7 @@ for (const spec of shots) {
   page.on('pageerror', (e) => errors.push(e.message + (process.env.QA_STACK ? '\n' + e.stack : '')));
   await page.goto(`${base}/#${route}`);
   await page.waitForTimeout(1200);
+  if (action) await action(page, route).catch((e) => errors.push('action: ' + e.message));
   const name = `${(route.replace(/\//g, '_') || '_').replace(/^_/, '') || 'inicio'}${width > 800 ? '-desk' : ''}.png`;
   await page.screenshot({ path: join(outDir, name) });
   console.log(name, errors.length ? 'ERRORS: ' + errors.join(' | ') : 'ok');

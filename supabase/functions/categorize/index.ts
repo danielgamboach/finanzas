@@ -9,6 +9,8 @@
 // share one answer, inside a batch and later on: a new movement reuses the answer an earlier one got.
 // When the name looks like a known catalog merchant ("AMPM ASAMBLEA" ~ "ampm"), the same call asks
 // whether it is that merchant and leaves suggested_merchant_id for the person to confirm.
+// It also says whether a charge looks like a digital subscription (an app, software, streaming, an online
+// service); those are flagged with sub_ask_flag so the app asks the person "¿Es una suscripción?".
 // Mode "refine" (internal only, needs x-notify-secret) re-reads the history of one parent and moves
 // movements into its subcategories when the model is confident.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -30,7 +32,7 @@ const cors = {
 
 interface Tx { id: string; space_id: string; kind: string; raw_merchant: string | null; merchant: string | null; amount: number; currency: string; occurred_at: string; source: string; merchant_id?: string | null; merchant_key?: string | null }
 interface Known { id: string; name: string }
-interface Answer { i: number; category: string | null; confidence: number; name?: string; es?: string | null; es_confianza?: number }
+interface Answer { i: number; category: string | null; confidence: number; name?: string; es?: string | null; es_confianza?: number; suscripcion?: boolean }
 interface Prior { suggested_category_id: string | null; category_id: string | null; category_source: string | null; ai_confidence: number | null; suggested_merchant_id: string | null }
 interface Cat { id: string; name: string; emoji: string; kind: string; parent_id: string | null }
 
@@ -120,13 +122,14 @@ async function askClaude(cats: Cat[], examples: string[], items: Tx[], known: Kn
     'Usá solo las categorías dadas, con el nombre exacto. Si no estás seguro, bajá la confianza; no inventes categorías. ' +
     'Algunas categorías tienen subcategorías: si sabés cuál aplica respondé "Categoría > Subcategoría" (ej. "Salidas > Bares"); si no, respondé solo la categoría. ' +
     'Algunos movimientos traen "conocidos": comercios ya registrados con nombre parecido. Si el movimiento es claramente una sucursal o variante de uno de ellos, ponelo en "es" con el nombre exacto; si no, null. ' +
+    'En "suscripcion" decí true solo si el gasto parece un cobro digital que suele ser un plan recurrente (una app, software, streaming, almacenamiento, una membresía en línea); para comercios físicos, comida, transporte o compras sueltas, false. ' +
     'Respondé únicamente con JSON válido, sin texto extra.';
   const user =
     `Categorías de gasto: ${expense}\nCategorías de ingreso: ${income || 'ninguna'}\n\n` +
     (examples.length ? `Así ha categorizado este hogar antes (comercio → categoría):\n${examples.join('\n')}\n\n` : '') +
     `Movimientos a clasificar:\n${JSON.stringify(list)}\n\n` +
     'Devolvé un arreglo JSON con un objeto por movimiento: ' +
-    '{"i": número, "category": "nombre exacto (o Categoría > Subcategoría) o null", "confidence": número de 0 a 1, "name": "nombre legible del comercio, corto, con mayúsculas normales y tildes", "es": "nombre exacto de un conocido o null", "es_confianza": número de 0 a 1}';
+    '{"i": número, "category": "nombre exacto (o Categoría > Subcategoría) o null", "confidence": número de 0 a 1, "name": "nombre legible del comercio, corto, con mayúsculas normales y tildes", "es": "nombre exacto de un conocido o null", "es_confianza": número de 0 a 1, "suscripcion": true o false}';
   return (await callClaude(system, user)) as Answer[];
 }
 
@@ -308,6 +311,10 @@ Deno.serve(async (req) => {
         const same = a?.es && Number(a.es_confianza) >= 0.8 ? known[i].find((k) => norm(k.name) === norm(String(a.es))) : undefined;
         for (const t of groups.get(groupOf(rep)) || [rep]) {
           await apply(t, cat, conf, t.id === rep.id ? a?.name || null : null, same?.id || null);
+          // looks like a digital plan: the app asks whether it is one (the database decides if it still can)
+          if (a?.suscripcion === true && t.kind === 'expense') {
+            await rest('rpc/sub_ask_flag', { method: 'POST', body: JSON.stringify({ p_tx: t.id }) }).catch(() => undefined);
+          }
           results.push({ id: t.id, answer: a?.category ?? null, category: cat ? label(cats, cat) : null, confidence: conf, applied: Boolean(cat && conf >= THRESHOLD), same_as: same?.name || null });
         }
       }

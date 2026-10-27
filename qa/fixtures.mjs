@@ -47,12 +47,13 @@ const tx = (daysAgo, merchant, category_id, amount, extra = {}) => ({
   id: `t-${++n}`, space_id: SPACE, kind: 'expense', amount, currency: 'CRC', fx_rate: 1, amount_crc: amount,
   occurred_at: iso(daysAgo, 9 + (n % 10)), merchant, raw_merchant: merchant?.toUpperCase() ?? null, note: null,
   category_id, account_id: 'a-visa', to_account_id: null, contributor_id: null, recurring_id: null,
-  status: 'posted', source: 'email', external_id: null, hold: null, merchant_id: null, created_by: DANI, transaction_tags: [], ...extra,
+  status: 'posted', source: 'email', external_id: null, hold: null, sub_ask: null, merchant_id: null, created_by: DANI, transaction_tags: [], ...extra,
 });
 const transactions = [
   tx(0, 'Automercado', 'c-super', 23450),
   tx(0, 'Uber', null, 3120, { hold: 'pending', status: 'review' }),
   tx(0, 'SINPE 8888-1234', null, 6000, { status: 'review', suggested_category_id: 'c-comida' }),
+  tx(1, 'Netflix', 'c-ocio', 8300, { currency: 'USD', amount: 15.49, fx_rate: 536, raw_merchant: 'NETFLIX.COM', merchant_key: 'NETFLIX.COM', sub_ask: 'pending' }),
   tx(1, 'Soda La Esquina', 'c-comida', 4800),
   tx(1, 'Salario', 'c-sal', 850000, { kind: 'income', account_id: 'a-deb' }),
   tx(3, 'Farmacia Fischel', 'c-salud', 12300),

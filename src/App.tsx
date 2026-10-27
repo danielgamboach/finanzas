@@ -17,6 +17,7 @@ import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop'
 import { useDesktop } from './lib/useDesktop';
 import { KaiHost } from './ui/Kai';
 import { TxDetail } from './ui/TxDetail';
+import { PullToRefresh } from './ui/PullToRefresh';
 
 const MODAL = new Set(['agregar', 'mov']);
 
@@ -88,6 +89,7 @@ function Router() {
         <Screen a={ba} b={bb} c={bc} />
         <TxDetail id={b!} />
         <NotifPrompt />
+        <PullToRefresh />
       </>
     );
   }
@@ -96,6 +98,7 @@ function Router() {
     <>
       <Screen a={a} b={b} c={c} />
       <NotifPrompt />
+      <PullToRefresh />
     </>
   );
 }

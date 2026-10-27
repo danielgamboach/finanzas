@@ -10,6 +10,7 @@ import { useApp, useTxs } from '../store';
 import { Icon, Loading, Segmented, Sheet } from '../ui';
 import { restoreCategories, snapCategories } from '../lib/undo';
 import { canCategorize, TxRow, TxTableRow } from '../ui/TxRow';
+import { useLongPress } from '../lib/longPress';
 import { groupByDay } from './Home';
 
 type Kind = 'todos' | 'gastos' | 'ingresos';
@@ -79,6 +80,9 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
     else n.add(id);
     return n;
   });
+  // holding a row starts selecting, with that row already picked (the handlers stay on while selecting,
+  // so the click that ends the hold is swallowed instead of unpicking it)
+  const press = useLongPress((id: string) => setSel((cur) => (cur ? cur : new Set([id]))));
   const pickOf = (t: (typeof filtered)[number]) => (sel && canCategorize(t) ? { selected: sel.has(t.id), onToggle: () => toggle(t.id) } : undefined);
   const dim = (t: (typeof filtered)[number]) => !!sel && !canCategorize(t);
 
@@ -194,11 +198,6 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
             {total > 0 && <> · <strong>{amount(total, cur, fx)} {unitOf(cur)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
           </p>
-          {selectable.length > 1 && (
-            <button className="mb-select-btn" onClick={() => setSel(sel ? null : new Set())} aria-pressed={!!sel}>
-              {sel ? 'Dejar de seleccionar' : 'Seleccionar'}
-            </button>
-          )}
         </div>
       )}
 
@@ -221,7 +220,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
             <span role="columnheader" className="tt-amt">Monto</span>
           </div>
           {filtered.slice(0, shown).map((t) => (
-            <div key={t.id} className={dim(t) ? 'sel-dim' : undefined}>
+            <div key={t.id} className={dim(t) ? 'sel-dim' : 'mb-hold'} {...(canCategorize(t) ? press(t.id) : {})}>
               <TxTableRow t={t} hideAccount={!!accountId} pick={pickOf(t)} />
             </div>
           ))}
@@ -233,7 +232,11 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         groups.map((g) => (
           <section key={g.label} className="mb-day">
             <div className="mb-day-head">{g.label}</div>
-            {g.rows.map((t) => (dim(t) ? <div key={t.id} className="sel-dim"><TxRow t={t} /></div> : <TxRow key={t.id} t={t} pick={pickOf(t)} />))}
+            {g.rows.map((t) => (dim(t) ? (
+              <div key={t.id} className="sel-dim"><TxRow t={t} /></div>
+            ) : (
+              <div key={t.id} className="mb-hold" {...(canCategorize(t) ? press(t.id) : {})}><TxRow t={t} pick={pickOf(t)} /></div>
+            )))}
           </section>
         ))
       )}
@@ -392,7 +395,7 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
 
 export { spend };
 
-/** Floating bar while selecting: how many, select all, and the category to give them. */
+/** Floating bar while selecting (started by holding a row): how many, select all, the category to give them, and a round X beside it to stop. */
 function BulkBar({ ids, all, kinds, busy, onAll, onPick, onClose }: { ids: Set<string>; all: string[]; kinds: Set<string>; busy: boolean; onAll: (on: boolean) => void; onPick: (id: string) => void; onClose: () => void }) {
   const { categories } = useApp();
   const n = ids.size;
@@ -402,8 +405,8 @@ function BulkBar({ ids, all, kinds, busy, onAll, onPick, onClose }: { ids: Set<s
   const showIncome = kinds.has('income');
   const showExpense = kinds.has('expense') || kinds.size === 0;
   return (
+    <div className="mb-bulk-wrap">
     <div className="mb-bulk" role="toolbar" aria-label="Cambiar categoría a varios">
-      <Button variant="ghost" size="md" iconOnly onClick={onClose} aria-label="Cancelar selección"><Icon name="close" size={18} /></Button>
       <span className="mb-bulk-n" aria-live="polite">{n === 0 ? 'Elegí movimientos' : `${n} de ${all.length}`}</span>
       <button className="mb-bulk-all" onClick={() => onAll(!allOn)}>{allOn ? 'Ninguno' : 'Todos'}</button>
       <label className={n && !busy ? 'mb-bulk-cat' : 'mb-bulk-cat off'}>
@@ -421,6 +424,8 @@ function BulkBar({ ids, all, kinds, busy, onAll, onPick, onClose }: { ids: Set<s
           )}
         </select>
       </label>
+    </div>
+    <Button variant="secondary" size="lg" iconOnly className="mb-bulk-x" onClick={onClose} aria-label="Dejar de seleccionar"><Icon name="close" size={18} /></Button>
     </div>
   );
 }

@@ -186,6 +186,7 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
         range={span}
         onRange={setSpan}
         label={`Gasto, ${s.def.label}`}
+        ends={s.def.ends}
       />
     </>
   );

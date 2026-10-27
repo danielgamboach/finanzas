@@ -82,6 +82,8 @@ export interface Tx {
   /** Card authorization (Uber, Didi): 'pending' until it settles, 'void' if it was never charged. */
   hold?: 'pending' | 'void' | null;
   hold_resolved_at?: string | null;
+  /** A digital charge waiting for "¿Es una suscripción?" ('pending'), or already answered ('done'). */
+  sub_ask?: 'pending' | 'done' | null;
   category_source?: 'auto' | 'ai' | 'manual' | null;
   suggested_category_id?: string | null;
   ai_confidence?: number | null;
