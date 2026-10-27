@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../Icon/Icon';
 import './Button.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'muted' | 'outline' | 'ghost' | 'link' | 'destructive' | 'destructive-outline';
@@ -57,9 +58,8 @@ export function Button({ variant = 'primary', size = 'md', iconOnly, loading, bl
 
 function Spinner() {
   return (
-    <svg className="ds-btn__spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity=".25" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
+    <span className="ds-btn__spinner" aria-hidden="true">
+      <Icon name="spinner" size={16} />
+    </span>
   );
 }

@@ -12,7 +12,7 @@ export const paths = regular;
 export function Icon({ name, size = 20, stroke = 2 }: { name: keyof typeof regular | string; size?: number; stroke?: number }) {
   const d = (stroke >= 2.4 ? bold : regular)[name] || regular[name] || '';
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" aria-hidden="true">
       <path d={d} />
     </svg>
   );

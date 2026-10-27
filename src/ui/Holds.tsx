@@ -47,7 +47,7 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
         <span>Por confirmar</span>
         <span className="pp-count">{rows.length}</span>
       </div>
-      <p className="hold-hint">Hubo varios viajes seguidos en la misma tarjeta y alguno pudo no cobrarse. Quitá con ✕ los que no se cobraron. Los demás se confirman solos a las 48 h.</p>
+      <p className="hold-hint">Hubo varios viajes seguidos en la misma tarjeta y alguno pudo no cobrarse. Quitá con <Icon name="close" size={12} stroke={2.6} /> los que no se cobraron. Los demás se confirman solos a las 48 h.</p>
       <div className="pp-list">
         {list.map((t) => (
           <HoldRow key={t.id} t={t} busy={busy} onResolve={(h) => resolve([t], h)} />

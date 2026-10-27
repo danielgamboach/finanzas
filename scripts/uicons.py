@@ -54,6 +54,9 @@ MAP = {
     'logout': 'sign-out-alt',
     'sparkle': 'sparkles',
     'arrowUp': 'arrow-up',
+    'deltaUp': 'arrow-small-up',
+    'deltaDown': 'arrow-small-down',
+    'spinner': 'spinner',
 }
 
 STYLES = {'regular': ('rr', 'regular'), 'bold': ('br', 'bold')}

@@ -257,7 +257,7 @@ select.input { appearance: auto; }
 .mb-budget { position: absolute; left: 0; right: 0; bottom: 0; border-radius: var(--radius-2xl); border: 2px dashed var(--muted-foreground); }
 .mb-val { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: var(--text-xs); font-weight: var(--font-weight-semibold); }
 .mb-label { text-align: center; font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--secondary-foreground); }
-.delta { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); border-radius: var(--radius-full); padding: 4px 10px; white-space: nowrap; }
+.delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-sm); font-weight: var(--font-weight-semibold); border-radius: var(--radius-full); padding: 4px 10px; white-space: nowrap; }
 .delta.up { background: var(--destructive-subtle); color: var(--destructive-subtle-foreground); } .delta.down { background: var(--success-subtle); color: var(--success-subtle-foreground); }
 .delta-pill { align-self: flex-start; font-size: var(--text-sm); font-weight: var(--font-weight-semibold); border-radius: var(--radius-full); padding: 6px 12px; }
 .delta-pill.up { background: var(--success-subtle); color: var(--success-subtle-foreground); } .delta-pill.down { background: var(--destructive-subtle); color: var(--destructive-subtle-foreground); }
@@ -870,7 +870,9 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 .ai-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .ai-card-ask { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; border: none; background: none; padding: 0; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
 .ai-card-ask:hover { color: var(--foreground); }
+.hold-hint svg { vertical-align: -1px; }
 .month-cmp { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--muted-foreground); margin-top: 4px; }
+.month-cmp .up, .month-cmp .down { display: inline-flex; align-items: center; gap: 2px; vertical-align: bottom; }
 .month-cmp .up { color: var(--destructive); font-weight: var(--font-weight-semibold); }
 .month-cmp .down { color: var(--success); font-weight: var(--font-weight-semibold); }
 .panel-head .month-nav { font-size: var(--text-sm); }

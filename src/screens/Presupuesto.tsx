@@ -58,7 +58,7 @@ export function Analisis() {
       <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(monthName(pl.getUTCMonth()))} fmt={fmt} />
       {prevSeries && (
         <span className="month-cmp">
-          <span className={diff > 0 ? 'up' : 'down'}>{diff > 0 ? '↑' : '↓'} {fmt(Math.abs(diff))}</span>
+          <span className={diff > 0 ? 'up' : 'down'}><Icon name={diff > 0 ? 'deltaUp' : 'deltaDown'} size={14} stroke={2.4} />{fmt(Math.abs(diff))}</span>
           {' '}{diff > 0 ? 'más' : 'menos'} que {monthName(pl.getUTCMonth())}{isCurrent ? ' a esta altura' : ''}
         </span>
       )}
@@ -274,7 +274,7 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
                 <span className="muted small">{money(x.a, cur, fx)} → {money(x.b, cur, fx)}</span>
               </span>
               {x.d !== null && (
-                <span className={x.d > 0 ? 'delta up' : 'delta down'}>{x.d > 0 ? '↑' : x.d < 0 ? '↓' : ''} {Math.abs(x.d)}%</span>
+                <span className={x.d > 0 ? 'delta up' : 'delta down'}>{x.d !== 0 && <Icon name={x.d > 0 ? 'deltaUp' : 'deltaDown'} size={14} stroke={2.4} />}{Math.abs(x.d)}%</span>
               )}
             </div>
           ))

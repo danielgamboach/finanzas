@@ -38,5 +38,6 @@
 /* loading */
 .ds-btn.is-loading { cursor: progress; }
 .ds-btn:disabled.is-loading { opacity: .7; }
-.ds-btn__spinner { width: 1.15em; height: 1.15em; animation: spin .8s linear infinite; }
+.ds-btn__spinner { display: inline-flex; width: 1.15em; height: 1.15em; animation: spin .8s linear infinite; }
+.ds-btn__spinner svg { width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) { .ds-btn__spinner { animation-duration: 2s; } }
