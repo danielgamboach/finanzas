@@ -58,13 +58,23 @@ MAP = {
     'deltaDown': 'arrow-small-down',
     'spinner': 'spinner',
     'wand': 'magic-wand',
+    'angleRight': 'angle-right',
+    'bank': 'bank',
+    'chartHistogram': 'chart-histogram',
+    'lock': 'lock',
+    'piggy': 'piggy-bank',
+    'receipt': 'receipt',
+    'folder': 'folder',
+    'money': 'money',
 }
 
 # Los que además se usan rellenos (fi-ss-*): agregar y la flecha del cambio en Inicio.
 # magic-wand (Kai) existe en Figma como fi-ss pero no en las fuentes publicadas: usa Bold.
 SOLID = ['plus', 'deltaUp', 'deltaDown']
+# Rellenos redondeados (fi-sr-*): el ícono de cada tipo de cuenta en Cuentas.
+SOLID_ROUNDED = ['cards', 'bank', 'chartHistogram', 'lock', 'piggy', 'wallet', 'receipt', 'folder', 'money']
 
-STYLES = {'regular': ('rr', 'regular', 'rounded'), 'bold': ('br', 'bold', 'rounded'), 'solid': ('ss', 'solid', 'straight')}
+STYLES = {'regular': ('rr', 'regular', 'rounded'), 'bold': ('br', 'bold', 'rounded'), 'solid': ('ss', 'solid', 'straight'), 'solidr': ('sr', 'solid', 'rounded')}
 
 
 def fmt(m):
@@ -96,9 +106,10 @@ def extract(root: Path, style: str, names=None):
 
 def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else '/tmp/uicons')
-    reg, bold, solid = extract(root, 'regular'), extract(root, 'bold'), extract(root, 'solid', SOLID)
+    reg, bold = extract(root, 'regular'), extract(root, 'bold')
+    solid = {**extract(root, 'solid', SOLID), **extract(root, 'solidr', SOLID_ROUNDED)}
     lines = [
-        '// Generado por scripts/uicons.py desde Flaticon UIcons (Regular y Bold Rounded, Solid Straight). No editar a mano.',
+        '// Generado por scripts/uicons.py desde Flaticon UIcons (Regular y Bold Rounded, Solid Straight y Solid Rounded). No editar a mano.',
         '// Licencia: gratis con atribución. El crédito "Uicons by Flaticon" está al pie de Ajustes.',
         '',
         'export const UICON: Record<string, string> = {',

@@ -37,3 +37,4 @@ export { SpendChart, type SpendChartBar } from './organisms/SpendChart/SpendChar
 export { SpendCard, type SpendBubble } from './organisms/SpendCard/SpendCard';
 export { TxRow, type TxRowProps, type TxAmountTone } from './organisms/TxRow/TxRow';
 export { PendingPayments, PendingPaymentRow } from './organisms/PendingPayments/PendingPayments';
+export { AccountRow, AccountGroup, type AccountRowProps } from './organisms/AccountRow/AccountRow';

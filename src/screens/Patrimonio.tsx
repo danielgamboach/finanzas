@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, Progress } from '../ds';
+import { AccountGroup, AccountRow, Button, HomeHeader, Money, Progress } from '../ds';
 import { db } from '../lib/api';
 import { cardOutstanding } from '../lib/calc';
-import { crIso, money, moneyRaw, parseAmount, shortDate, todayCR } from '../lib/format';
+import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
 import { go, navigate, useApp } from '../store';
 import { BackBar, Emo, Icon, Loading, tint } from '../ui';
@@ -131,11 +131,47 @@ function cardLine(x?: { CRC: number; USD: number }) {
 }
 
 const GROUPS: { title: string; kinds: string[] }[] = [
-  { title: 'Crédito', kinds: ['credit_card'] },
-  { title: 'Débito y ahorro', kinds: ['debit', 'savings', 'cash', 'cdp', 'other'] },
-  { title: 'Inversión', kinds: ['investment'] },
+  { title: 'Tarjetas de crédito', kinds: ['credit_card'] },
+  { title: 'Débito y ahorro', kinds: ['debit', 'savings', 'cash', 'other'] },
+  { title: 'Inversión', kinds: ['investment', 'cdp'] },
   { title: 'Préstamos', kinds: ['loan'] },
 ];
+
+/** The filled icon and short name of each kind, for the account rows. */
+const KIND_ICON: Record<string, string> = { credit_card: 'cards', debit: 'bank', savings: 'piggy', investment: 'chartHistogram', cash: 'money', cdp: 'lock', loan: 'receipt', other: 'folder' };
+const KIND_SHORT: Record<string, string> = { credit_card: 'Crédito', debit: 'Débito', savings: 'Ahorro', investment: 'Inversión', cash: 'Efectivo', cdp: 'CDP Plazo', loan: 'Préstamo', other: 'Otra' };
+
+/** One account as a row of Cuentas: balance in its own currency (cards: what's owed, in the display currency) and, for investments, the change since the previous balance. */
+function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
+  const { cur, fx } = useApp();
+  const c = accountColor(a);
+  // the dark graphite would vanish on the list: its foreground shows instead
+  const color = (a.color || 'graphite') === 'graphite' ? c.fg : c.bg;
+  const details = [a.kind === 'credit_card' ? 'USD/CRC' : a.currency, KIND_SHORT[a.kind] || '', a.last4 ? `**${a.last4}` : ''];
+  let amt: string, muted = false, delta: { text: string; tone: 'positive' | 'negative' } | undefined;
+  if (a.kind === 'credit_card') {
+    // one figure in the display currency; the split by currency lives in the card's own view
+    amt = money(w.cardDebt[a.id] || 0, cur, fx);
+  } else {
+    const s = w.latest[a.id];
+    if (!s) {
+      amt = 'Sin saldo';
+      muted = true;
+    } else {
+      amt = `${amount(Number(s.balance), a.currency, 1, { decimals: false })} ${a.currency}`;
+      if (a.kind === 'investment' || a.kind === 'cdp') {
+        const prev = w.snaps.find((x) => x.account_id === a.id && x.id !== s.id);
+        const d = prev ? Number(s.balance) - Number(prev.balance) : 0;
+        if (prev && Math.abs(d) >= 0.01) {
+          const pct = Number(prev.balance) ? (d / Math.abs(Number(prev.balance))) * 100 : 0;
+          const sign = d > 0 ? '+' : '−';
+          delta = { text: `${moneyRaw(d, a.currency, { sign })} (${sign}${Math.abs(pct).toFixed(2).replace('.', ',')}%)`, tone: d > 0 ? 'positive' : 'negative' };
+        }
+      }
+    }
+  }
+  return <AccountRow icon={KIND_ICON[a.kind] || 'folder'} color={color} name={a.name} details={details} amount={amt} amountMuted={muted} delta={delta} href={`#/cuenta/${a.id}`} />;
+}
 
 /** What a card shows as its main number. */
 function accountFigure(a: Account, w: WorthData) {
@@ -195,14 +231,9 @@ export function Cuentas() {
       const list = accs.filter((a) => g.kinds.includes(a.kind));
       if (!list.length) return null;
       return (
-        <section key={g.title} className="col gap10">
-          <h2 className="h2 px4">{g.title}</h2>
-          <div className={desk ? 'wgrid' : 'wstack'}>
-            {list.map((a, i) => (
-              <AccountCard key={a.id} a={a} w={w} onClick={() => navigate(`/cuenta/${a.id}`)} style={desk ? undefined : { zIndex: i }} />
-            ))}
-          </div>
-        </section>
+        <AccountGroup key={g.title} title={g.title}>
+          {list.map((a) => <AccountListRow key={a.id} a={a} w={w} />)}
+        </AccountGroup>
       );
     })
   );
@@ -239,7 +270,7 @@ export function Cuentas() {
           </div>
         </header>
         <div className="dgrid cuentas-grid">
-          <div className="dcol">{groups}</div>
+          <div className="dcol acc-groups-desk">{groups}</div>
           <aside className="dcol">
             {hasAssets && (
               <section className="card pad col gap4">
@@ -259,31 +290,29 @@ export function Cuentas() {
   }
 
   return (
-    <div className="panel-inner">
-      <header className="panel-head">
-        <h1 className="h1">Cuentas</h1>
-        <Button variant="secondary" size="md" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={20} /></Button>
-      </header>
+    <div className="acc-screen">
+      <HomeHeader actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>}>
+        <h1 className="acc-title">Cuentas</h1>
+      </HomeHeader>
 
       {hasAssets && (
-        <section className="worth-line" aria-label="Patrimonio neto">
-          <span className="col">
-            <span className="muted small">Patrimonio neto</span>
-            <strong className="worth-num">{money(w.net, cur, fx)}</strong>
-          </span>
-          <Button variant="secondary" size="sm" leading={<Icon name="refresh" size={16} />} href="#/saldos">Saldos{w.stale ? ` · ${w.stale}` : ''}</Button>
+        <section className="acc-worth" aria-label="Patrimonio neto">
+          <span className="acc-worth-label">Patrimonio neto</span>
+          <Money size="large" value={amount(w.net, cur, fx, { sign: w.net < 0 ? '−' : '' })} unit={unitOf(cur)} />
+          <Button variant="primary" size="xs" leading={<Icon name="refresh" size={16} />} href="#/saldos">Saldos</Button>
         </section>
       )}
 
-      {groups}
-
-      <section className="col gap10">
-        <div className="section-head">
-          <h2 className="h2">Metas</h2>
-          <a className="link" href="#/meta/nueva">Nueva</a>
-        </div>
-        {goalList}
-      </section>
+      <div className="acc-groups">
+        {groups}
+        <section className="col gap10 acc-goals">
+          <div className="section-head">
+            <h2 className="ds-acc-group__head">Metas</h2>
+            <a className="link" href="#/meta/nueva">Nueva</a>
+          </div>
+          {goalList}
+        </section>
+      </div>
     </div>
   );
 }

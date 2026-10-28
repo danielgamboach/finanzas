@@ -1003,3 +1003,13 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 .sub-freq-q { font-size: var(--text-sm); color: var(--muted-foreground); }
 .sub-freq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .tx-sheet-body > .mb { margin-top: 6px; }
+
+/* Cuentas: header, net worth and the account lists */
+.acc-screen { max-width: 520px; margin: 0 auto; padding: env(safe-area-inset-top) 0 calc(112px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+.acc-title { margin: 0; flex: 1; min-width: 0; font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-worth { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 32px 24px; }
+.acc-worth-label { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); text-transform: uppercase; }
+.acc-worth .ds-money--large.ds-money--unit { gap: 4px; }
+.acc-groups { display: flex; flex-direction: column; gap: 16px; padding: 8px 24px; }
+.acc-goals .section-head { padding: 0 4px; }
+.acc-groups-desk { gap: 16px; }
