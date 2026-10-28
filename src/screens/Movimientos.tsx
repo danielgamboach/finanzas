@@ -27,7 +27,7 @@ const todayStr = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0,
  */
 export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov', table = false, limit, sheet: home }: {
   accountId?: string; autoFocus?: boolean; screen?: string; table?: boolean; limit?: number;
-  /** Inside the home sheet: same rows as the closed sheet (date in the row, no day headers); the search and
+  /** Inside the home sheet: the same rows, grouped by day, open or closed; the search and
    *  filters fold in above them when it opens, and `focus` changing puts the cursor in the search. */
   sheet?: { open: boolean; focus: number };
 }) {
@@ -229,11 +229,16 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         </div>
       ) : home ? (
         <div className="mb-flat">
-          {filtered.slice(0, sheetOpen ? shown : SHEET_ROWS).map((t) => (dim(t) ? (
-            <div key={t.id} className="sel-dim"><TxRow t={t} showDate /></div>
-          ) : (
-            <div key={t.id} className="mb-hold" {...(sheetOpen && canCategorize(t) ? press(t.id) : {})}><TxRow t={t} showDate pick={pickOf(t)} /></div>
-          )))}
+          {groupByDay(filtered.slice(0, sheetOpen ? shown : SHEET_ROWS)).map((g) => (
+            <section key={g.label} className="mb-day">
+              <div className="mb-day-head">{g.label}</div>
+              {g.rows.map((t) => (dim(t) ? (
+                <div key={t.id} className="sel-dim"><TxRow t={t} size="sheet" /></div>
+              ) : (
+                <div key={t.id} className="mb-hold" {...(sheetOpen && canCategorize(t) ? press(t.id) : {})}><TxRow t={t} size="sheet" pick={pickOf(t)} /></div>
+              )))}
+            </section>
+          ))}
           {sheetOpen && filtered.length > shown && (
             <Button variant="secondary" size="sm" onClick={() => setShown((n) => n + 150)}>Mostrar más</Button>
           )}

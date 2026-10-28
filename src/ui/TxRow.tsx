@@ -20,7 +20,7 @@ interface Pick { selected: boolean; onToggle: () => void }
 /** Movements that can take a category (and so can be selected for a bulk change). */
 export const canCategorize = (t: Tx) => t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund';
 
-export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean; pick?: Pick }) {
+export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: boolean; pick?: Pick; /** sheet: the smaller rows of the home sheet (default when showDate). */ size?: 'sheet' | 'list' }) {
   const { categories, cur, fx, profiles, merchants } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
@@ -37,7 +37,7 @@ export function TxRow({ t, showDate = false, pick }: { t: Tx; showDate?: boolean
   const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
   const unit = unitOf(cur);
   const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t) };
-  const context = showDate ? 'sheet' : 'list';
+  const context = size ?? (showDate ? 'sheet' : 'list');
   const amountTone = amtTone(t, inflow, neutral);
   // selecting several: the whole row toggles
   if (pick) {
