@@ -24,15 +24,15 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
     <>
       <div className="period-nav">
         {monthLike && (
-          <Button variant="ghost" size="md" iconOnly onClick={() => prev && onChange(prev)} disabled={!prev} aria-label="Mes anterior"><Icon name="chevLeft" /></Button>
+          <Button variant="secondary" size="xs" iconOnly onClick={() => prev && onChange(prev)} disabled={!prev} aria-label="Mes anterior"><Icon name="back" size={12} stroke={2.4} /></Button>
         )}
         <button className="period-btn" onClick={() => setOpen(true)} aria-haspopup="dialog">
-          <Icon name="calendar" size={18} />
+          <Icon name="calendar" size={14} />
           {r.label}
-          <Icon name="chevDown" size={16} stroke={2.4} />
+          <Icon name="chevDown" size={14} stroke={2.4} />
         </button>
         {monthLike && (
-          <Button variant="ghost" size="md" iconOnly onClick={() => next && onChange(next)} disabled={!next} aria-label="Mes siguiente"><Icon name="chevRight" /></Button>
+          <Button variant="secondary" size="xs" iconOnly onClick={() => next && onChange(next)} disabled={!next} aria-label="Mes siguiente"><Icon name="angleRight" size={12} stroke={2.4} /></Button>
         )}
       </div>
 
@@ -46,7 +46,7 @@ export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey;
           <span className="field-label">Por mes</span>
           <div className="hscroll">
             {recentMonths().map(([k, label]) => (
-              <Chip key={k} selected={value === k} size="lg" onClick={() => pick(k)}>{label}</Chip>
+              <Chip key={k} selected={value === k} size="sm" onClick={() => pick(k)}>{label}</Chip>
             ))}
           </div>
           <span className="field-label">Personalizado</span>

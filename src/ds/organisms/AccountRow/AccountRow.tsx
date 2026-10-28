@@ -1,6 +1,5 @@
 import React from 'react';
-import { Icon } from '../../atoms/Icon/Icon';
-import './AccountRow.css';
+import { ListGroup, ListRow } from '../../molecules/ListGroup/ListGroup';
 
 export interface AccountRowProps {
   /** Filled icon of the account kind: cards, bank, piggy, chartHistogram, lock, wallet, receipt, folder. */
@@ -20,35 +19,25 @@ export interface AccountRowProps {
   onClick?: () => void;
 }
 
-/** One account in Cuentas: kind icon in its color, name and details, balance and a chevron. */
+/** One account in Cuentas: kind icon in its color, name and details, balance and a chevron. A ListRow underneath. */
 export function AccountRow({ icon, color, name, details, amount, amountMuted, delta, href, onClick }: AccountRowProps) {
-  const body = (
-    <>
-      <span className="ds-acc-row__icon" style={color ? { color } : undefined} aria-hidden="true"><Icon name={icon} size={16} solid /></span>
-      <span className="ds-acc-row__text">
-        <span className="ds-acc-row__name">{name}</span>
-        {details && details.length > 0 && <span className="ds-acc-row__details">{details.filter(Boolean).join(' · ')}</span>}
-      </span>
-      <span className="ds-acc-row__end">
-        <span className="ds-acc-row__fig">
-          <span className={amountMuted ? 'ds-acc-row__amt is-muted' : 'ds-acc-row__amt'}>{amount}</span>
-          {delta && <span className={`ds-acc-row__delta is-${delta.tone}`}>{delta.text}</span>}
-        </span>
-        <span className="ds-acc-row__chev" aria-hidden="true"><Icon name="angleRight" size={12} stroke={2.4} /></span>
-      </span>
-    </>
+  return (
+    <ListRow
+      leading={<ListRow.Icon name={icon} color={color} />}
+      title={name}
+      detail={details}
+      value={amount}
+      valueTone={amountMuted ? 'muted' : 'default'}
+      valueDetail={delta?.text}
+      valueDetailTone={delta?.tone === 'negative' ? 'destructive' : 'success'}
+      chevron={!!(href || onClick)}
+      href={href}
+      onClick={onClick}
+    />
   );
-  if (href) return <a className="ds-acc-row" href={href}>{body}</a>;
-  if (onClick) return <button type="button" className="ds-acc-row" onClick={onClick}>{body}</button>;
-  return <div className="ds-acc-row">{body}</div>;
 }
 
 /** A titled group of accounts ("Tarjetas de crédito") in one rounded list. */
 export function AccountGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="ds-acc-group" aria-label={title}>
-      <h2 className="ds-acc-group__head">{title}</h2>
-      <div className="ds-acc-group__list">{children}</div>
-    </section>
-  );
+  return <ListGroup title={title}>{children}</ListGroup>;
 }

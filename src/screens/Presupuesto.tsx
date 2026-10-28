@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Progress, Segmented } from '../ds';
+import { BalanceSummary, Delta, ListGroup, ListRow, PageHeader, Progress, Segmented } from '../ds';
 import { categoryStats, cumulative, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
 import { rootId } from '../lib/cats';
-import { cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR } from '../lib/format';
+import { amount, cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { useApp, useTxs } from '../store';
-import { Emo, Icon, Loading } from '../ui';
+import { Emo, Loading } from '../ui';
 import { MonthChart } from '../ui/MonthChart';
 import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
@@ -50,31 +50,25 @@ export function Analisis() {
   const fmt = (v: number) => money(v, cur, fx);
 
   const ai = <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />;
+  const prevName = monthName(pl.getUTCMonth());
+  const summary = (
+    <BalanceSummary
+      label={`Gasto de ${monthName(ym[1])}`}
+      value={amount(spent, cur, fx)}
+      unit={unitOf(cur)}
+      delta={prevSeries && Math.abs(diff) >= 1 ? { value: `${amount(Math.abs(diff), cur, fx)} ${unitOf(cur)}`, good: diff <= 0, direction: diff > 0 ? 'up' : 'down', vs: `${diff > 0 ? 'más' : 'menos'} que ${prevName}${isCurrent ? ' a esta altura' : ''}` } : null}
+      meta={budget > 0 ? `de ${amount(budget, cur, fx)} ${unitOf(cur)} de presupuesto` : null}
+    />
+  );
   const chart = (
-    <section className="card pad month-card" aria-label={`Gasto de ${monthName(ym[1])}`}>
-      <span className="row gap8 baseline wrap">
-        <strong className="stat-hero">{fmt(spent)}</strong>
-        {budget > 0 && <span className="muted">de {fmt(budget)}</span>}
-      </span>
-      <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(monthName(pl.getUTCMonth()))} fmt={fmt} />
-      {prevSeries && (
-        <span className="month-cmp">
-          <span className={diff > 0 ? 'up' : 'down'}><Icon name={diff > 0 ? 'deltaUp' : 'deltaDown'} size={14} stroke={2.4} />{fmt(Math.abs(diff))}</span>
-          {' '}{diff > 0 ? 'más' : 'menos'} que {monthName(pl.getUTCMonth())}{isCurrent ? ' a esta altura' : ''}
-        </span>
-      )}
+    <section className="month-card" aria-label={`Gasto de ${monthName(ym[1])} contra ${prevName}`}>
+      <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(prevName)} fmt={fmt} />
     </section>
   );
   const limits = (
-    <>
-      <div className="section-head">
-        <h2 className="h2">Categorías</h2>
-        <a href="#/categoria/nueva" className="link">Nueva</a>
-      </div>
-      <div className="col gap8 cat-list">
-        {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
-      </div>
-    </>
+    <ListGroup title="Categorías" action={<a href="#/categoria/nueva">Nueva</a>}>
+      {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
+    </ListGroup>
   );
 
   if (desk) {
@@ -89,13 +83,13 @@ export function Analisis() {
           <Loading />
         ) : (
           <div className="dgrid analisis-grid">
-            <div className="dcol">
-              {ai}
+            <div className="dcol gap24">
+              {summary}
               {chart}
+              {ai}
               {limits}
             </div>
             <div className="dcol">
-              <h2 className="h2 px4">Tendencias</h2>
               <Analysis txs={txs} ym={ym} />
             </div>
           </div>
@@ -105,74 +99,39 @@ export function Analisis() {
   }
 
   return (
-    <div className="panel-inner">
-      <header className="panel-head">
-        <h1 className="h1">Análisis</h1>
-        <MonthNav ym={ym} setYm={setYm} />
-      </header>
-      {ai}
-      {chart}
-      <Segmented value={tab} options={[{ value: 'limits', label: 'Presupuesto' }, { value: 'analysis', label: 'Tendencias' }]} onChange={setTab} />
-      {loading && txs.length === 0 ? <Loading /> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
+    <div className="page">
+      <PageHeader title="Análisis" actions={<MonthNav ym={ym} setYm={setYm} />} />
+      <div className="page-hero">{summary}</div>
+      <div className="page-body">
+        {chart}
+        {ai}
+        <Segmented value={tab} options={[{ value: 'limits', label: 'Presupuesto' }, { value: 'analysis', label: 'Tendencias' }]} onChange={setTab} />
+        {loading && txs.length === 0 ? <Loading /> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
+      </div>
     </div>
   );
 }
 
-/** A budget row; parents with subcategories get an expandable breakdown. */
+/** A budget row: what went out against the limit; the breakdown by subcategory lives in the category. */
 function CatRow({ s }: { s: CatStat }) {
   const { cur, fx } = useApp();
-  const [open, setOpen] = useState(false);
   const over = s.projection !== null && s.limit !== null && s.projection > s.limit;
-  const subs = s.subs.filter((x) => x.spent !== 0 || !x.direct);
-  const kids = s.subs.filter((x) => !x.direct).length;
+  const tone = s.cat.is_fixed ? 'muted' : s.level === 'over' ? 'destructive' : s.level === 'warn' ? 'warning' : 'default';
+  const paid = s.cat.is_fixed && s.pct !== null && s.pct >= 100;
+  const spent = `${amount(s.spent, cur, fx)}${s.limit ? ` de ${amount(s.limit, cur, fx)}` : ''} ${unitOf(cur)}`;
   return (
-    <div className="card cat-card">
-      <a href={`#/categoria/${s.cat.id}`} className="cat-row">
-        <Emo e={s.cat.emoji} color={s.cat.color} />
-        <span className="grow col gap6">
-          <span className="row gap6">
-            <strong>{s.cat.name}</strong>
-            <span className={`ml-auto pct lvl-${s.level}`}>{s.pct !== null ? (s.cat.is_fixed && s.pct >= 100 ? '✅ Pagado' : `${s.pct}%`) : ''}</span>
-          </span>
-          {s.limit ? (
-            <Progress value={(s.pct || 0) / 100} tone={s.cat.is_fixed ? 'muted' : s.level === 'over' ? 'destructive' : s.level === 'warn' ? 'warning' : 'default'} />
-          ) : null}
-          <span className="strong-sm">
-            {money(s.spent, cur, fx)}
-            {s.limit ? <span className="muted"> de {money(s.limit, cur, fx)}</span> : null}
-          </span>
-          {over && <span className="small danger">Va a cerrar en {money(s.projection!, cur, fx)}</span>}
-        </span>
-        <Icon name="chevRight" size={18} />
-      </a>
-      {kids > 0 && (
-        <>
-          <button className="sub-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-            <span>{open ? 'Ocultar' : `${kids} ${kids === 1 ? 'subcategoría' : 'subcategorías'}`}</span>
-            <Icon name={open ? 'chevUp' : 'chevDown'} size={16} />
-          </button>
-          {open && (
-            <div className="sub-list">
-              {subs.map((x) => {
-                const pct = s.spent > 0 ? Math.max(0, Math.round((x.spent / s.spent) * 100)) : 0;
-                return (
-                  <a key={x.cat.id + (x.direct ? '-d' : '')} href={`#/categoria/${s.cat.id}?sub=${x.direct ? 'none' : x.cat.id}`} className="sub-row">
-                    <span className="sub-emo" aria-hidden="true">{x.direct ? '•' : x.cat.emoji}</span>
-                    <span className="grow col gap4">
-                      <span className="row between">
-                        <span className="sm">{x.direct ? 'Sin detalle' : x.cat.name}</span>
-                        <strong className="sm">{money(x.spent, cur, fx)}</strong>
-                      </span>
-                      <Progress size="sm" tone="muted" value={pct / 100} />
-                    </span>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <ListRow
+      leading={<Emo e={s.cat.emoji} color={s.cat.color} size={40} />}
+      title={s.cat.name}
+      detail={over ? `Va a cerrar en ${amount(s.projection!, cur, fx)} ${unitOf(cur)}` : spent}
+      detailTone={over ? 'destructive' : 'muted'}
+      value={s.pct !== null ? (paid ? 'Pagado' : `${s.pct}%`) : undefined}
+      valueTone={paid ? 'success' : tone === 'default' ? 'default' : tone}
+      chevron
+      href={`#/categoria/${s.cat.id}`}
+      label={`${s.cat.name}: ${spent}`}
+      below={s.limit ? <Progress size="sm" value={(s.pct || 0) / 100} tone={tone} label={`${s.cat.name}: ${s.pct || 0}% del límite`} /> : undefined}
+    />
   );
 }
 
@@ -238,75 +197,64 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
 
   return (
     <>
-      <section className="card pad col gap14">
-        <h2 className="h3">Gasto por mes</h2>
-        <div className="month-bars" role="img" aria-label={`Gasto de los últimos 6 meses: ${months.map((m) => `${monthShort(m.m)} ${shortK(m.total, cur, fx)}`).join(', ')}`}>
-          {months.map((m, i) => {
-            const over = budget > 0 && m.total > budget;
-            const last = i === months.length - 1;
-            return (
-              <div key={i} className="mb-col">
-                <div className="mb-area">
-                  <div className="mb-fill" style={{ height: `${(m.total / max) * 100}%`, background: last ? 'var(--chart-current)' : over ? 'var(--chart-over)' : 'var(--chart-bar)' }} />
-                  {budget > 0 && <div className="mb-budget" style={{ height: `${(budget / max) * 100}%` }} />}
-                  <span className={last || over ? 'mb-val on-light' : 'mb-val'}>{shortK(m.total, cur, fx).replace(/^[¢$]/, '')}</span>
+      <ListGroup title="Gasto por mes">
+        <div className="group-pad">
+          <div className="month-bars" role="img" aria-label={`Gasto de los últimos 6 meses: ${months.map((m) => `${monthShort(m.m)} ${shortK(m.total, cur, fx)}`).join(', ')}`}>
+            {months.map((m, i) => {
+              const over = budget > 0 && m.total > budget;
+              const last = i === months.length - 1;
+              return (
+                <div key={i} className="mb-col">
+                  <div className="mb-area">
+                    {budget > 0 && <div className="mb-budget" style={{ bottom: `${(budget / max) * 100}%` }} />}
+                    <div className={['mb-fill', last && 'is-on', over && 'is-over'].filter(Boolean).join(' ')} style={{ height: `${(m.total / max) * 100}%` }} />
+                    {m.total > 0 && <span className={last ? 'mb-val is-on' : 'mb-val'} style={{ bottom: `calc(${(m.total / max) * 100}% + 4px)` }}>{shortK(m.total, cur, fx).replace(/^[¢$]/, '')}</span>}
+                  </div>
+                  <span className={last ? 'mb-label is-on' : 'mb-label'}>{monthShort(m.m)}</span>
                 </div>
-                <span className="mb-label">{monthShort(m.m)}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {budget > 0 && <span className="mb-legend"><span className="mb-legend-line" />Presupuesto</span>}
         </div>
-      </section>
+      </ListGroup>
 
-      <section className="card pad col gap14">
-        <div className="col">
-          <h2 className="h3">{monthName(ym[1]).replace(/^./, (c) => c.toUpperCase())} vs. {monthName((ym[1] + 11) % 12)}</h2>
-          {isCurrent && <span className="muted small">Del 1 al {day}</span>}
-        </div>
+      <ListGroup title={`${cap(monthName(ym[1]))} vs. ${monthName((ym[1] + 11) % 12)}`} note={isCurrent ? `Del 1 al ${day} de cada mes` : undefined}>
         {cmp.length === 0 ? (
-          <span className="muted">Todavía no hay datos para comparar.</span>
+          <div className="group-pad page-text">Todavía no hay datos para comparar.</div>
         ) : (
           cmp.map((x) => (
-            <div key={x.c.id} className="row gap12">
-              <Emo e={x.c.emoji} color={x.c.color} size={40} />
-              <span className="grow col">
-                <strong className="sm">{x.c.name}</strong>
-                <span className="muted small">{money(x.a, cur, fx)} → {money(x.b, cur, fx)}</span>
-              </span>
-              {x.d !== null && (
-                <span className={x.d > 0 ? 'delta up' : 'delta down'}>{x.d !== 0 && <Icon name={x.d > 0 ? 'deltaUp' : 'deltaDown'} size={14} stroke={2.4} />}{Math.abs(x.d)}%</span>
-              )}
-            </div>
+            <ListRow
+              key={x.c.id}
+              leading={<Emo e={x.c.emoji} color={x.c.color} size={40} />}
+              title={x.c.name}
+              detail={`${amount(x.a, cur, fx)} → ${amount(x.b, cur, fx)} ${unitOf(cur)}`}
+              value={x.d !== null ? <Delta variant="arrow" value={`${Math.abs(x.d)}%`} tone={x.d > 0 ? 'bad' : 'good'} direction={x.d === 0 ? undefined : x.d > 0 ? 'up' : 'down'} /> : undefined}
+              href={`#/categoria/${x.c.id}`}
+            />
           ))
         )}
-      </section>
+      </ListGroup>
 
-      <section className="card list">
-        <div className="row between pad-top top-head">
-          <h2 className="h3">Top comercios</h2>
-          <Segmented size="sm" label="Ordenar comercios" value={topBy} onChange={pickTop} options={[{ value: 'amt', label: 'Por monto' }, { value: 'n', label: 'Por compras' }]} />
-        </div>
+      <ListGroup title="Top comercios" action={<Segmented size="sm" label="Ordenar comercios" value={topBy} onChange={pickTop} options={[{ value: 'amt', label: 'Monto' }, { value: 'n', label: 'Compras' }]} />}>
         {top.length === 0 ? (
-          <span className="empty">Sin gastos este mes.</span>
+          <div className="group-pad page-text">Sin gastos este mes.</div>
         ) : (
-          top.map(([name, s], i) => {
+          top.map(([name, s]) => {
             const c = categories.find((x) => x.id === s.cat);
+            const buys = `${s.n} ${s.n === 1 ? 'compra' : 'compras'}`;
             return (
-              <div key={name} className="row gap12 list-row">
-                <span className="rank">{i + 1}</span>
-                <Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo} badge={s.badge} />
-                <span className="grow col">
-                  <strong className="sm">{name}</strong>
-                  <span className="muted small">
-                    {topBy === 'n' ? money(s.amt, cur, fx) : `${s.n} ${s.n === 1 ? 'compra' : 'compras'}`}{c ? ` · ${c.name}` : ''}
-                  </span>
-                </span>
-                <strong className="sm">{topBy === 'n' ? `${s.n} ${s.n === 1 ? 'compra' : 'compras'}` : money(s.amt, cur, fx)}</strong>
-              </div>
+              <ListRow
+                key={name}
+                leading={<Emo e={c?.emoji || '🛍️'} color={c?.color} size={40} img={s.photo} badge={s.badge} />}
+                title={name}
+                detail={[topBy === 'n' ? `${amount(s.amt, cur, fx)} ${unitOf(cur)}` : buys, c?.name || '']}
+                value={topBy === 'n' ? buys : <>{amount(s.amt, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}
+              />
             );
           })
         )}
-      </section>
+      </ListGroup>
     </>
   );
 }

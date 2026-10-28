@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Chip, Switch } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, PageHeader, Switch } from '../ds';
 import { pickerOrder } from '../lib/cats';
 import { namePhoto } from '../lib/merchants';
 import { db } from '../lib/api';
@@ -8,8 +8,8 @@ import {
   addPeriod, daysUntil, dueLabel, isManual, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
 } from '../lib/recurring';
 import type { Category, Currency, Frequency, PayMethod, Recurring, RecurringSuggestion } from '../lib/types';
-import { go, useApp } from '../store';
-import { BackBar, BigMoney, Emo, Icon, Loading, Segmented, tint } from '../ui';
+import { go, navigateBack, useApp } from '../store';
+import { Emo, Icon, Loading, Segmented } from '../ui';
 import { inRange, sumSpend, weekRange } from '../lib/calc';
 import { useTxs } from '../store';
 
@@ -52,39 +52,34 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
     setBusy(false);
   }
 
+  const amountNode = <>{r.variable ? '≈ ' : ''}{r.currency === 'USD' && cur === 'CRC' ? <>{amount(Number(r.amount), 'USD', 1)}<span className="amt-unit"> USD</span></> : <>{amount(crc, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}</>;
+  const when = !r.active ? 'Pausado' : paidRecently(r) ? `Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(r.next_due);
+  const how = compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`;
   return (
-    <div className={ask ? 'rec-row ask' : 'rec-row'}>
-      <button className="tx-row" onClick={() => go(`/recurrente/${r.id}`)}>
-        <Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : state === 'overdue' ? 'pink' : cat?.color || 'gray'} img={photo} />
-        <span className="tx-mid">
-          <span className="tx-cat">
-            {compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`}{r.variable ? ' · Varía' : ''}
-          </span>
-          <span className="tx-name">{r.merchant}</span>
-        </span>
-        <span className="tx-amt">
-          <span>{r.variable ? '≈ ' : ''}{r.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(r.amount), 'USD') : money(crc, cur, fx)}</span>
-          <span className={state === 'overdue' ? 'tx-sub danger' : state === 'due' ? 'tx-sub strong' : 'tx-sub'}>
-            {!r.active ? 'Pausado' : paidRecently(r) ? `✅ Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(r.next_due)}
-          </span>
-        </span>
-      </button>
-      {ask && (
+    <ListRow
+      leading={<Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : cat?.color || 'gray'} img={photo} size={40} />}
+      title={r.merchant}
+      detail={`${how}${r.variable ? ' · Varía' : ''}`}
+      value={amountNode}
+      valueDetail={when}
+      valueDetailTone={state === 'overdue' ? 'destructive' : paidRecently(r) ? 'success' : state === 'due' ? 'default' : 'muted'}
+      quiet={!r.active}
+      href={`#/recurrente/${r.id}`}
+      label={`${r.merchant}, ${when}`}
+      below={ask ? (
         <div className="rec-ask">
           <span>¿Ya se pagó?</span>
-          <span className="row gap6">
-            <Button variant="secondary" size="md" onClick={skip} disabled={busy}>Saltar</Button>
-            <Button variant="primary" size="md" onClick={paid} disabled={busy}>Ya pagué</Button>
-          </span>
+          <Button variant="ghost" size="xs" onClick={skip} disabled={busy}>Saltar</Button>
+          <Button variant="primary" size="xs" onClick={paid} disabled={busy}>Pagué</Button>
         </div>
-      )}
-    </div>
+      ) : undefined}
+    />
   );
 }
 
-/** Shared spaces pay last week's card charges every Friday from the debit account. */
-export function CardPayment() {
-  const { space, accounts, profiles, userId, cur, fx, toast, bump } = useApp();
+/** What the shared card owes for last week, or null when there's nothing to pay (or it's already paid). */
+export function useCardPayment() {
+  const { space, accounts, profiles, userId, toast, bump } = useApp();
   const prevWeek = weekRange(space?.week_start ?? 5, -1);
   const { txs } = useTxs(space?.kind === 'shared' ? { from: prevWeek.from, to: new Date(Date.now() + 86400000).toISOString() } : null);
   const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
@@ -103,23 +98,20 @@ export function CardPayment() {
     toast('✅ Pago registrado');
     bump();
   }
+  return { owed, others, paid };
+}
+
+/** Shared spaces pay last week's card charges every Friday from the debit account. */
+export function CardPayment({ card }: { card: NonNullable<ReturnType<typeof useCardPayment>> }) {
+  const { cur, fx } = useApp();
+  const [busy, setBusy] = useState(false);
   return (
-    <div className="card list">
-      <div className="rec-row ask">
-        <div className="tx-row">
-          <Emo e="💳" color="pink" />
-          <span className="tx-mid">
-            <span className="tx-cat">Semana pasada{others.length ? ` · ${others.join(', ')} transfiere` : ''}</span>
-            <span className="tx-name">Pago de tarjeta</span>
-          </span>
-          <span className="tx-amt"><span>{amount(owed, cur, fx)} {unitOf(cur)}</span><span className="tx-sub strong">Toca pagar</span></span>
-        </div>
-        <div className="rec-ask">
-          <span>¿Ya se pagó la tarjeta?</span>
-          <Button variant="primary" size="md" onClick={paid}>Ya pagué</Button>
-        </div>
-      </div>
-    </div>
+    <ListRow
+      leading={<Emo e="💳" color="pink" size={40} />}
+      title="Pago de tarjeta"
+      detail={<><span className="ds-pp__when is-due">{card.others.length ? `${card.others.join(', ')} transfiere` : 'Semana pasada'}</span> · {amount(card.owed, cur, fx)} {unitOf(cur)}</>}
+      actions={<Button variant="primary" size="xs" disabled={busy} onClick={async () => { setBusy(true); try { await card.paid(); } finally { setBusy(false); } }} aria-label="Ya pagué la tarjeta">Pagué</Button>}
+    />
   );
 }
 
@@ -211,93 +203,81 @@ export function Recurrentes() {
     setSugs((x) => x.filter((y) => y.merchant_key !== s.merchant_key));
   }
 
+  const card = useCardPayment();
+  const count = current === 'todos' ? active.length : shown.length;
   return (
-    <div className="screen no-nav">
-      <BackBar title="Recurrentes" />
-      <CardPayment />
-      <section className="col gap6 px4">
-        <span className="muted-label">{headerLabel}</span>
-        <BigMoney crc={headerTotal} size={48} />
-        <span className="muted small">
-          {current === 'todos' ? (active.length === 1 ? '1 pago activo' : `${active.length} pagos activos`) : shown.length === 1 ? '1 pago' : `${shown.length} pagos`}
-        </span>
-      </section>
+    <div className="page no-nav">
+      <PageHeader
+        title="Recurrentes"
+        onBack={navigateBack}
+        actions={<Button variant="secondary" size="xs" iconOnly href="#/recurrente/nueva" aria-label="Nuevo recurrente"><Icon name="plus" size={16} solid /></Button>}
+      />
+      <div className="page-hero">
+        <BalanceSummary
+          label={headerLabel}
+          value={amount(headerTotal, cur, fx)}
+          unit={unitOf(cur)}
+          meta={`${count} ${count === 1 ? (current === 'todos' ? 'pago activo' : 'pago') : current === 'todos' ? 'pagos activos' : 'pagos'}`}
+        />
+      </div>
 
       {items.length > 0 && (
-        <div className="hscroll rec-filters" role="toolbar" aria-label="Filtrar recurrentes">
+        <div className="page-chips" role="toolbar" aria-label="Filtrar recurrentes">
           {chips.map(([k, n]) => (
-            <Chip key={k} selected={current === k} size="lg" onClick={() => pick(k)}>
-              {FILTER_LABEL[k]}{k !== 'todos' && <span className="filter-n">{n}</span>}
-            </Chip>
+            <Chip key={k} selected={current === k} size="sm" count={k !== 'todos' ? n : undefined} onClick={() => pick(k)}>{FILTER_LABEL[k]}</Chip>
           ))}
         </div>
       )}
 
-      <Button variant="primary" size="md" className="self-start" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} />}>Nuevo recurrente</Button>
-
-      {current !== 'todos' ? (
-        <section className="col gap8">
-          <div className="card list">{shown.map((r) => <RecRow key={r.id} r={r} />)}</div>
-        </section>
-      ) : (
-      <>
-      {sugs.length > 0 && (
-        <section className="col gap8">
-          <h2 className="h3 px4">✨ ¿Son suscripciones?</h2>
-          <div className="card list">
-            {sugs.map((s) => {
-              const cat = categories.find((c) => c.id === s.category_id);
-              const crc = s.currency === 'USD' ? Number(s.amount) * fx : Number(s.amount);
-              return (
-                <div key={s.merchant_key} className="sug-row">
-                  <Emo e={cat?.emoji || '🔁'} color={cat?.color || 'lilac'} size={44} />
-                  <span className="tx-mid">
-                    <span className="tx-name">{cleanName(s.merchant || s.merchant_key)}</span>
-                    <span className="tx-cat">
-                      {s.currency === 'USD' ? moneyRaw(Number(s.amount), 'USD') : money(crc, cur, fx)} · {s.months} meses
-                    </span>
-                  </span>
-                  <span className="row gap6">
-                    <Button variant="secondary" size="md" onClick={() => dismiss(s)} aria-label={`${s.merchant} no es recurrente`}>No</Button>
-                    <Button variant="primary" size="md" onClick={() => addSuggestion(s)}>Agregar</Button>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {toConfirm.length > 0 && (
-        <section className="col gap8">
-          <h2 className="h3 px4">⏰ Pagos pendientes</h2>
-          <div className="card list">{toConfirm.map((r) => <RecRow key={r.id} r={r} />)}</div>
-        </section>
-      )}
-
-      <section className="col gap8">
-        <h2 className="h3 px4">Próximos</h2>
-        {loading && items.length === 0 ? (
-          <Loading />
-        ) : rest.length === 0 && toConfirm.length === 0 ? (
-          <a className="card empty center" href="#/recurrente/nueva">
-            <span className="big-emoji">🔁</span>
-            <strong>Agregá tus pagos fijos</strong>
-            <span>Alquiler, internet, Netflix… Los de tarjeta se marcan solos cuando llega el voucher.</span>
-          </a>
+      <div className="page-body">
+        {current !== 'todos' ? (
+          <ListGroup>{shown.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>
         ) : (
-          <div className="card list">{rest.map((r) => <RecRow key={r.id} r={r} />)}</div>
-        )}
-      </section>
+          <>
+            {card && <ListGroup title="Tarjeta compartida"><CardPayment card={card} /></ListGroup>}
 
-      {paused.length > 0 && (
-        <section className="col gap8">
-          <h2 className="h3 px4">Pausados</h2>
-          <div className="card list">{paused.map((r) => <RecRow key={r.id} r={r} />)}</div>
-        </section>
-      )}
-      </>
-      )}
+            {sugs.length > 0 && (
+              <ListGroup title="¿Son suscripciones?" note="Cobros que se repiten cada mes. Agregalos para verlos venir.">
+                {sugs.map((s) => {
+                  const cat = categories.find((c) => c.id === s.category_id);
+                  const crc = s.currency === 'USD' ? Number(s.amount) * fx : Number(s.amount);
+                  const name = cleanName(s.merchant || s.merchant_key);
+                  return (
+                    <ListRow
+                      key={s.merchant_key}
+                      leading={<Emo e={cat?.emoji || '🔁'} color={cat?.color || 'lilac'} size={40} />}
+                      title={name}
+                      detail={`${s.currency === 'USD' ? moneyRaw(Number(s.amount), 'USD') : money(crc, cur, fx)} · ${s.months} meses`}
+                      actions={
+                        <>
+                          <Button variant="secondary" size="xs" onClick={() => dismiss(s)} aria-label={`${name}: no es recurrente`}>No</Button>
+                          <Button variant="primary" size="xs" onClick={() => addSuggestion(s)} aria-label={`Agregar ${name}`}>Agregar</Button>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </ListGroup>
+            )}
+
+            {toConfirm.length > 0 && (
+              <ListGroup title="Pagos pendientes" count={toConfirm.length}>{toConfirm.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>
+            )}
+
+            {loading && items.length === 0 ? (
+              <Loading />
+            ) : rest.length === 0 && toConfirm.length === 0 ? (
+              <EmptyState icon="🔁" title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
+                Alquiler, internet, Netflix… Los de tarjeta se marcan solos cuando llega el voucher.
+              </EmptyState>
+            ) : rest.length > 0 ? (
+              <ListGroup title="Próximos">{rest.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>
+            ) : null}
+
+            {paused.length > 0 && <ListGroup title="Pausados">{paused.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -397,12 +377,9 @@ export function RecurringEdit({ id }: { id: string }) {
   }
 
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2">{isNew ? 'Nuevo recurrente' : 'Editar recurrente'}</h1>
-        <span style={{ width: 48 }} />
-      </header>
+    <div className="page no-nav">
+      <PageHeader title={isNew ? 'Nuevo recurrente' : 'Editar recurrente'} onBack={navigateBack} />
+      <div className="page-body">
 
       <div className="card pad col gap14">
         <label className="col gap6"><span className="field-label">Nombre</span>
@@ -461,7 +438,7 @@ export function RecurringEdit({ id }: { id: string }) {
         <span className="field-label">Categoría</span>
         <div className="cat-grid">
           {expenseCats.map((c) => (
-            <button key={c.id} className={r.category_id === c.id ? 'cat-tile on' : 'cat-tile'} aria-pressed={r.category_id === c.id} style={{ background: tint(c.color, r.category_id === c.id) }} onClick={() => set('category_id', r.category_id === c.id ? null : c.id)}>
+            <button key={c.id} className={r.category_id === c.id ? 'cat-tile on' : 'cat-tile'} aria-pressed={r.category_id === c.id} onClick={() => set('category_id', r.category_id === c.id ? null : c.id)}>
               <span className="cat-emoji">{c.emoji}</span>
               <span>
                 {c.name}
@@ -479,9 +456,12 @@ export function RecurringEdit({ id }: { id: string }) {
         </div>
       )}
 
-      <Button variant="primary" size="xl" onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-      {!isNew && r.last_paid_on && <span className="muted small center-text">Último pago registrado: {shortDay(r.last_paid_on)}</span>}
-      {!isNew && <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove}>Eliminar recurrente</Button>}
+      {!isNew && r.last_paid_on && <p className="page-text">Último pago registrado: {shortDay(r.last_paid_on)}</p>}
+      </div>
+      <div className="page-actions">
+        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+        {!isNew && <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar recurrente</Button>}
+      </div>
     </div>
   );
 }

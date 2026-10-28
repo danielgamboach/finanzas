@@ -18,20 +18,22 @@ export interface BalanceDelta {
  * The big number on Inicio: what went out in the period ("312.450 CRC"), the change against the
  * previous one ("↓12% vs Septiembre") and what's left of the month's budget ("102.023 CRC Disponible").
  */
-export function BalanceSummary({ label, value, unit, negative, delta, available, action }: {
+export function BalanceSummary({ label, value, unit, negative, delta, available, meta, action }: {
   label: React.ReactNode;
   value: string;
   unit?: string;
   negative?: boolean;
   delta?: BalanceDelta | null;
   available?: { value: string; unit?: string; negative?: boolean; label?: string } | null;
+  /** Any other quiet fact for the line under the number ("4 pagos activos", "Débito · BAC"). */
+  meta?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
     <section className="ds-balance" aria-label="Resumen">
       <span className="ds-balance__label">{label}</span>
       <Money value={value} unit={unit} size="large" tone={negative ? 'negative' : 'default'} />
-      {(delta || available) && (
+      {(delta || available || meta) && (
         <div className="ds-balance__meta">
           {delta && (
             <span className="ds-balance__delta" title={delta.title}>
@@ -45,6 +47,8 @@ export function BalanceSummary({ label, value, unit, negative, delta, available,
               <span className={available.negative ? 'ds-balance__avail is-neg' : 'ds-balance__avail'}>{available.value}{available.unit ? ` ${available.unit}` : ''}</span> {available.label ?? 'Disponible'}
             </span>
           )}
+          {meta && (delta || available) && <span aria-hidden="true">·</span>}
+          {meta && <span>{meta}</span>}
         </div>
       )}
       {action && <div className="ds-balance__actions">{action}</div>}

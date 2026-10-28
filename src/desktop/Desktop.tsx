@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { needsConfirm, useRecurring } from '../lib/recurring';
-import { accountColor } from '../lib/accounts';
+import { byKind } from '../lib/accounts';
 import { go, useApp } from '../store';
 import { Icon } from '../ui';
-import { Badge, Button } from '../ds';
+import { Badge, Button, ListGroup, ListRow } from '../ds';
 import { SpendOverview, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
+import { AccountListRow, useNetWorth } from '../screens/Patrimonio';
 import { openKai } from '../ui/Kai';
 import { PendingPayments } from '../ui/PendingPayments';
 import { GettingStarted } from '../ui/GettingStarted';
@@ -155,12 +156,26 @@ function SpaceSwitch() {
   );
 }
 
-/** Desktop home: the spend summary with its chart, the accounts, then the latest movements as a table. */
+/** The accounts on the desktop home: the same rows as Cuentas, the first few. */
+function DeskAccounts() {
+  const { space } = useApp();
+  const w = useNetWorth(space?.id || null);
+  const accs = [...w.accounts].sort(byKind).slice(0, 5);
+  return (
+    <ListGroup title="Cuentas" action={<a href="#/cuentas">Ver todas</a>}>
+      {accs.length === 0 ? (
+        <ListRow title={w.loading ? 'Cargando…' : 'Agregá tus cuentas'} chevron={!w.loading} href={w.loading ? undefined : '#/cuenta/nueva'} />
+      ) : accs.map((a) => <AccountListRow key={a.id} a={a} w={w} />)}
+    </ListGroup>
+  );
+}
+
+/** Desktop home: the spend summary with its chart, the accounts, what needs an answer, then the latest movements. */
 export function DesktopHome() {
   const { profile } = useApp();
   const h = useHomeSummary();
   if (!h) return null;
-  const { peek, recent } = h;
+  const { recent } = h;
 
   return (
     <div className="dpage">
@@ -169,36 +184,21 @@ export function DesktopHome() {
       </header>
 
       <div className="dhome-top">
-        <section className="dcard dhero" aria-label="Resumen">
+        <section className="dhero" aria-label="Resumen">
           <SpendOverview h={h} />
         </section>
-
-        <a className="dcard dwallet" href="#/cuentas" aria-label="Ver cuentas">
-          <span className="row between"><span className="spend-label">Cuentas</span><Icon name="arrowRight" size={16} /></span>
-          <span className="dwallet-fan" aria-hidden="true">
-            {peek.map((a, i) => (
-              <span key={a.id} className="dwallet-card" style={{ background: accountColor(a).bg, color: accountColor(a).fg, zIndex: i, '--i': i } as React.CSSProperties}>
-                <span>{a.name}</span>
-                <span className="wc-num">{a.last4 ? `••••${a.last4}` : ''}</span>
-              </span>
-            ))}
-          </span>
-        </a>
+        <DeskAccounts />
       </div>
 
       <GettingStarted variant="card" />
 
       <PendingPayments variant="card" />
 
-      <section className="dcard dmov">
-        <div className="row between dmov-head">
-          <h2 className="h2">Movimientos</h2>
-          <a className="link" href="#/movimientos">Ver todos</a>
-        </div>
-        <div className="ttable" role="table" aria-label="Últimos movimientos">
+      <ListGroup title="Últimos movimientos" action={<a href="#/movimientos">Ver todos</a>}>
+        <div className="ttable dmov-table" role="table" aria-label="Últimos movimientos">
           {recent.slice(0, 10).map((t) => <TxTableRow key={t.id} t={t} />)}
         </div>
-      </section>
+      </ListGroup>
     </div>
   );
 }
@@ -210,7 +210,7 @@ export function DesktopMovements() {
       <header className="dpage-head">
         <h1 className="dtitle">Movimientos</h1>
       </header>
-      <section className="dcard dmov">
+      <section className="dmov">
         <MovementsBrowser table screen="mov" autoFocus={false} />
       </section>
     </div>

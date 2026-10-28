@@ -33,7 +33,7 @@ export const Playground: Story = {};
 
 export const Variantes: Story = {
   render: (args) => (
-    <div className="ds-row">
+    <div className="ds-doc-row">
       {VARIANTS.map((v) => <Button key={v} {...args} variant={v}>{v}</Button>)}
     </div>
   ),
@@ -44,7 +44,7 @@ export const Tamanos: Story = {
   render: (args) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {SIZES.map((s) => (
-        <div key={s} className="ds-row">
+        <div key={s} className="ds-doc-row">
           <span className="ds-label">{s} · {{ xs: 28, sm: 36, md: 44, lg: 52, xl: 60 }[s]}px</span>
           <Button {...args} size={s} leading={<Icon name="plusCircle" size={18} />}>Nuevo gasto</Button>
           <Button {...args} size={s} variant="secondary">Cancelar</Button>
@@ -58,7 +58,7 @@ export const Tamanos: Story = {
 export const ConIconos: Story = {
   name: 'Con íconos',
   render: () => (
-    <div className="ds-row">
+    <div className="ds-doc-row">
       <Button leading={<Icon name="plus" size={18} />}>Nuevo movimiento</Button>
       <Button variant="secondary" trailing={<kbd>E</kbd>} leading={<Icon name="pencil" size={16} />}>Editar</Button>
       <Button variant="outline" trailing={<Icon name="arrowRight" size={16} />}>Ver todos</Button>
@@ -70,7 +70,7 @@ export const ConIconos: Story = {
 
 export const Estados: Story = {
   render: () => (
-    <div className="ds-row">
+    <div className="ds-doc-row">
       <Button>Normal</Button>
       <Button disabled>Deshabilitado</Button>
       <Button loading>Guardando</Button>
@@ -86,7 +86,7 @@ export const EnTarjeta: Story = {
     <div className="card pad" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
       <span className="type-label-lg">Tarjeta compartida</span>
       <span className="type-body-sm" style={{ color: 'var(--muted-foreground)' }}>secondary sube un paso para no fundirse con la tarjeta.</span>
-      <div className="ds-row"><Button variant="secondary">Secondary</Button><Button variant="outline">Outline</Button><Button>Pagar</Button></div>
+      <div className="ds-doc-row"><Button variant="secondary">Secondary</Button><Button variant="outline">Outline</Button><Button>Pagar</Button></div>
     </div>
   ),
 };

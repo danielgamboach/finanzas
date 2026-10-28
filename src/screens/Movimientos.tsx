@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Chip, EmptyState, SearchField } from '../ds';
+import { Badge, Button, Chip, EmptyState, ListGroup, ListRow, SearchField, Switch } from '../ds';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, type PeriodKey } from '../lib/period';
@@ -333,9 +333,9 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
           <h3 className="fs-h">Período</h3>
           <div className="fs-chips">
             {PRESETS.filter(([k]) => ['month', 'lastmonth', 'week', '30d', '90d', 'year'].includes(k)).map(([k, label]) => (
-              <Chip key={k} selected={p === k && !custom} onClick={() => { setP(k); setCustom(false); }}>{label}</Chip>
+              <Chip size="sm" key={k} selected={p === k && !custom} onClick={() => { setP(k); setCustom(false); }}>{label}</Chip>
             ))}
-            <Chip selected={custom} onClick={() => setCustom(true)}>Fechas…</Chip>
+            <Chip size="sm" selected={custom} onClick={() => setCustom(true)}>Fechas…</Chip>
           </div>
           {custom ? (
             <div className="grid2">
@@ -357,26 +357,20 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
         <section className="fs-sec">
           <h3 className="fs-h">Tipo</h3>
           <Segmented value={x.kind} options={[['todos', 'Todos'], ['gastos', 'Gastos'], ['ingresos', 'Ingresos']]} onChange={(v) => set({ kind: v })} dark={false} />
-          <div className="fs-toggles">
-            <label className="fs-toggle">
-              <span>Por revisar{reviewCount ? <span className="muted"> · {reviewCount}</span> : null}</span>
-              <input type="checkbox" checked={x.review} onChange={(e) => set({ review: e.target.checked })} />
-            </label>
-            <label className="fs-toggle">
-              <span>Solo recurrentes</span>
-              <input type="checkbox" checked={x.rec} onChange={(e) => set({ rec: e.target.checked })} />
-            </label>
-          </div>
+          <ListGroup>
+            <ListRow title="Por revisar" detail={reviewCount ? `${reviewCount} sin categoría confirmada` : 'Nada por revisar'} actions={<Switch checked={x.review} label="Por revisar" onChange={() => set({ review: !x.review })} />} />
+            <ListRow title="Solo recurrentes" actions={<Switch checked={x.rec} label="Solo recurrentes" onChange={() => set({ rec: !x.rec })} />} />
+          </ListGroup>
         </section>
 
         <section className="fs-sec">
           <h3 className="fs-h">Categoría</h3>
           <div className="fs-chips">
-            <Chip selected={!x.cat} onClick={() => set({ cat: '' })}>Todas</Chip>
+            <Chip size="sm" selected={!x.cat} onClick={() => set({ cat: '' })}>Todas</Chip>
             {categories.filter((c) => !c.parent_id).map((c) => (
-              <Chip key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? '' : c.id })}>{c.emoji} {c.name}</Chip>
+              <Chip size="sm" key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? '' : c.id })}>{c.emoji} {c.name}</Chip>
             ))}
-            <Chip selected={x.cat === 'none'} onClick={() => set({ cat: x.cat === 'none' ? '' : 'none' })}>Sin categoría</Chip>
+            <Chip size="sm" selected={x.cat === 'none'} onClick={() => set({ cat: x.cat === 'none' ? '' : 'none' })}>Sin categoría</Chip>
           </div>
           {(() => {
             const parent = x.cat && x.cat !== 'none' ? categories.find((c) => c.id === x.cat)?.parent_id || x.cat : '';
@@ -384,7 +378,7 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
             return subs.length > 0 ? (
               <div className="fs-chips sub">
                 {subs.map((c) => (
-                  <Chip key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? parent : c.id })}>{c.emoji} {c.name}</Chip>
+                  <Chip size="sm" key={c.id} selected={x.cat === c.id} onClick={() => set({ cat: x.cat === c.id ? parent : c.id })}>{c.emoji} {c.name}</Chip>
                 ))}
               </div>
             ) : null;
@@ -395,11 +389,11 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
           <section className="fs-sec">
             <h3 className="fs-h">Cuenta</h3>
             <div className="fs-chips">
-              <Chip selected={!x.acc} onClick={() => set({ acc: '' })}>Todas</Chip>
+              <Chip size="sm" selected={!x.acc} onClick={() => set({ acc: '' })}>Todas</Chip>
               {accounts.map((a) => (
-                <Chip key={a.id} selected={x.acc === a.id} onClick={() => set({ acc: x.acc === a.id ? '' : a.id })}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</Chip>
+                <Chip size="sm" key={a.id} selected={x.acc === a.id} onClick={() => set({ acc: x.acc === a.id ? '' : a.id })}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</Chip>
               ))}
-              <Chip selected={x.acc === 'none'} onClick={() => set({ acc: x.acc === 'none' ? '' : 'none' })}>Efectivo / SINPE</Chip>
+              <Chip size="sm" selected={x.acc === 'none'} onClick={() => set({ acc: x.acc === 'none' ? '' : 'none' })}>Efectivo / SINPE</Chip>
             </div>
           </section>
         )}
@@ -409,7 +403,7 @@ function FilterSheet({ value, period, accountId, count, reviewCount, onClose, on
             <h3 className="fs-h">Etiqueta</h3>
             <div className="fs-chips">
               {tags.map((t) => (
-                <Chip key={t} selected={x.tag === t} onClick={() => set({ tag: x.tag === t ? '' : t })}>{t}</Chip>
+                <Chip size="sm" key={t} selected={x.tag === t} onClick={() => set({ tag: x.tag === t ? '' : t })}>{t}</Chip>
               ))}
             </div>
           </section>

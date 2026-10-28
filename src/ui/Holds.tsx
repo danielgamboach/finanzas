@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Badge, Button } from '../ds';
+import { Button, ListGroup, ListRow } from '../ds';
 import { setHold, usePendingHolds } from '../lib/holds';
 import { amount, relDay, unitOf } from '../lib/format';
 import { txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp } from '../store';
-import { Emo, Icon } from '.';
+import { Emo } from '.';
 
 const timeFmt = new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Costa_Rica' });
 const SHOWN = 3;
@@ -16,7 +16,7 @@ const SHOWN = 3;
  * charged; a lone ride counts right away. Untouched ones settle on their own after 48 h.
  * They don't count in totals or budgets while pending. Renders nothing when there are none.
  */
-export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
+export function Holds(_: { variant?: 'sheet' | 'card' }) {
   const { space, toast, bump } = useApp();
   const rows = usePendingHolds(space?.id);
   const [all, setAll] = useState(false);
@@ -42,27 +42,20 @@ export function Holds({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
   }
 
   const list = all ? rows : rows.slice(0, SHOWN);
+  const footer = rows.length > 1 ? (
+    <>
+      {rows.length > SHOWN ? (
+        <Button variant="ghost" size="xs" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</Button>
+      ) : <span />}
+      <Button variant="secondary" size="xs" disabled={busy} onClick={() => resolve(rows, null)}>Todos se cobraron</Button>
+    </>
+  ) : undefined;
   return (
-    <section className={variant === 'card' ? 'pp pp-card' : 'pp'} aria-label="Por confirmar">
-      <div className="pp-head">
-        <span>Por confirmar</span>
-        <Badge count={rows.length} />
-      </div>
-      <p className="hold-hint">Hubo varios viajes seguidos en la misma tarjeta y alguno pudo no cobrarse. Quitá con <Icon name="close" size={12} stroke={2.6} /> los que no se cobraron. Los demás se confirman solos a las 48 h.</p>
-      <div className="pp-list">
-        {list.map((t) => (
-          <HoldRow key={t.id} t={t} busy={busy} onResolve={(h) => resolve([t], h)} />
-        ))}
-        {(rows.length > SHOWN || rows.length > 1) && (
-          <div className="hold-foot">
-            {rows.length > SHOWN ? (
-              <Button variant="ghost" size="xs" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</Button>
-            ) : <span />}
-            <Button variant="primary" size="sm" disabled={busy} onClick={() => resolve(rows, null)} leading={<Icon name="check" size={16} />}>Todos se cobraron</Button>
-          </div>
-        )}
-      </div>
-    </section>
+    <ListGroup title="Por confirmar" count={rows.length} note="Viajes seguidos en la misma tarjeta: alguno pudo no cobrarse. Los que no toqués se confirman solos a las 48 h." footer={footer}>
+      {list.map((t) => (
+        <HoldRow key={t.id} t={t} busy={busy} onResolve={(h) => resolve([t], h)} />
+      ))}
+    </ListGroup>
   );
 }
 
@@ -72,17 +65,17 @@ function HoldRow({ t, busy, onResolve }: { t: Tx; busy: boolean; onResolve: (hol
   const photo = txPhoto(merchants, t);
   const name = t.merchant || 'Movimiento';
   return (
-    <div className="pp-row hold-row">
-      <button className="pp-main" onClick={() => go(`/mov/${t.id}`)}>
-        <Emo e={cat?.emoji || '🚗'} color={cat?.color || 'gray'} img={photo} size={40} />
-        <span className="pp-mid">
-          <span className="pp-name">{name}</span>
-          <span className="pp-sub">{relDay(t.occurred_at)} · {timeFmt.format(new Date(t.occurred_at))}</span>
-        </span>
-        <span className="pp-amt">{amount(Number(t.amount_crc), cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></span>
-      </button>
-      <Button variant="outline" size="sm" iconOnly onClick={() => onResolve('void')} disabled={busy} aria-label={`${name}: no se cobró`} title="No se cobró"><Icon name="close" size={18} /></Button>
-      <Button variant="outline" size="sm" iconOnly onClick={() => onResolve(null)} disabled={busy} aria-label={`${name}: se cobró`} title="Se cobró"><Icon name="check" size={18} /></Button>
-    </div>
+    <ListRow
+      leading={<Emo e={cat?.emoji || '🚗'} color={cat?.color || 'gray'} img={photo} size={40} />}
+      title={name}
+      detail={`${relDay(t.occurred_at)} · ${timeFmt.format(new Date(t.occurred_at))} · ${amount(Number(t.amount_crc), cur, fx)} ${unitOf(cur)}`}
+      onClick={() => go(`/mov/${t.id}`)}
+      actions={
+        <>
+          <Button variant="secondary" size="xs" onClick={() => onResolve('void')} disabled={busy} aria-label={`${name}: no se cobró`} title="No se cobró">No</Button>
+          <Button variant="primary" size="xs" onClick={() => onResolve(null)} disabled={busy} aria-label={`${name}: sí se cobró`} title="Se cobró">Sí</Button>
+        </>
+      }
+    />
   );
 }

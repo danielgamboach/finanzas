@@ -22,8 +22,8 @@ export const TileYPill: StoryObj = {
     const [p, setP] = useState('q');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div role="radiogroup" className="ds-row">{[['c', '💳', 'Crédito'], ['d', '🏦', 'Débito'], ['e', '💵', 'Efectivo']].map(([k, i, l]) => <OptionCard key={k} type="tile" icon={i} title={l} selected={t === k} onClick={() => setT(k)} />)}</div>
-        <div role="radiogroup" className="ds-row">{[['s', 'Semanal'], ['q', 'Quincenal'], ['m', 'Mensual']].map(([k, l]) => <OptionCard key={k} type="pill" title={l} selected={p === k} onClick={() => setP(k)} />)}</div>
+        <div role="radiogroup" className="ds-doc-row">{[['c', '💳', 'Crédito'], ['d', '🏦', 'Débito'], ['e', '💵', 'Efectivo']].map(([k, i, l]) => <OptionCard key={k} type="tile" icon={i} title={l} selected={t === k} onClick={() => setT(k)} />)}</div>
+        <div role="radiogroup" className="ds-doc-row">{[['s', 'Semanal'], ['q', 'Quincenal'], ['m', 'Mensual']].map(([k, l]) => <OptionCard key={k} type="pill" title={l} selected={p === k} onClick={() => setP(k)} />)}</div>
       </div>
     );
   },

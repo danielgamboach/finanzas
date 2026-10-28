@@ -31,7 +31,7 @@ export function TxRow({ face, name, detail, detailTone = 'default', amount, unit
   const inner = (
     <>
       {selecting && <Checkbox checked={!!selected} />}
-      <Avatar size={context === 'sheet' ? 'md' : 'lg'} {...face} />
+      <Avatar size="md" {...face} />
       <span className="ds-tx__mid">
         <span className="ds-tx__name">{name}</span>
         {detail && <span className={detailTone === 'warning' ? 'ds-tx__detail is-warning' : 'ds-tx__detail'}>{detail}</span>}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Switch } from '../ds';
+import { Button, Chip, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
@@ -11,7 +11,7 @@ import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
 import { go, TX_SELECT, useApp } from '../store';
-import { Icon, Loading, Segmented, tint } from '../ui';
+import { Icon, Loading, Segmented } from '../ui';
 
 type FormType = 'gasto' | 'ingreso' | 'transferir' | 'aporte';
 const TYPE_TO_KIND: Record<FormType, TxKind> = { gasto: 'expense', ingreso: 'income', transferir: 'transfer', aporte: 'contribution' };
@@ -237,9 +237,9 @@ export function TxForm({ id }: { id?: string }) {
     <div className="form-screen">
       <div ref={dragRef} className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
         <div className="grabber" />
-        <div className="row between">
-          <h1 className="h2">{id ? 'Editar movimiento' : 'Nuevo movimiento'}</h1>
-          <Button variant="muted" size="md" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={20} /></Button>
+        <div className="form-head">
+          <h1 className="form-title">{id ? 'Editar movimiento' : 'Nuevo movimiento'}</h1>
+          <Button variant="secondary" size="xs" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
         </div>
 
         {orig?.raw_merchant && (
@@ -255,11 +255,9 @@ export function TxForm({ id }: { id?: string }) {
         <Segmented value={type} options={typeOptions} onChange={setType} />
 
         <div className="amount-block">
-          <div className="row gap6">
+          <div className="row gap6" role="group" aria-label="Moneda">
             {(['CRC', 'USD'] as Currency[]).map((c) => (
-              <button key={c} className={cur === c ? 'mini on' : 'mini'} aria-pressed={cur === c} onClick={() => setCur(c)}>
-                {c === 'CRC' ? '¢ Colones' : '$ Dólares'}
-              </button>
+              <Chip key={c} size="sm" selected={cur === c} onClick={() => setCur(c)}>{c === 'CRC' ? '¢ Colones' : '$ Dólares'}</Chip>
             ))}
           </div>
           <label className="amount-input">
@@ -301,7 +299,6 @@ export function TxForm({ id }: { id?: string }) {
                   key={c.id}
                   className={c.id === categoryId ? 'cat-tile on' : 'cat-tile'}
                   aria-pressed={c.id === categoryId}
-                  style={{ background: tint(c.color, c.id === categoryId) }}
                   onClick={() => setCategoryId(c.id === categoryId ? null : c.id)}
                 >
                   <span className="cat-emoji">{c.emoji}</span>
@@ -312,7 +309,7 @@ export function TxForm({ id }: { id?: string }) {
                 </button>
               ))}
               {shownCats.length < visibleCats.length && (
-                <button className="cat-tile" style={{ background: tint('gray', false) }} onClick={() => setShowAllCats(true)}>
+                <button className="cat-tile" onClick={() => setShowAllCats(true)}>
                   <span className="cat-emoji">✨</span>
                   Más
                 </button>
@@ -397,11 +394,11 @@ export function TxForm({ id }: { id?: string }) {
 
         {error && <div className="error">{error}</div>}
 
-        <Button variant="primary" size="xl" disabled={!canSave || busy} onClick={save} trailing={<Icon name="arrowRight" />}>
+        <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
           {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
         </Button>
         {id && (
-          <Button variant="destructive-outline" size="lg" onClick={remove} leading={<Icon name="trash" size={18} />}>Eliminar movimiento</Button>
+          <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Eliminar movimiento</Button>
         )}
       </div>
     </div>

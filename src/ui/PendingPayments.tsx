@@ -5,7 +5,7 @@ import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { PendingPaymentRow, PendingPayments as PendingPaymentsView } from '../ds';
-import { CardPayment, recEmoji } from '../screens/Recurrentes';
+import { CardPayment, recEmoji, useCardPayment } from '../screens/Recurrentes';
 import { Holds } from './Holds';
 import { SubAsk } from './SubAsk';
 
@@ -16,15 +16,15 @@ import { SubAsk } from './SubAsk';
  */
 export function PendingPayments({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
   return (
-    <>
+    <div className={variant === 'card' ? 'highlights is-card' : 'highlights'}>
       <Holds variant={variant} />
       <SubAsk variant={variant} />
       <ManualPayments variant={variant} />
-    </>
+    </div>
   );
 }
 
-function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
+function ManualPayments(_: { variant: 'sheet' | 'card' }) {
   const { space, accounts } = useApp();
   const { items } = useRecurring(space?.id);
   // what was confirmed in this session, so it can be undone
@@ -32,7 +32,7 @@ function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
 
   const pending = items.filter((r) => needsConfirm(r, accounts)).sort((a, b) => a.next_due.localeCompare(b.next_due));
   const done = items.filter((r) => justPaid(r, accounts) && isManual(r));
-  const card = space?.kind === 'shared';
+  const card = useCardPayment();
   if (!pending.length && !done.length && !card) return null;
 
   const body = (
@@ -50,11 +50,7 @@ function ManualPayments({ variant }: { variant: 'sheet' | 'card' }) {
   );
 
   const list = pending.length > 0 || done.length > 0;
-  return (
-    <div className={variant === 'card' ? 'pp-wrap pp-card' : 'pp-wrap'}>
-      <PendingPaymentsView count={pending.length} top={card ? <CardPayment /> : null}>{list ? body : null}</PendingPaymentsView>
-    </div>
-  );
+  return <PendingPaymentsView count={pending.length + (card ? 1 : 0)} top={card ? <CardPayment card={card} /> : null}>{list ? body : null}</PendingPaymentsView>;
 }
 
 function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {

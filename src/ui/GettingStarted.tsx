@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Button, Progress } from '../ds';
+import { Button, ListGroup, ListRow, Progress } from '../ds';
 import { db } from '../lib/api';
 import { enablePush, permission, pushSupport } from '../lib/push';
 import { go, useApp } from '../store';
 import { shareInvite } from '../screens/Onboarding';
-import { Icon, Sheet } from './index';
+import { Emo, Icon, Sheet } from './index';
 
 interface Item {
   key: string;
@@ -110,46 +110,35 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
   }
 
   const next = items.find((i) => !i.done);
-  const row = (i: Item) => (
-    <li key={i.key}>
-      <button className={i.done ? 'gs-item done' : 'gs-item'} onClick={() => run(i)} disabled={busy === i.key} aria-disabled={i.done}>
-        <span className={i.done ? 'gs-check on' : 'gs-check'} aria-hidden="true">{i.done ? <Icon name="check" size={14} stroke={3} /> : i.emoji}</span>
-        <span className="gs-text">
-          <span className="gs-item-title">{i.title}{i.done && <span className="sr"> (listo)</span>}</span>
-          {!i.done && <span className="gs-item-sub">{i.sub}</span>}
-        </span>
-        {!i.done && <Icon name="chevRight" size={18} />}
-      </button>
-    </li>
+  const row = (i: Item, go: () => void = () => run(i)) => (
+    <ListRow
+      key={i.key}
+      leading={i.done ? <span className="gs-check on" aria-hidden="true"><Icon name="check" size={14} stroke={3} /></span> : <Emo e={i.emoji} color="gray" size={40} />}
+      title={<>{i.title}{i.done && <span className="sr"> (listo)</span>}</>}
+      detail={i.done ? 'Listo' : i.sub}
+      detailTone={i.done ? 'success' : 'muted'}
+      quiet={i.done}
+      chevron={!i.done}
+      onClick={i.done || busy === i.key ? undefined : go}
+    />
   );
 
   return (
-    <section className={`gs ${variant === 'card' ? 'gs-card dcard' : 'gs-sheet'}`} aria-labelledby={`gs-title-${variant}`}>
-      <div className="gs-head">
-        <span className="col">
-          <strong id={`gs-title-${variant}`} className="gs-title">{all ? '¡Terminaste los primeros pasos! 🎉' : 'Primeros pasos'}</strong>
-          <span className="gs-count">{all ? 'Ya tenés todo listo.' : `${doneCount} de ${total} listos`}</span>
-        </span>
-        {all ? (
-          <Button variant="primary" size="md" onClick={hide}>Cerrar</Button>
-        ) : (
-          <Button variant="ghost" size="md" iconOnly className="gs-close" onClick={hide} aria-label="Ocultar primeros pasos"><Icon name="close" size={18} /></Button>
-        )}
-      </div>
-      <Progress className="gs-bar" tone="success" value={doneCount / total} label="Primeros pasos completados" />
-      {!all && variant === 'card' && <ul className="gs-list">{items.map(row)}</ul>}
-      {!all && variant === 'sheet' && next && (
-        <>
-          <ul className="gs-list">{row(next)}</ul>
-          <button className="gs-more" onClick={() => setShowAll(true)}>Ver los {total} pasos</button>
-        </>
-      )}
+    <ListGroup
+      className={variant === 'card' ? 'gs gs-card' : 'gs'}
+      title={all ? '¡Terminaste los primeros pasos! 🎉' : `Primeros pasos · ${doneCount} de ${total}`}
+      action={all ? <Button variant="primary" size="xs" onClick={hide}>Cerrar</Button> : <Button variant="ghost" size="xs" onClick={hide}>Ocultar</Button>}
+      footer={!all && variant === 'sheet' && total > 1 ? <Button variant="ghost" size="xs" onClick={() => setShowAll(true)}>Ver los {total} pasos</Button> : undefined}
+    >
+      <div className="group-pad"><Progress size="sm" tone="success" value={doneCount / total} label="Primeros pasos completados" /></div>
+      {!all && variant === 'card' && items.map((i) => row(i))}
+      {!all && variant === 'sheet' && next && row(next)}
       {showAll && (
         <Sheet title="Primeros pasos" onClose={() => setShowAll(false)}>
-          <span className="gs-count">{doneCount} de {total} listos. Todo es opcional, a tu ritmo.</span>
-          <ul className="gs-list">{items.map((i) => row({ ...i, run: async () => { setShowAll(false); await i.run(); } }))}</ul>
+          <p className="page-text">{doneCount} de {total} listos. Todo es opcional, a tu ritmo.</p>
+          <ListGroup>{items.map((i) => row(i, async () => { setShowAll(false); await i.run(); }))}</ListGroup>
         </Sheet>
       )}
-    </section>
+    </ListGroup>
   );
 }

@@ -38,3 +38,5 @@ export { SpendCard, type SpendBubble } from './organisms/SpendCard/SpendCard';
 export { TxRow, type TxRowProps, type TxAmountTone } from './organisms/TxRow/TxRow';
 export { PendingPayments, PendingPaymentRow } from './organisms/PendingPayments/PendingPayments';
 export { AccountRow, AccountGroup, type AccountRowProps } from './organisms/AccountRow/AccountRow';
+export { ListGroup, ListRow, type ListRowProps, type RowTone } from './molecules/ListGroup/ListGroup';
+export { PageHeader } from './organisms/PageHeader/PageHeader';

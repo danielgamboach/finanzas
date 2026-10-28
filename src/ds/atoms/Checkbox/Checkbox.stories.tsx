@@ -5,5 +5,5 @@ import { Radio } from '../Radio/Radio';
 
 const meta: Meta<typeof Checkbox> = { title: 'Átomos/Checkbox y Radio', component: Checkbox, tags: ['autodocs'] };
 export default meta;
-export const Checkbox_: StoryObj = { name: 'Checkbox', render: () => { const [on, setOn] = useState(true); return <div className="ds-row"><Checkbox checked={false} /><Checkbox checked={on} onChange={setOn} label="Seleccionar" /></div>; } };
-export const Radio_: StoryObj = { name: 'Radio', render: () => <div className="ds-row"><Radio checked={false} /><Radio checked /></div> };
+export const Checkbox_: StoryObj = { name: 'Checkbox', render: () => { const [on, setOn] = useState(true); return <div className="ds-doc-row"><Checkbox checked={false} /><Checkbox checked={on} onChange={setOn} label="Seleccionar" /></div>; } };
+export const Radio_: StoryObj = { name: 'Radio', render: () => <div className="ds-doc-row"><Radio checked={false} /><Radio checked /></div> };

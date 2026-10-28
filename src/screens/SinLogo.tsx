@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EmptyState, ListItem, SearchField } from '../ds';
+import { EmptyState, ListGroup, ListRow, PageHeader, SearchField } from '../ds';
 import { db } from '../lib/api';
 import { normWords } from '../lib/merchants';
-import { useApp } from '../store';
-import { BackBar, Icon, Loading } from '../ui';
+import { navigateBack, useApp } from '../store';
+import { Icon, Loading } from '../ui';
 import { Face, PhotoSheet } from '../ui/Merchant';
 
 /** One merchant without a logo, from any space: a catalog merchant (merchant_id) or a name that isn't in the catalog yet. */
@@ -47,39 +47,36 @@ export function SinLogo() {
   const merchant = pick?.merchant_id ? merchants.find((m) => m.id === pick.merchant_id) || null : null;
 
   return (
-    <div className="screen no-nav">
-      <BackBar title="Comercios sin logo" />
+    <div className="page no-nav">
+      <PageHeader title="Comercios sin logo" onBack={navigateBack} />
+      <div className="page-body">
       {left === 0 ? (
         <EmptyState icon="🎉" title="Todos tienen logo">Cuando aparezca un comercio nuevo sin foto, va a salir acá.</EmptyState>
       ) : (
         <>
-          <span className="muted small px4">
-            {left === 1 ? '1 comercio' : `${left} comercios`} de todos los espacios. Al ponerle foto sale de la lista.
-          </span>
-          <SearchField value={q} onChange={setQ} placeholder="Buscar comercio" aria-label="Buscar comercio" />
-          {list.length === 0 ? (
-            <span className="muted small px4">No hay comercios sin logo con ese nombre.</span>
-          ) : (
-            <div className="card list">
-              {list.map((r) => {
-                const raw = r.raw && normWords(r.raw).trim() !== normWords(r.name).trim() ? r.raw : null;
-                const count = r.movements === 1 ? '1 movimiento' : `${r.movements} movimientos`;
-                return (
-                  <ListItem
-                    key={keyOf(r)}
-                    density="sm"
-                    leading={<Face m={{ id: '', name: r.name, photo_path: null, created_by: null, merchant_patterns: [] }} />}
-                    title={r.name}
-                    subtitle={raw ? `${count} · ${raw}` : count}
-                    trailing={<Icon name="camera" size={20} />}
-                    onClick={() => setPick(r)}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <SearchField size="md" value={q} onChange={setQ} placeholder="Buscar comercio" aria-label="Buscar comercio" />
+          <ListGroup title={left === 1 ? '1 comercio' : `${left} comercios`} note="De todos los espacios. Al ponerle foto sale de la lista.">
+            {list.length === 0 ? (
+              <p className="group-pad page-text">No hay comercios sin logo con ese nombre.</p>
+            ) : list.map((r) => {
+              const raw = r.raw && normWords(r.raw).trim() !== normWords(r.name).trim() ? r.raw : null;
+              const count = r.movements === 1 ? '1 movimiento' : `${r.movements} movimientos`;
+              return (
+                <ListRow
+                  key={keyOf(r)}
+                  leading={<Face m={{ id: '', name: r.name, photo_path: null, created_by: null, merchant_patterns: [] }} />}
+                  title={r.name}
+                  detail={raw ? `${count} · ${raw}` : count}
+                  actions={<span className="set-check" aria-hidden="true"><Icon name="camera" size={16} /></span>}
+                  onClick={() => setPick(r)}
+                  label={`Poner logo a ${r.name}`}
+                />
+              );
+            })}
+          </ListGroup>
         </>
       )}
+      </div>
       {pick && (
         <PhotoSheet
           spaceId={space.id}

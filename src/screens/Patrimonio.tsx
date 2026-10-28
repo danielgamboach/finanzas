@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AccountGroup, AccountRow, Button, HomeHeader, Money, Progress } from '../ds';
+import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, ListGroup, ListRow, PageHeader, Progress } from '../ds';
 import { db } from '../lib/api';
 import { cardOutstanding, cardPaidThrough } from '../lib/calc';
 import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
-import { go, navigate, useApp } from '../store';
-import { BackBar, Emo, Icon, Loading, tint } from '../ui';
+import { go, navigate, navigateBack, useApp } from '../store';
+import { Emo, Icon, Loading, tint } from '../ui';
 import { ACCOUNT_COLORS, accountColor, BRANDS, byKind } from '../lib/accounts';
 import { MovementsBrowser } from './Movimientos';
 import { useDesktop } from '../lib/useDesktop';
@@ -141,8 +141,14 @@ const GROUPS: { title: string; kinds: string[] }[] = [
 const KIND_ICON: Record<string, string> = { credit_card: 'cards', debit: 'bank', savings: 'piggy', investment: 'chartHistogram', cash: 'money', cdp: 'lock', loan: 'receipt', other: 'folder' };
 const KIND_SHORT: Record<string, string> = { credit_card: 'Crédito', debit: 'Débito', savings: 'Ahorro', investment: 'Inversión', cash: 'Efectivo', cdp: 'CDP Plazo', loan: 'Préstamo', other: 'Otra' };
 
+/** The kind's filled icon in the account's color (graphite would vanish: its foreground shows). */
+export function accountIcon(a: Partial<Account>) {
+  const c = accountColor(a);
+  return { name: KIND_ICON[a.kind || 'other'] || 'folder', color: (a.color || 'graphite') === 'graphite' ? c.fg : c.bg };
+}
+
 /** One account as a row of Cuentas: balance in its own currency (cards: what's owed, in the display currency) and, for investments, the change since the previous balance. */
-function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
+export function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
   const { cur, fx } = useApp();
   const c = accountColor(a);
   // the dark graphite would vanish on the list: its foreground shows instead
@@ -151,7 +157,7 @@ function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
   let amt: string, muted = false, delta: { text: string; tone: 'positive' | 'negative' } | undefined;
   if (a.kind === 'credit_card') {
     // one figure in the display currency; the split by currency lives in the card's own view
-    amt = money(w.cardDebt[a.id] || 0, cur, fx);
+    amt = `${amount(w.cardDebt[a.id] || 0, cur, fx)} ${unitOf(cur)}`;
   } else {
     const s = w.latest[a.id];
     if (!s) {
@@ -225,7 +231,9 @@ export function Cuentas() {
   const groups = w.loading && accs.length === 0 ? (
     <Loading />
   ) : accs.length === 0 ? (
-    <a className="card empty center" href="#/cuenta/nueva"><span className="big-emoji">💳</span><strong>Agregá tus cuentas</strong><span>Tarjetas, ahorros, inversiones.</span></a>
+    <EmptyState icon="💳" title="Agregá tus cuentas" action={<Button variant="primary" size="sm" href="#/cuenta/nueva" leading={<Icon name="plus" size={16} solid />}>Nueva cuenta</Button>}>
+      Tarjetas, ahorros, inversiones. Con el saldo de cada una sale tu patrimonio.
+    </EmptyState>
   ) : (
     GROUPS.map((g) => {
       const list = accs.filter((a) => g.kinds.includes(a.kind));
@@ -237,51 +245,55 @@ export function Cuentas() {
       );
     })
   );
-  const goalList = goals.length === 0 ? (
-    <a className="card empty center" href="#/meta/nueva"><span className="big-emoji">🎯</span><strong>Creá tu primera meta</strong><span>Ej. 🏡 Casa, y asociale cuentas.</span></a>
-  ) : (
-    goals.map((gl) => {
-      const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
-      const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
-      const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
-      const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
-      return (
-        <a key={gl.id} href={`#/meta/${gl.id}`} className="card pad col gap8 goal-row">
-          <div className="row between">
-            <strong className="sm">{gl.emoji} {gl.name}</strong>
-            <span className="muted small">{pct}%</span>
-          </div>
-          <Progress value={pct / 100} />
-          <span className="muted small">{money(saved, cur, fx)} de {money(target, cur, fx)}</span>
-        </a>
-      );
-    })
+  const goalList = (
+    <ListGroup title="Metas" action={<a href="#/meta/nueva">Nueva</a>}>
+      {goals.length === 0 ? (
+        <ListRow leading={<Emo e="🎯" color="butter" size={40} />} title="Creá tu primera meta" detail="Ej. 🏡 Casa, con las cuentas que suman" chevron href="#/meta/nueva" />
+      ) : (
+        goals.map((gl) => {
+          const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
+          const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
+          const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
+          const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
+          return (
+            <ListRow
+              key={gl.id}
+              leading={<Emo e={gl.emoji || '🎯'} color={gl.color || 'butter'} size={40} />}
+              title={gl.name}
+              detail={`${money(saved, cur, fx)} de ${money(target, cur, fx)}`}
+              value={`${pct}%`}
+              chevron
+              href={`#/meta/${gl.id}`}
+              below={<Progress size="sm" value={pct / 100} label={`${gl.name}: ${pct}%`} />}
+            />
+          );
+        })
+      )}
+    </ListGroup>
+  );
+  const worth = hasAssets && (
+    <BalanceSummary
+      label="Patrimonio neto"
+      value={amount(w.net, cur, fx, { sign: w.net < 0 ? '−' : '' })}
+      unit={unitOf(cur)}
+      negative={w.net < 0}
+      meta={w.stale ? (w.stale === 1 ? '1 saldo sin actualizar' : `${w.stale} saldos sin actualizar`) : null}
+      action={<Button variant="primary" size="xs" leading={<Icon name="refresh" size={16} />} href="#/saldos">Saldos</Button>}
+    />
   );
 
   if (desk) {
-    // desktop: cards side by side, net worth and goals in a column on the right
+    // desktop: the same lists, with net worth and goals in a column on the right
     return (
       <div className="dpage">
         <header className="dpage-head">
           <h1 className="dtitle">Cuentas</h1>
-          <div className="row gap8">
-            <Button variant="secondary" size="sm" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldos{w.stale ? ` · ${w.stale}` : ''}</Button>
-            <Button variant="primary" size="sm" leading={<Icon name="plus" size={16} stroke={2.4} />} href="#/cuenta/nueva">Nueva cuenta</Button>
-          </div>
+          <Button variant="primary" size="sm" leading={<Icon name="plus" size={16} solid />} href="#/cuenta/nueva">Nueva cuenta</Button>
         </header>
         <div className="dgrid cuentas-grid">
-          <div className="dcol acc-groups-desk">{groups}</div>
-          <aside className="dcol">
-            {hasAssets && (
-              <section className="card pad col gap4">
-                <span className="muted small">Patrimonio neto</span>
-                <strong className="stat-hero">{money(w.net, cur, fx)}</strong>
-              </section>
-            )}
-            <div className="section-head">
-              <h2 className="h2">Metas</h2>
-              <a className="link" href="#/meta/nueva">Nueva</a>
-            </div>
+          <div className="dcol">{groups}</div>
+          <aside className="dcol gap24">
+            {worth}
             {goalList}
           </aside>
         </div>
@@ -290,28 +302,12 @@ export function Cuentas() {
   }
 
   return (
-    <div className="acc-screen">
-      <HomeHeader actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>}>
-        <h1 className="acc-title">Cuentas</h1>
-      </HomeHeader>
-
-      {hasAssets && (
-        <section className="acc-worth" aria-label="Patrimonio neto">
-          <span className="acc-worth-label">Patrimonio neto</span>
-          <Money size="large" value={amount(w.net, cur, fx, { sign: w.net < 0 ? '−' : '' })} unit={unitOf(cur)} />
-          <Button variant="primary" size="xs" leading={<Icon name="refresh" size={16} />} href="#/saldos">Saldos</Button>
-        </section>
-      )}
-
-      <div className="acc-groups">
+    <div className="page">
+      <PageHeader title="Cuentas" actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>} />
+      {worth && <div className="page-hero">{worth}</div>}
+      <div className="page-body">
         {groups}
-        <section className="col gap10 acc-goals">
-          <div className="section-head">
-            <h2 className="ds-acc-group__head">Metas</h2>
-            <a className="link" href="#/meta/nueva">Nueva</a>
-          </div>
-          {goalList}
-        </section>
+        {goalList}
       </div>
     </div>
   );
@@ -344,38 +340,58 @@ function CardPaid({ a, owed, onDone }: { a: Account; owed: number; onDone: () =>
       setBusy(false);
     }
   }
-  return <Button variant="secondary" size="sm" className="acc-update" leading={<Icon name="check" size={16} />} disabled={busy} onClick={paid}>Ya la pagué</Button>;
+  return <Button variant="primary" size="xs" leading={<Icon name="check" size={16} />} disabled={busy} onClick={paid}>Ya la pagué</Button>;
 }
 
-/** One account: its card, the key number and its movements with filters. */
+/** One account: the key number, the action that updates it, and its movements with filters. */
 export function AccountView({ id }: { id: string }) {
-  const { space, accounts } = useApp();
+  const { space, accounts, cur, fx } = useApp();
   const w = useNetWorth(space?.id || null);
   const desk = useDesktop();
   const a = w.accounts.find((x) => x.id === id) || accounts.find((x) => x.id === id);
   if (!a) return <Loading />;
   const isCard = a.kind === 'credit_card';
-  // the card already shows what's owed or the balance; only the action to update it stays
-  const figures = isCard ? <CardPaid a={a} owed={w.cardDebt[a.id] || 0} onDone={w.reload} /> : (
-    <Button variant="secondary" size="sm" className="acc-update" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldo</Button>
-  );
+  const s = w.latest[a.id];
+  const details = [KIND_LABEL[a.kind], a.institution, a.last4 ? `**${a.last4}` : ''].filter(Boolean).join(' · ');
+  let hero: React.ReactNode;
+  if (isCard) {
+    const split = w.cardSplit[a.id];
+    const both = split && Math.abs(split.CRC) >= 1 && Math.abs(split.USD) >= 0.01;
+    hero = (
+      <BalanceSummary
+        label={(w.cardDebt[a.id] || 0) > 0 ? 'Por pagar' : 'Al día'}
+        value={amount(w.cardDebt[a.id] || 0, cur, fx)}
+        unit={unitOf(cur)}
+        meta={both ? `${moneyRaw(split.CRC, 'CRC')} + ${moneyRaw(split.USD, 'USD')} · ${details}` : details}
+        action={<CardPaid a={a} owed={w.cardDebt[a.id] || 0} onDone={w.reload} />}
+      />
+    );
+  } else {
+    hero = (
+      <BalanceSummary
+        label={s ? `Saldo · ${shortDate(s.taken_on + 'T18:00:00Z')}` : 'Sin saldo'}
+        value={s ? amount(Number(s.balance), a.currency, 1) : '0'}
+        unit={a.currency}
+        meta={details}
+        action={<Button variant="primary" size="xs" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldo</Button>}
+      />
+    );
+  }
+  const edit = <Button variant="secondary" size="xs" iconOnly href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" size={14} /></Button>;
   if (desk) {
     return (
       <div className="dpage">
         <header className="dpage-head">
           <div className="row gap12">
-            <Button variant="secondary" size="md" iconOnly href="#/cuentas" aria-label="Volver a cuentas"><Icon name="back" /></Button>
+            <Button variant="secondary" size="xs" iconOnly href="#/cuentas" aria-label="Volver a cuentas"><Icon name="back" size={12} stroke={2.4} /></Button>
             <h1 className="dtitle">{a.name}</h1>
           </div>
           <Button variant="secondary" size="sm" leading={<Icon name="pencil" size={16} />} href={`#/cuenta/${a.id}/editar`}>Editar cuenta</Button>
         </header>
         <div className="dgrid account-grid">
-          <div className="dcol dsticky">
-            <AccountCard a={a} w={w} big />
-            {figures}
-          </div>
-          <section className="dcard dmov">
-            <h2 className="h2 dmov-head">Movimientos</h2>
+          <div className="dcol dsticky">{hero}</div>
+          <section className="dmov">
+            <h2 className="group-head">Movimientos</h2>
             <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} table />
           </section>
         </div>
@@ -383,12 +399,13 @@ export function AccountView({ id }: { id: string }) {
     );
   }
   return (
-    <div className="screen no-nav">
-      <BackBar right={<Button variant="secondary" size="md" iconOnly href={`#/cuenta/${a.id}/editar`} aria-label="Editar cuenta"><Icon name="pencil" /></Button>} />
-      <AccountCard a={a} w={w} big />
-      {figures}
-      <h2 className="h2 px4">Movimientos</h2>
-      <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} />
+    <div className="page no-nav">
+      <PageHeader title={a.name} onBack={navigateBack} actions={edit} />
+      <div className="page-hero">{hero}</div>
+      <div className="page-body">
+        <h2 className="group-head">Movimientos</h2>
+        <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} />
+      </div>
     </div>
   );
 }
@@ -414,33 +431,38 @@ export function Saldos() {
   }
 
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2">Actualizar saldos</h1>
-        <span style={{ width: 48 }} />
-      </header>
-      <p className="muted px4">Poné el saldo de hoy de cada cuenta. Dejá en blanco las que no cambiaron.</p>
-      {w.loading ? <Loading /> : editable.length === 0 ? (
-        <a className="card empty center" href="#/cuenta/nueva"><strong>Primero agregá una cuenta</strong></a>
-      ) : (
-        <div className="card list">
-          {editable.map((a) => (
-            <label key={a.id} className="saldo-row">
-              <Emo e={a.emoji} color="mint" size={44} />
-              <span className="grow col">
-                <strong className="sm">{a.name}</strong>
-                <span className="muted small">{a.institution || KIND_LABEL[a.kind]} · antes {w.latest[a.id] ? moneyRaw(Number(w.latest[a.id]!.balance), a.currency) : '—'}</span>
-              </span>
-              <span className="saldo-input">
-                <span>{a.currency === 'USD' ? '$' : '¢'}</span>
-                <input inputMode="decimal" value={vals[a.id] || ''} onChange={(e) => setVals({ ...vals, [a.id]: e.target.value.replace(/[^0-9.,-]/g, '') })} placeholder="0" aria-label={`Saldo de ${a.name}`} />
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-      <Button variant="primary" size="xl" onClick={save} disabled={busy}>{busy ? 'Guardando…' : 'Guardar saldos'}</Button>
+    <div className="page no-nav">
+      <PageHeader title="Actualizar saldos" onBack={navigateBack} />
+      <div className="page-body">
+        <p className="page-text">Poné el saldo de hoy de cada cuenta. Dejá en blanco las que no cambiaron.</p>
+        {w.loading ? <Loading /> : editable.length === 0 ? (
+          <EmptyState icon="🏦" title="Primero agregá una cuenta" action={<Button variant="primary" size="sm" href="#/cuenta/nueva">Nueva cuenta</Button>} />
+        ) : (
+          <ListGroup>
+            {editable.map((a) => {
+              const ic = accountIcon(a);
+              const last = w.latest[a.id];
+              return (
+                <ListRow
+                  key={a.id}
+                  leading={<ListRow.Icon name={ic.name} color={ic.color} />}
+                  title={a.name}
+                  detail={last ? `Antes ${moneyRaw(Number(last.balance), a.currency)} · ${shortDate(last.taken_on + 'T18:00:00Z')}` : 'Sin saldo todavía'}
+                  actions={
+                    <label className="saldo-input">
+                      <span>{a.currency === 'USD' ? '$' : '¢'}</span>
+                      <input inputMode="decimal" value={vals[a.id] || ''} onChange={(e) => setVals({ ...vals, [a.id]: e.target.value.replace(/[^0-9.,-]/g, '') })} placeholder="0" aria-label={`Saldo de ${a.name}`} />
+                    </label>
+                  }
+                />
+              );
+            })}
+          </ListGroup>
+        )}
+      </div>
+      <div className="page-actions">
+        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !Object.values(vals).some((v) => v.trim())}>{busy ? 'Guardando…' : 'Guardar saldos'}</Button>
+      </div>
     </div>
   );
 }
@@ -507,22 +529,16 @@ export function AccountEdit({ id }: { id: string }) {
 
   const set = (k: keyof Account, v: unknown) => setAcc((a) => ({ ...a, [k]: v }));
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2">{isNew ? 'Nueva cuenta' : 'Editar cuenta'}</h1>
-        <span style={{ width: 48 }} />
-      </header>
-      <div className="wcard big preview" style={{ background: accountColor(acc).bg, color: accountColor(acc).fg }} aria-hidden="true">
-        <span className="wc-top">
-          <span className="wc-name">{acc.name || 'Nombre de la cuenta'}</span>
-          <span className="wc-num">{acc.last4 ? `••••${acc.last4}` : acc.institution || ''}</span>
-        </span>
-        <span className="wc-bottom">
-          <span className="wc-sub">{KIND_LABEL[acc.kind || 'other']}</span>
-          {acc.brand && (acc.kind === 'credit_card' || acc.kind === 'debit') ? <span className="wc-brand">{BRANDS[acc.brand]}</span> : <span className="wc-kind">{acc.emoji}</span>}
-        </span>
-      </div>
+    <div className="page no-nav">
+      <PageHeader title={isNew ? 'Nueva cuenta' : 'Editar cuenta'} onBack={navigateBack} />
+      <div className="page-body">
+      <ListGroup title="Así se ve en Cuentas">
+        <ListRow
+          leading={<ListRow.Icon name={accountIcon(acc).name} color={accountIcon(acc).color} />}
+          title={acc.name || 'Nombre de la cuenta'}
+          detail={[acc.kind === 'credit_card' ? 'USD/CRC' : acc.currency || 'CRC', KIND_SHORT[acc.kind || 'other'] || '', acc.last4 ? `**${acc.last4}` : '', acc.brand && (acc.kind === 'credit_card' || acc.kind === 'debit') ? BRANDS[acc.brand] : '']}
+        />
+      </ListGroup>
       <div className="card pad col gap14">
         <span className="field-label">Color</span>
         <div className="swatches left-swatches" role="radiogroup" aria-label="Color de la tarjeta">
@@ -571,8 +587,11 @@ export function AccountEdit({ id }: { id: string }) {
           <label className="col gap6"><span className="field-label">Saldo de hoy (opcional)</span><input className="input" inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value.replace(/[^0-9.,-]/g, ''))} placeholder="0" /></label>
         )}
       </div>
-      <Button variant="primary" size="xl" onClick={save} disabled={busy || !acc.name?.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-      {!isNew && <Button variant="secondary" size="lg" onClick={archive}>🗄️ Archivar cuenta</Button>}
+      </div>
+      <div className="page-actions">
+        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !acc.name?.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+        {!isNew && <Button variant="ghost" size="md" block onClick={archive}>Archivar cuenta</Button>}
+      </div>
     </div>
   );
 }
@@ -615,12 +634,9 @@ export function GoalEdit({ id }: { id: string }) {
   const assets = w.accounts.filter((a) => a.kind !== 'credit_card' && a.kind !== 'loan');
   void fx;
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2">{isNew ? 'Nueva meta' : 'Editar meta'}</h1>
-        <span style={{ width: 48 }} />
-      </header>
+    <div className="page no-nav">
+      <PageHeader title={isNew ? 'Nueva meta' : 'Editar meta'} onBack={navigateBack} />
+      <div className="page-body">
       <div className="card pad col gap14">
         <label className="col gap6"><span className="field-label">Nombre</span><input className="input" value={g.name || ''} onChange={(e) => setG({ ...g, name: e.target.value })} placeholder="Ej. Casa" /></label>
         <label className="col gap6"><span className="field-label">Emoji</span><input className="input" value={g.emoji || ''} onChange={(e) => setG({ ...g, emoji: e.target.value })} maxLength={8} /></label>
@@ -646,8 +662,11 @@ export function GoalEdit({ id }: { id: string }) {
           </label>
         ))}
       </div>
-      <Button variant="primary" size="xl" onClick={save}>Guardar meta</Button>
-      {!isNew && <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove}>Eliminar meta</Button>}
+      </div>
+      <div className="page-actions">
+        <Button variant="primary" size="lg" block onClick={save} disabled={!g.name?.trim() || !parseAmount(target)}>Guardar meta</Button>
+        {!isNew && <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar meta</Button>}
+      </div>
     </div>
   );
 }

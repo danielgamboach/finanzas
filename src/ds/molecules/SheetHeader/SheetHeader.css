@@ -1,7 +1,8 @@
-.ds-sheet-head { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px 8px 20px; }
+.ds-sheet-head { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 8px 4px; }
 .ds-sheet-head__row { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .ds-sheet-head__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ds-sheet-head__title { margin: 0; border: none; background: none; padding: 0; color: var(--foreground); font: inherit; font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); text-align: left; }
+.ds-sheet-head__row { min-height: 36px; }
 .ds-sheet-head__sub { font-size: var(--text-sm); color: var(--muted-foreground); font-weight: var(--font-weight-medium); }
 .ds-sheet-head--center { gap: 2px; padding: 12px 16px 4px; }
 .ds-sheet-head--center .ds-sheet-head__row { position: relative; justify-content: center; }

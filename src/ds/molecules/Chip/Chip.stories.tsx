@@ -9,7 +9,7 @@ export const Variantes: StoryObj = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {(['sm', 'md', 'lg'] as const).map((s) => (
-        <div key={s} className="ds-row">
+        <div key={s} className="ds-doc-row">
           <span className="ds-label">{s}</span>
           <Chip size={s}>Comida</Chip><Chip size={s} selected>Comida</Chip>
           <Chip size={s} trailing="remove" selected onRemove={() => {}}>🍔 Comida</Chip>
@@ -23,6 +23,6 @@ export const Filtros: StoryObj = {
   render: () => {
     const [on, setOn] = useState(['gastos']);
     const all = ['gastos', 'ingresos', 'por revisar', 'recurrentes'];
-    return <div className="ds-row">{all.map((k) => <Chip key={k} selected={on.includes(k)} count={k === 'por revisar' ? 2 : undefined} onClick={() => setOn((v) => (v.includes(k) ? v.filter((x) => x !== k) : [...v, k]))}>{k}</Chip>)}</div>;
+    return <div className="ds-doc-row">{all.map((k) => <Chip key={k} selected={on.includes(k)} count={k === 'por revisar' ? 2 : undefined} onClick={() => setOn((v) => (v.includes(k) ? v.filter((x) => x !== k) : [...v, k]))}>{k}</Chip>)}</div>;
   },
 };

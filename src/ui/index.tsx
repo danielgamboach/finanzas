@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Button } from '../ds';
 import { createPortal } from 'react-dom';
 import { navigateBack, useApp } from '../store';
 import { moneyParts } from '../lib/format';
@@ -20,7 +19,7 @@ export const tint = (c?: string | null, strong = true) => (PALETTE[c || 'gray'] 
 
 export { Icon } from '../ds/atoms/Icon/Icon';
 import { Icon } from '../ds/atoms/Icon/Icon';
-import { Avatar, Button, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
+import { Avatar, PageHeader, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
 
 /** A merchant's or category's face: the photo, or the emoji on the category color. Thin wrapper over the DS Avatar. */
 export function Emo({ e, color, size = 48, img, badge }: { e: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
@@ -39,15 +38,9 @@ export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {
   );
 }
 
-/** Header for secondary screens: back on the left, optional title and action on the right. */
+/** Header for secondary screens: back, title and actions. A PageHeader underneath. */
 export function BackBar({ title, right }: { title?: React.ReactNode; right?: React.ReactNode }) {
-  return (
-    <header className="topbar">
-      <Button variant="secondary" size="md" iconOnly onClick={navigateBack} aria-label="Volver"><Icon name="back" /></Button>
-      {title ? <h1 className="h2 topbar-title">{title}</h1> : <span />}
-      {right || <span style={{ width: 44 }} />}
-    </header>
-  );
+  return <PageHeader title={title || ''} onBack={navigateBack} actions={right} />;
 }
 
 /** App shorthand for the DS Segmented: options as [value, label] pairs. */

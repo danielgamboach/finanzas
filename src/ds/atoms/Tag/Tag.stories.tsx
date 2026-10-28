@@ -10,7 +10,7 @@ export const TonosYTamanos: StoryObj = {
   name: 'Tonos y tamaños',
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {(['sm', 'md', 'lg'] as const).map((s) => <div key={s} className="ds-row"><span className="ds-label">{s}</span>{TONES.map((t) => <Tag key={t} tone={t} size={s}>{{ neutral: 'Varía', warning: 'Por revisar', ai: 'IA', success: 'Pagado', destructive: 'Atrasado' }[t]}</Tag>)}</div>)}
+      {(['sm', 'md', 'lg'] as const).map((s) => <div key={s} className="ds-doc-row"><span className="ds-label">{s}</span>{TONES.map((t) => <Tag key={t} tone={t} size={s}>{{ neutral: 'Varía', warning: 'Por revisar', ai: 'IA', success: 'Pagado', destructive: 'Atrasado' }[t]}</Tag>)}</div>)}
     </div>
   ),
 };

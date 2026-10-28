@@ -43,7 +43,7 @@ export const Radios: StoryObj = {
     <div className="ds-doc">
       <h1>Radios</h1>
       <p>Todo lo que es píldora o círculo usa full, sin importar su alto.</p>
-      <div className="ds-row" style={{ alignItems: 'flex-end', gap: 24 }}>
+      <div className="ds-doc-row" style={{ alignItems: 'flex-end', gap: 24 }}>
         {Object.entries(tokens.primitives.radius).map(([k, v]) => (
           <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ width: 96, height: 96, background: 'var(--card)', borderRadius: `var(--radius-${k})`, boxShadow: 'inset 0 0 0 1px var(--border)' }} />
@@ -63,7 +63,7 @@ export const Espaciado: StoryObj = {
       <p>Base de 4 px (--spacing). En CSS se escribe en px, siempre un paso de esta escala; el build lo verifica.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tokens.primitives.spacing.filter((v) => v > 0 && v <= 96).map((v) => (
-          <div key={v} className="ds-row">
+          <div key={v} className="ds-doc-row">
             <span className="ds-label">{v / 4} · {v}px</span>
             <span style={{ width: v, height: 16, background: 'var(--highlight)', borderRadius: 'var(--radius-xs)' }} />
           </div>

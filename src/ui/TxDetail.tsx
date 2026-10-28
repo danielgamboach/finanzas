@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Tag } from '../ds';
+import { Button, ListGroup, Money, Tag } from '../ds';
 import { createPortal } from 'react-dom';
 import { db } from '../lib/api';
 import { catLabel } from '../lib/cats';
 import { tagsOf } from '../lib/calc';
-import { cap, money, moneyRaw, shortDate } from '../lib/format';
+import { amount, cap, money, moneyRaw, shortDate, unitOf } from '../lib/format';
 import { normWords, photoUrl, txBadge, txMerchant, type Merchant } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { useDesktop } from '../lib/useDesktop';
@@ -24,7 +24,7 @@ const SOURCE_LABEL: Record<string, string> = {
   recurring: 'Pago recurrente',
   system: 'Automático',
 };
-const fullDate = new Intl.DateTimeFormat('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Costa_Rica' });
+const fullDate = new Intl.DateTimeFormat('es-CR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Costa_Rica' });
 const timeFmt = new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Costa_Rica' });
 
 function close() {
@@ -83,8 +83,8 @@ export function TxDetail({ id }: { id: string }) {
       <div ref={setPanel} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)} className={desk ? 'txd side' : 'txd'} role="dialog" aria-modal="true" aria-label="Detalle del movimiento" onClick={(e) => e.stopPropagation()}>
         <div className={scrolled ? 'txd-bar scrolled' : 'txd-bar'}>
           {!desk && <div className="grabber" />}
-          <Button variant="muted" size="md" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={20} /></Button>
-          <Button variant="primary" size="sm" className="txd-edit" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={16} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
+          <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
+          <Button variant="primary" size="xs" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={14} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
         </div>
         {t ? <Body t={t} /> : <Loading />}
       </div>
@@ -111,15 +111,17 @@ function Body({ t }: { t: Tx }) {
   const who = t.contributor_id ? profiles[t.contributor_id]?.name : null;
   const by = t.created_by && t.source === 'manual' ? profiles[t.created_by]?.name : null;
 
-  const big = t.currency === 'USD' && cur === 'CRC' ? moneyRaw(Number(t.amount), 'USD', { sign: inflow ? '+' : '', decimals: true }) : money(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const own = t.currency === 'USD' && cur === 'CRC';
+  const big = own ? amount(Number(t.amount), 'USD', 1, { sign: inflow ? '+' : '', decimals: true }) : amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const bigUnit = own ? 'USD' : unitOf(cur);
   const conv = t.currency === 'USD' ? (cur === 'CRC' ? `≈ ${money(Number(t.amount_crc), 'CRC', fx)}` : null) : cur === 'USD' ? `${moneyRaw(Number(t.amount), 'CRC')} en colones` : null;
 
   return (
     <>
       <header className="txd-hero">
-        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} size={64} />
+        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} size={56} />
         <h2 className="txd-name">{name}</h2>
-        <span className={t.hold === 'void' ? 'txd-amt muted void' : inflow ? 'txd-amt pos' : t.kind === 'transfer' ? 'txd-amt muted' : 'txd-amt'}>{big}</span>
+        <Money size="large" value={big} unit={bigUnit} tone={t.hold === 'void' || t.kind === 'transfer' ? 'muted' : inflow ? 'positive' : 'default'} strike={t.hold === 'void'} className="txd-amt" />
         {conv && <span className="txd-conv">{conv}</span>}
         <span className="chips center">
           {t.hold === 'pending' && <Tag tone="warning" size="sm">Por confirmar</Tag>}
@@ -133,8 +135,7 @@ function Body({ t }: { t: Tx }) {
       {t.hold === 'pending' && <HoldBox t={t} />}
 
       <section className="field-card txd-fields" aria-label="Detalles">
-        <Row label="Fecha">{cap(fullDate.format(d))}</Row>
-        <Row label="Hora">{timeFmt.format(d)}</Row>
+        <Row label="Fecha">{cap(fullDate.format(d).replace(/\./g, '').replace(/,/g, ''))} · {timeFmt.format(d)}</Row>
         <Row label="Tipo">{KIND_LABEL[t.kind] || t.kind}</Row>
         {(t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund') && (
           <Row label="Categoría">
@@ -180,10 +181,9 @@ function Body({ t }: { t: Tx }) {
       </section>
 
       {note && (
-        <section className="txd-note" aria-label="Nota">
-          <span className="muted small">Nota</span>
-          <p>{note}</p>
-        </section>
+        <ListGroup title="Nota">
+          <p className="txd-note">{note}</p>
+        </ListGroup>
       )}
 
       {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <SameMerchant t={t} name={name} merchant={merchant} />}
@@ -271,13 +271,12 @@ function HoldBox({ t }: { t: Tx }) {
     }
   }
   return (
-    <section className="hold-box" aria-label="Cobro">
-      <p>Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; {settlesIn(t)} si no la marcás. Si no se cobró, se elimina.</p>
+    <ListGroup title="¿Se cobró?" note={`Es una reserva de la app antes del viaje. Todavía no cuenta en el gasto; ${settlesIn(t)} si no la marcás.`}>
       <div className="hold-btns">
-        <Button variant="outline" size="md" disabled={busy} onClick={() => set('void', `${t.merchant || 'Movimiento'}: eliminado, no se cobró`)}>No se cobró</Button>
-        <Button variant="primary" size="md" disabled={busy} onClick={() => set(null, 'Confirmado')}>Se cobró</Button>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => set('void', `${t.merchant || 'Movimiento'}: eliminado, no se cobró`)}>No se cobró</Button>
+        <Button variant="primary" size="sm" disabled={busy} onClick={() => set(null, 'Confirmado')}>Sí, se cobró</Button>
       </div>
-    </section>
+    </ListGroup>
   );
 }
 
@@ -334,8 +333,11 @@ function SameMerchant({ t, name, merchant }: { t: Tx; name: string; merchant: Me
   const title = merchant ? merchant.name : name;
 
   return (
-    <section className="txd-more" aria-label={`Más de ${title}`}>
-      <h3 className="txd-h3">Más de {title}</h3>
+    <ListGroup
+      title={`Más de ${title}`}
+      note={stats?.first && rows && rows.length > 1 ? `Desde el ${shortDate(stats.first)}${rows.length >= 400 ? ' (últimos 400)' : ''}` : undefined}
+      footer={others.length > shown ? <Button variant="ghost" size="xs" onClick={() => setShown((n) => n + 40)}>Ver {Math.min(40, others.length - shown)} más</Button> : undefined}
+    >
       {!rows ? (
         <Loading />
       ) : (
@@ -343,23 +345,19 @@ function SameMerchant({ t, name, merchant }: { t: Tx; name: string; merchant: Me
           {stats && stats.buys > 0 && (
             <div className="txd-stats">
               <span><strong>{stats.buys}</strong>{stats.buys === 1 ? 'compra' : 'compras'}</span>
-              <span><strong>{money(stats.total, cur, fx)}</strong>en total</span>
-              <span><strong>{money(stats.avg, cur, fx)}</strong>promedio</span>
+              <span><strong>{amount(stats.total, cur, fx)}</strong>en total</span>
+              <span><strong>{amount(stats.avg, cur, fx)}</strong>promedio</span>
             </div>
           )}
-          {stats?.first && rows.length > 1 && <p className="txd-since">Desde el {shortDate(stats.first)}{rows.length >= 400 ? ' (últimos 400)' : ''}</p>}
           {others.length === 0 ? (
-            <p className="empty center-text">Es el único movimiento de este comercio.</p>
+            <p className="group-pad page-text">Es el único movimiento de este comercio.</p>
           ) : (
             <div className="txd-list">
-              {others.slice(0, shown).map((x) => <TxRow key={x.id} t={x} showDate />)}
-              {others.length > shown && (
-                <Button variant="secondary" size="sm" onClick={() => setShown((n) => n + 40)}>Ver {Math.min(40, others.length - shown)} más</Button>
-              )}
+              {others.slice(0, shown).map((x) => <TxRow key={x.id} t={x} showDate size="sheet" />)}
             </div>
           )}
         </>
       )}
-    </section>
+    </ListGroup>
   );
 }

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Button, Progress, Switch } from '../ds';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, PageHeader, Progress, Switch } from '../ds';
 import { db } from '../lib/api';
 import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
-import { crIso, money, monthName, monthShort, parseAmount, shortK, todayCR } from '../lib/format';
+import { amount, crIso, money, monthName, monthShort, parseAmount, shortK, todayCR, unitOf } from '../lib/format';
 import type { Category } from '../lib/types';
-import { go, useApp, useTxs } from '../store';
-import { BigMoney, COLOR_NAMES, Emo, Icon, Loading, Segmented, tint } from '../ui';
+import { go, navigateBack, useApp, useTxs } from '../store';
+import { COLOR_NAMES, Emo, Icon, Loading, Segmented, tint } from '../ui';
 import { groupByDay } from './Home';
 import { periodRange, usePeriod } from '../lib/period';
 import { PeriodPicker } from '../ui/PeriodPicker';
@@ -33,6 +33,20 @@ export function CategoryEdit({ id }: { id: string }) {
   const [moveTo, setMoveTo] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  // opened directly (a reload): the category arrives after the first render, so fill the form then
+  const filled = useRef(!!existing);
+  useEffect(() => {
+    if (filled.current || !existing) return;
+    filled.current = true;
+    setParentId(existing.parent_id || '');
+    setName(existing.name);
+    setEmoji(existing.emoji || '✨');
+    setColor(existing.color || 'mint');
+    setKind(existing.kind);
+    setPeriod(existing.limit_period || (existing.limit_amount ? 'monthly' : 'none'));
+    setLimit(existing.limit_amount ? String(existing.limit_amount) : '');
+    setFixed(existing.is_fixed || false);
+  }, [existing]);
   const t = todayCR();
   const range = useMemo(() => ({ from: crIso(t.y, t.m - 5, 1), to: crIso(t.y, t.m + 1, 1) }), [t.y, t.m]);
   const { txs } = useTxs(isNew ? null : range);
@@ -96,15 +110,12 @@ export function CategoryEdit({ id }: { id: string }) {
   }
 
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2">{isNew ? (parent ? 'Nueva subcategoría' : 'Nueva categoría') : parent ? 'Editar subcategoría' : 'Editar categoría'}</h1>
-        <span style={{ width: 48 }} />
-      </header>
+    <div className="page no-nav">
+      <PageHeader title={isNew ? (parent ? 'Nueva subcategoría' : 'Nueva categoría') : parent ? 'Editar subcategoría' : 'Editar categoría'} onBack={navigateBack} />
+      <div className="page-body">
 
       <div className="card pad col gap14 center-items">
-        <Emo e={emoji || '✨'} color={color} size={72} />
+        <Emo e={emoji || '✨'} color={color} size={56} />
         <label className="col gap6 full">
           <span className="field-label">Nombre</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mascotas" />
@@ -174,59 +185,42 @@ export function CategoryEdit({ id }: { id: string }) {
       )}
 
       {!isNew && !parent && existing && (
-        <section className="card pad col gap10">
-          <div className="row between">
-            <h2 className="h3">Subcategorías</h2>
-            <Button variant="secondary" size="md" leading={<Icon name="plus" size={16} stroke={2.6} />} href={`#/categoria/nueva?parent=${existing.id}`}>Subcategoría</Button>
-          </div>
+        <ListGroup title="Subcategorías" action={<a href={`#/categoria/nueva?parent=${existing.id}`}>Nueva</a>} note={kids.length === 0 ? 'Sirven para detallar sin partir el presupuesto, por ejemplo Bares y Café dentro de Salidas.' : undefined}>
           {kids.length === 0 ? (
-            <span className="muted small">Sin subcategorías. Sirven para detallar sin partir el presupuesto, por ejemplo Bares y Café dentro de Salidas.</span>
-          ) : (
-            <div className="col">
-              {kids.map((k) => (
-                <a key={k.id} href={`#/categoria/${k.id}/editar`} className="row gap10 list-row">
-                  <Emo e={k.emoji} color={k.color} size={36} />
-                  <span className="grow sm strong">{k.name}</span>
-                  <Icon name="chevRight" size={18} />
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
+            <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar subcategoría" chevron href={`#/categoria/nueva?parent=${existing.id}`} />
+          ) : kids.map((k) => (
+            <ListRow key={k.id} leading={<Emo e={k.emoji} color={k.color} size={40} />} title={k.name} chevron href={`#/categoria/${k.id}/editar`} />
+          ))}
+        </ListGroup>
       )}
-
-      <Button variant="primary" size="xl" onClick={save} disabled={busy || !name.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
 
       {!isNew && (
         <>
-          <section className="card pad col gap14">
-            <h2 className="h3">Últimos 6 meses</h2>
-            <div className="month-bars short" role="img" aria-label={months.map((m) => `${monthShort(m.m)} ${money(m.v, cur, fx)}`).join(', ')}>
-              {months.map((m, i) => (
-                <div key={i} className="mb-col">
-                  <div className="mb-area">
-                    <div className="mb-fill" style={{ height: `${(m.v / max) * 100}%`, background: i === 5 ? tint(color) : 'var(--chart-bar)' }} />
-                    <span className={i === 5 ? 'mb-val on-light' : 'mb-val'}>{m.v ? Math.round((cur === 'USD' ? m.v / fx : m.v) / 1000) + 'k' : ''}</span>
+          <ListGroup title="Últimos 6 meses">
+            <div className="group-pad">
+              <div className="month-bars short" role="img" aria-label={months.map((m) => `${monthShort(m.m)} ${money(m.v, cur, fx)}`).join(', ')}>
+                {months.map((m, i) => (
+                  <div key={i} className="mb-col">
+                    <div className="mb-area">
+                      <div className={i === 5 ? 'mb-fill is-on' : 'mb-fill'} style={{ height: `${(m.v / max) * 100}%` }} />
+                      {m.v > 0 && <span className={i === 5 ? 'mb-val is-on' : 'mb-val'} style={{ bottom: `calc(${(m.v / max) * 100}% + 4px)` }}>{Math.round((cur === 'USD' ? m.v / fx : m.v) / 1000) + 'k'}</span>}
+                    </div>
+                    <span className={i === 5 ? 'mb-label is-on' : 'mb-label'}>{monthShort(m.m)}</span>
                   </div>
-                  <span className="mb-label">{monthShort(m.m)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </section>
+          </ListGroup>
 
           {thisMonth.length > 0 && (
-            <section className="col gap8">
-              <h2 className="h3 px4">Este mes</h2>
-              <div className="card list">{thisMonth.map((x) => <TxRow key={x.id} t={x} />)}</div>
-            </section>
+            <ListGroup title="Este mes">
+              <div className="txd-list">{thisMonth.map((x) => <TxRow key={x.id} t={x} size="sheet" />)}</div>
+            </ListGroup>
           )}
 
-          <div className="card pad col gap10">
-            <Button variant="secondary" size="lg" onClick={archive}>{existing?.archived ? '♻️ Restaurar categoría' : '🗄️ Archivar (oculta, conserva historial)'}</Button>
-            {!confirmDelete ? (
-              <Button variant="destructive-outline" size="lg" onClick={() => setConfirmDelete(true)} leading={<Icon name="trash" size={18} />}>Eliminar categoría</Button>
-            ) : (
-              <div className="col gap10">
+          {confirmDelete && (
+            <ListGroup title="Eliminar categoría">
+              <div className="group-pad col gap10">
                 <label className="col gap6">
                   <span className="field-label">¿A dónde muevo sus movimientos?</span>
                   <select className="input" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
@@ -236,12 +230,18 @@ export function CategoryEdit({ id }: { id: string }) {
                     ))}
                   </select>
                 </label>
-                <Button variant="destructive" size="lg" onClick={remove}>Eliminar definitivamente</Button>
+                <Button variant="destructive" size="sm" onClick={remove}>Eliminar definitivamente</Button>
               </div>
-            )}
-          </div>
+            </ListGroup>
+          )}
         </>
       )}
+      </div>
+      <div className="page-actions">
+        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !name.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+        {!isNew && <Button variant="ghost" size="md" block onClick={archive}>{existing?.archived ? 'Restaurar categoría' : 'Archivar (oculta, conserva el historial)'}</Button>}
+        {!isNew && !confirmDelete && <Button variant="ghost" size="md" block className="danger" onClick={() => setConfirmDelete(true)} leading={<Icon name="trash" size={16} />}>Eliminar categoría</Button>}
+      </div>
     </div>
   );
 }
@@ -288,73 +288,66 @@ export function CategoryView({ id }: { id: string }) {
   const pct = limit ? Math.round((periodSpent / limit) * 100) : null;
   const groups = groupByDay(inMonth);
 
+  const subLabel = sub !== 'all' ? ` · ${sub === 'none' ? 'sin detalle' : kids.find((k) => k.id === sub)?.name || ''}` : '';
   return (
-    <div className="screen no-nav">
-      <header className="topbar">
-        <Button iconOnly variant="secondary" size="md" onClick={() => history.back()} aria-label="Volver"><Icon name="back" /></Button>
-        <h1 className="h2 row gap8 title-cat">
-          <span aria-hidden="true">{cat.emoji}</span>
-          <span className="col">
-            {parent && <span className="cat-parent">{parent.emoji} {parent.name}</span>}
-            {cat.name}
-          </span>
-        </h1>
-        <Button iconOnly variant="secondary" size="md" onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" /></Button>
-      </header>
-
-      <section className="hero small" aria-label="Total de la categoría">
-        <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />
-        <span className="muted-label">{cat.kind === 'income' ? 'Ingresos' : 'Gastado'} · {period.label}{sub !== 'all' ? ` · ${sub === 'none' ? 'sin detalle' : kids.find((k) => k.id === sub)?.name || ''}` : ''}</span>
-        <BigMoney crc={total} size={48} />
-        <span className="muted-label">{inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}</span>
-      </section>
+    <div className="page no-nav">
+      <PageHeader
+        title={<>{cat.emoji} {cat.name}</>}
+        onBack={navigateBack}
+        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" size={14} /></Button>}
+      />
+      <div className="page-hero">
+        <BalanceSummary
+          label={`${cat.kind === 'income' ? 'Ingresos' : 'Gastado'}${subLabel}${parent ? ` · en ${parent.name}` : ''}`}
+          value={amount(total, cur, fx)}
+          unit={unitOf(cur)}
+          meta={inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}
+          action={<PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />}
+        />
+      </div>
 
       {kids.length > 0 && (
-        <div className="sub-chips" role="tablist" aria-label="Filtrar por subcategoría">
+        <div className="page-chips sub-chips" role="tablist" aria-label="Filtrar por subcategoría">
           {[{ id: 'all', label: 'Todas', emoji: '' }, ...kids.map((k) => ({ id: k.id, label: k.name, emoji: k.emoji })), { id: 'none', label: 'Sin detalle', emoji: '' }]
             .filter((o) => o.id !== 'none' || sub === 'none' || (subTotals.get(id) ?? 0) !== 0)
             .map((o) => {
               const v = o.id === 'all' ? null : subTotals.get(o.id === 'none' ? id : o.id) || 0;
               return (
-                <button key={o.id} role="tab" aria-selected={sub === o.id} className={sub === o.id ? 'pill on' : 'pill'} onClick={() => setSub(o.id)}>
-                  {o.emoji && <span aria-hidden="true">{o.emoji}</span>}
-                  {o.label}
-                  {v ? <span className="pill-n">{shortK(v, cur, fx)}</span> : null}
-                </button>
+                <Chip key={o.id} size="sm" role="tab" aria-selected={sub === o.id} selected={sub === o.id} onClick={() => setSub(o.id)} leading={o.emoji ? <span aria-hidden="true">{o.emoji}</span> : undefined}>
+                  {o.label}{v ? <span className="ds-chip__count"> {shortK(v, cur, fx)}</span> : null}
+                </Chip>
               );
             })}
         </div>
       )}
 
-      {showLimit && limit !== null && (
-        <div className="card pad col gap8">
-          <div className="row between small-strong">
-            <span>{weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}</span>
-            <span className={pct !== null && pct >= 100 ? 'danger' : ''}>{money(periodSpent, cur, fx)} de {money(limit, cur, fx)}</span>
-          </div>
-          <Progress value={(pct || 0) / 100} tone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'} />
-        </div>
-      )}
+      <div className="page-body">
+        {showLimit && limit !== null && (
+          <ListGroup title={weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}>
+            <ListRow
+              title={`${amount(periodSpent, cur, fx)} de ${amount(limit, cur, fx)} ${unitOf(cur)}`}
+              value={`${pct || 0}%`}
+              valueTone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'}
+              below={<Progress size="sm" value={(pct || 0) / 100} tone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'} />}
+            />
+          </ListGroup>
+        )}
 
-      {loading && txs.length === 0 ? (
-        <Loading />
-      ) : groups.length === 0 ? (
-        <div className="card empty center">
-          <span className="big-emoji">{cat.emoji}</span>
-          <strong>Sin movimientos · {period.label}</strong>
-          <span>Probá con otro período.</span>
-        </div>
-      ) : (
-        groups.map((g) => (
-          <section key={g.label} className="col gap8">
-            <div className="row between">
-              <span className="date-pill">{g.label}</span>
-              {g.total !== 0 && <span className="date-pill">{money(g.total, cur, fx)}</span>}
-            </div>
-            <div className="card list">{g.rows.map((x) => <TxRow key={x.id} t={x} />)}</div>
-          </section>
-        ))
-      )}
+        {loading && txs.length === 0 ? (
+          <Loading />
+        ) : groups.length === 0 ? (
+          <EmptyState icon={cat.emoji} title={`Sin movimientos · ${period.label}`}>Probá con otro período.</EmptyState>
+        ) : (
+          <div className="mb-flat">
+            {groups.map((g) => (
+              <section key={g.label} className="mb-day">
+                <div className="mb-day-head row between"><span>{g.label}</span>{g.total !== 0 && <span>{amount(g.total, cur, fx)} {unitOf(cur)}</span>}</div>
+                {g.rows.map((x) => <TxRow key={x.id} t={x} size="sheet" />)}
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

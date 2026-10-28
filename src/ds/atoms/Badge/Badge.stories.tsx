@@ -5,4 +5,4 @@ import { Badge } from './Badge';
 const meta: Meta<typeof Badge> = { title: 'Átomos/Badge', component: Badge, tags: ['autodocs'], args: { count: 3 } };
 export default meta;
 export const Playground: StoryObj<typeof Badge> = {};
-export const Tipos: StoryObj = { render: () => <div className="ds-row"><Badge count={2} /><Badge count={12} /><Badge dot aria-label="Pendiente" /></div> };
+export const Tipos: StoryObj = { render: () => <div className="ds-doc-row"><Badge count={2} /><Badge count={12} /><Badge dot aria-label="Pendiente" /></div> };

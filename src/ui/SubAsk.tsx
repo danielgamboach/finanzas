@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Chip } from '../ds';
+import { Button, Chip, ListGroup, ListRow } from '../ds';
 import { amount, relDay, unitOf } from '../lib/format';
 import { txPhoto } from '../lib/merchants';
 import { answerSub, undoSub, usePendingSubs } from '../lib/subscriptions';
@@ -15,28 +15,17 @@ const SHOWN = 3;
  * normal expense and never asks about that merchant again. Yes asks how often and adds it to Recurrentes,
  * linked to this charge. One row per merchant. Renders nothing when there's nothing to ask.
  */
-export function SubAsk({ variant = 'sheet' }: { variant?: 'sheet' | 'card' }) {
+export function SubAsk(_: { variant?: 'sheet' | 'card' }) {
   const { space } = useApp();
   const rows = usePendingSubs(space?.id);
   const [all, setAll] = useState(false);
   if (!rows.length) return null;
   const list = all ? rows : rows.slice(0, SHOWN);
+  const footer = rows.length > SHOWN ? <Button variant="ghost" size="xs" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</Button> : undefined;
   return (
-    <section className={variant === 'card' ? 'pp pp-card' : 'pp'} aria-label="¿Es una suscripción?">
-      <div className="pp-head">
-        <span>¿Es una suscripción?</span>
-        <Badge count={rows.length} />
-      </div>
-      <div className="pp-list">
-        {list.map((t) => <SubRow key={t.id} t={t} />)}
-        {rows.length > SHOWN && (
-          <div className="hold-foot">
-            <Button variant="ghost" size="xs" onClick={() => setAll((v) => !v)}>{all ? 'Ver menos' : `Ver ${rows.length - SHOWN} más`}</Button>
-            <span />
-          </div>
-        )}
-      </div>
-    </section>
+    <ListGroup title="¿Es una suscripción?" count={rows.length} footer={footer}>
+      {list.map((t) => <SubRow key={t.id} t={t} />)}
+    </ListGroup>
   );
 }
 
@@ -66,32 +55,27 @@ function SubRow({ t }: { t: Tx }) {
   }
 
   return (
-    <div className={step === 'freq' ? 'pp-row sub-row is-open' : 'pp-row sub-row'}>
-      <div className="sub-top">
-        <button className="pp-main" onClick={() => go(`/mov/${t.id}`)}>
-          <Emo e={cat?.emoji || '💳'} color={cat?.color || 'gray'} img={txPhoto(merchants, t)} size={40} />
-          <span className="pp-mid">
-            <span className="pp-name">{name}</span>
-            <span className="pp-sub">{relDay(t.occurred_at)} · {money}</span>
-          </span>
-        </button>
-        {step === 'ask' ? (
-          <span className="sub-actions">
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => answer(false)}>No</Button>
-            <Button variant="primary" size="sm" disabled={busy} onClick={() => setStep('freq')}>Sí</Button>
-          </span>
-        ) : (
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setStep('ask')}>Volver</Button>
-        )}
-      </div>
-      {step === 'freq' && (
+    <ListRow
+      leading={<Emo e={cat?.emoji || '💳'} color={cat?.color || 'gray'} img={txPhoto(merchants, t)} size={40} />}
+      title={name}
+      detail={`${relDay(t.occurred_at)} · ${money}`}
+      onClick={() => go(`/mov/${t.id}`)}
+      actions={step === 'ask' ? (
+        <>
+          <Button variant="secondary" size="xs" disabled={busy} onClick={() => answer(false)} aria-label={`${name}: no es suscripción`}>No</Button>
+          <Button variant="primary" size="xs" disabled={busy} onClick={() => setStep('freq')} aria-label={`${name}: sí es suscripción`}>Sí</Button>
+        </>
+      ) : (
+        <Button variant="ghost" size="xs" disabled={busy} onClick={() => setStep('ask')}>Volver</Button>
+      )}
+      below={step === 'freq' ? (
         <div className="sub-freq" role="group" aria-label={`¿Cada cuánto se cobra ${name}?`}>
           <span className="sub-freq-q">¿Cada cuánto se cobra?</span>
           <div className="sub-freq-chips">
             {FREQS.map(([f, label]) => <Chip key={f} size="sm" disabled={busy} onClick={() => answer(true, f)}>{label}</Chip>)}
           </div>
         </div>
-      )}
-    </div>
+      ) : undefined}
+    />
   );
 }

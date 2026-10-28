@@ -103,7 +103,7 @@ function KaiSheet({ seed, onClose }: { seed?: string; onClose: () => void }) {
           enterKeyHint="send"
           autoComplete="off"
         />
-        <Button variant="primary" size="md" iconOnly type="submit" className="kai-send" disabled={busy || q.trim().length < 3} aria-label="Preguntar"><Icon name="arrowUp" size={18} /></Button>
+        <Button variant="primary" size="sm" iconOnly type="submit" className="kai-send" disabled={busy || q.trim().length < 3} aria-label="Preguntar"><Icon name="arrowUp" size={18} /></Button>
       </form>
 
       {!res && (

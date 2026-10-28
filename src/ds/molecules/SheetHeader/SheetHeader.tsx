@@ -18,7 +18,7 @@ export function SheetHeader({ title, subtitle, onClose, layout = 'start', grabbe
       <div className="ds-sheet-head__row">
         <div className="ds-sheet-head__text">{t}{subtitle && <span className="ds-sheet-head__sub">{subtitle}</span>}</div>
         {children}
-        {onClose && <Button variant="muted" size="md" iconOnly aria-label="Cerrar" onClick={onClose} className="ds-sheet-head__close"><Icon name="close" size={20} /></Button>}
+        {onClose && <Button variant="secondary" size="xs" iconOnly aria-label="Cerrar" onClick={onClose} className="ds-sheet-head__close"><Icon name="close" size={14} stroke={2.4} /></Button>}
       </div>
     </div>
   );

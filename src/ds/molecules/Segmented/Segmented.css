@@ -1,10 +1,10 @@
 .ds-seg { background: var(--secondary); padding: 4px; }
 .ds-seg button { border: none; background: transparent; font: inherit; font-weight: var(--font-weight-medium); white-space: nowrap; color: var(--secondary-foreground); }
 .ds-seg button.is-on { background: var(--primary); color: var(--primary-foreground); }
-.ds-seg--md { display: grid; gap: 4px; border-radius: var(--radius-2xl); }
-.ds-seg--md button { height: 44px; padding: 0 12px; border-radius: var(--radius-xl); font-size: var(--text-sm); }
-.ds-seg--sm { display: inline-flex; gap: 2px; border-radius: var(--radius-xl); }
-.ds-seg--sm button { height: 28px; padding: 0 10px; border-radius: var(--radius-lg); font-size: var(--text-xs); color: var(--muted-foreground); }
+.ds-seg--md { display: grid; gap: 2px; padding: 2px; border-radius: var(--radius-xl); }
+.ds-seg--md button { height: 32px; padding: 0 12px; border-radius: var(--radius-lg); font-size: var(--text-sm); }
+.ds-seg--sm { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-lg); }
+.ds-seg--sm button { height: 24px; padding: 0 8px; border-radius: var(--radius-md); font-size: var(--text-xs); color: var(--muted-foreground); }
 .ds-seg--ghost { display: flex; justify-content: center; gap: 8px; padding: 0; background: none; }
 .ds-seg--ghost button { height: 28px; padding: 0 10px; border-radius: var(--radius-lg); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
 .ds-seg--ghost button.is-on { background: none; color: var(--foreground); }

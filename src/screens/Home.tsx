@@ -21,9 +21,9 @@ export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [numb
   };
   return (
     <div className="month-nav">
-      <Button variant="ghost" size="md" iconOnly onClick={() => shift(-1)} aria-label="Mes anterior"><Icon name="chevLeft" /></Button>
-      <span>{cap(monthName(ym[1]))} {ym[0]}</span>
-      <Button variant="ghost" size="md" iconOnly onClick={() => shift(1)} aria-label="Mes siguiente" disabled={isCurrent}><Icon name="chevRight" /></Button>
+      <Button variant="secondary" size="xs" iconOnly onClick={() => shift(-1)} aria-label="Mes anterior"><Icon name="back" size={12} stroke={2.4} /></Button>
+      <span className="month-nav-label">{cap(monthShort(ym[1]))} {ym[0]}</span>
+      <Button variant="secondary" size="xs" iconOnly onClick={() => shift(1)} aria-label="Mes siguiente" disabled={isCurrent}><Icon name="angleRight" size={12} stroke={2.4} /></Button>
     </div>
   );
 }

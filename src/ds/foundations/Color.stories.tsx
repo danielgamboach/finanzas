@@ -68,7 +68,7 @@ export const Datos: StoryObj = {
       <h1>Colores de datos</h1>
       <p>Los eligen las personas: categorías (pastel y fuerte) y tarjetas de cuenta. Iguales en los dos modos.</p>
       <h2>Categorías</h2>
-      <div className="ds-row">
+      <div className="ds-doc-row">
         {statics.filter((n) => /^category-[a-z]+$/.test(n) && n !== 'category-foreground').map((n) => (
           <div key={n} style={{ width: 132, padding: 14, borderRadius: 'var(--radius-3xl)', background: `var(--${n}-subtle)`, color: 'var(--category-foreground)', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ width: 32, height: 32, borderRadius: 'var(--radius-full)', background: `var(--${n})` }} />
@@ -78,7 +78,7 @@ export const Datos: StoryObj = {
         ))}
       </div>
       <h2>Cuentas</h2>
-      <div className="ds-row">
+      <div className="ds-doc-row">
         {statics.filter((n) => /^account-[a-z]+$/.test(n)).map((n) => (
           <div key={n} style={{ width: 160, height: 100, padding: 14, borderRadius: 'var(--radius-2xl)', background: `var(--${n})`, color: `var(--${n}-foreground)`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <span className="type-label-sm">{n.replace('account-', '')}</span>
@@ -98,7 +98,7 @@ export const Primitivos: StoryObj = {
         <h1>Paleta (Tailwind v4.1)</h1>
         <p>Primitivos. En componentes se usan los semánticos; estos existen para construirlos.</p>
         {Object.entries(color).filter(([, v]) => typeof v === 'object').map(([fam, steps]) => (
-          <div key={fam} className="ds-row" style={{ gap: 4 }}>
+          <div key={fam} className="ds-doc-row" style={{ gap: 4 }}>
             <span className="ds-label">{fam}</span>
             {Object.keys(steps as Record<string, string>).map((s) => (
               <span key={s} title={`--color-${fam}-${s}`} style={{ width: 56, height: 40, borderRadius: 'var(--radius-md)', background: `var(--color-${fam}-${s})`, display: 'grid', placeItems: 'end start', padding: 4, fontSize: 'var(--text-xs)', color: Number(s) >= 500 ? 'var(--color-white)' : 'var(--color-neutral-900)' }}>{s}</span>

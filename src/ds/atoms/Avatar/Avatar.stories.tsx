@@ -15,7 +15,7 @@ export const Tipos: StoryObj = {
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {(['sm', 'md', 'lg'] as const).map((s) => (
-        <div key={s} className="ds-row">
+        <div key={s} className="ds-doc-row">
           <span className="ds-label">{s}</span>
           <Avatar emoji="🛒" color="mint" size={s} />
           <Avatar emoji="🍔" color="peach" size={s} />

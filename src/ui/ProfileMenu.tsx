@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { needsConfirm, useRecurring } from '../lib/recurring';
 import { go, useApp } from '../store';
-import { Icon, Segmented, Sheet } from '.';
-import { Badge, ProfileButton as ProfileButtonView } from '../ds';
+import { Emo, Icon, Segmented, Sheet } from '.';
+import { ListGroup, ListRow, ProfileButton as ProfileButtonView } from '../ds';
 
 /** "🌱 Simbiosis ⌄": the current space; opens the profile menu (profile, spaces, settings). */
 export function ProfileButton() {
@@ -32,49 +32,33 @@ function ProfileSheet({ onClose, pending }: { onClose: () => void; pending: numb
   };
   return (
     <Sheet title="Perfil" onClose={onClose}>
-      <div className="col gap8">
-        <span className="field-label">Espacio</span>
-        <div className="col gap6">
-          {spaces.map((s) => (
-            <button
+      <ListGroup title="Espacio">
+        {spaces.map((s) => {
+          const on = s.id === space?.id;
+          return (
+            <ListRow
               key={s.id}
-              className={s.id === space?.id ? 'space-row on' : 'space-row'}
-              aria-pressed={s.id === space?.id}
-              onClick={() => {
-                setSpaceId(s.id);
-                bump();
-                onClose();
-              }}
-            >
-              <span className="space-emoji" aria-hidden="true">{s.emoji}</span>
-              <span className="grow col">
-                <strong className="sm">{s.name}</strong>
-                <span className="muted small">{s.kind === 'shared' ? 'Compartido' : 'Solo vos'}</span>
-              </span>
-              {s.id === space?.id && <Icon name="check" size={18} stroke={2.6} />}
-            </button>
-          ))}
+              leading={<Emo e={s.emoji} color={s.kind === 'shared' ? 'mint' : 'sky'} size={40} />}
+              title={s.name}
+              detail={s.kind === 'shared' ? 'Compartido' : 'Solo vos'}
+              actions={on ? <span className="set-check" aria-label="Espacio actual"><Icon name="check" size={16} stroke={2.4} /></span> : undefined}
+              onClick={on ? onClose : () => { setSpaceId(s.id); bump(); onClose(); }}
+              label={on ? `${s.name}, espacio actual` : `Cambiar a ${s.name}`}
+            />
+          );
+        })}
+      </ListGroup>
+
+      <ListGroup title="Ver montos en">
+        <div className="group-pad">
+          <Segmented value={cur} options={[['CRC', '¢ Colones'], ['USD', '$ Dólares']]} onChange={(v) => v !== cur && toggleCur()} dark={false} />
         </div>
-      </div>
+      </ListGroup>
 
-      <div className="col gap8">
-        <span className="field-label">Ver montos en</span>
-        <Segmented value={cur} options={[['CRC', '¢ Colones'], ['USD', '$ Dólares']]} onChange={(v) => v !== cur && toggleCur()} dark={false} />
-      </div>
-
-      <div className="menu-list">
-        <button className="menu-row" onClick={() => to('/recurrentes')}>
-          <span className="menu-ico"><Icon name="repeat" size={18} /></span>
-          <span className="grow col"><strong className="sm">Recurrentes</strong><span className="muted small">Pagos fijos y suscripciones</span></span>
-          {pending > 0 && <Badge className="count-badge" count={pending} />}
-          <Icon name="chevRight" size={18} />
-        </button>
-        <button className="menu-row" onClick={() => to('/ajustes')}>
-          <span className="menu-ico"><Icon name="gear" size={18} /></span>
-          <span className="grow col"><strong className="sm">Ajustes</strong><span className="muted small">Notificaciones, fotos, espacios, vouchers</span></span>
-          <Icon name="chevRight" size={18} />
-        </button>
-      </div>
+      <ListGroup>
+        <ListRow leading={<ListRow.Icon name="repeat" />} title="Recurrentes" detail={pending > 0 ? `${pending} por confirmar` : 'Pagos fijos y suscripciones'} detailTone={pending > 0 ? 'warning' : 'muted'} chevron onClick={() => to('/recurrentes')} />
+        <ListRow leading={<ListRow.Icon name="gear" />} title="Ajustes" detail="Notificaciones, espacios, vouchers" chevron onClick={() => to('/ajustes')} />
+      </ListGroup>
     </Sheet>
   );
 }
