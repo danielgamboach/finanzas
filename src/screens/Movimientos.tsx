@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Chip, SearchField } from '../ds';
+import { Badge, Button, Chip, EmptyState, SearchField } from '../ds';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, type PeriodKey } from '../lib/period';
@@ -16,6 +16,8 @@ import { groupByDay } from './Home';
 type Kind = 'todos' | 'gastos' | 'ingresos';
 interface Filters { kind: Kind; review: boolean; rec: boolean; cat: string; acc: string; tag: string }
 const EMPTY: Filters = { kind: 'todos', review: false, rec: false, cat: '', acc: '', tag: '' };
+/** Rows the closed home sheet shows (the rest fade out under the summary). */
+const SHEET_ROWS = 14;
 const todayStr = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 
 /**
@@ -23,7 +25,12 @@ const todayStr = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0,
  * removable chips. All the options live in the filter sheet (period, type, category, account, tag).
  * Lives inside the home sheet (white) and inside an account's view (dark, with `accountId` fixed).
  */
-export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov', table = false, limit }: { accountId?: string; autoFocus?: boolean; screen?: string; table?: boolean; limit?: number }) {
+export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov', table = false, limit, sheet: home }: {
+  accountId?: string; autoFocus?: boolean; screen?: string; table?: boolean; limit?: number;
+  /** Inside the home sheet: same rows as the closed sheet (date in the row, no day headers); the search and
+   *  filters fold in above them when it opens, and `focus` changing puts the cursor in the search. */
+  sheet?: { open: boolean; focus: number };
+}) {
   const { categories, accounts, tags, cur, fx, toast, bump, space } = useApp();
   const [aiBusy, setAiBusy] = useState(false);
   const [pk, setPk] = usePeriod(screen);
@@ -46,6 +53,19 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   useEffect(() => {
     if (autoFocus) search.current?.focus({ preventScroll: true });
   }, [autoFocus]);
+  // the home sheet: focus the search when asked; closing it leaves everything as it was at the start
+  const sheetOpen = home?.open ?? true;
+  useEffect(() => {
+    if (home?.open && home.focus > 0) search.current?.focus({ preventScroll: true });
+  }, [home?.open, home?.focus]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!home || home.open) return;
+    setQ('');
+    setF(EMPTY);
+    setSel(null);
+    setShown(limit || 150);
+    search.current?.blur();
+  }, [home?.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const txs = useMemo(() => (accountId ? all.filter((t) => t.account_id === accountId || t.to_account_id === accountId) : all), [all, accountId]);
 
@@ -157,6 +177,8 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
 
   return (
     <div className={table ? 'mb mb-table' : 'mb'}>
+      <div className={home ? `mb-reveal${sheetOpen ? ' is-open' : ''}` : 'mb-controls'} aria-hidden={home && !sheetOpen ? true : undefined} inert={home && !sheetOpen ? true : undefined}>
+      <div className="mb-reveal-inner">
       <div className="mb-top">
         <SearchField ref={search} wrapClassName="mb-search" size="md" placeholder="Buscar movimientos" value={q} onChange={setQ} aria-label="Buscar movimientos" />
         <Button variant={count ? 'primary' : 'secondary'} size="md" iconOnly className="mb-filter-btn" onClick={() => setSheet(true)} aria-label={count ? `Filtros, ${count} activos` : 'Filtros'}>
@@ -191,23 +213,29 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
           )}
         </div>
       )}
-
-      {filtered.length > 0 && (
-        <div className="mb-sum-row">
-          <p className="mb-sum" aria-live="polite">
-            {filtered.length === 1 ? '1 movimiento' : `${filtered.length} movimientos`}
-            {total > 0 && <> · <strong>{amount(total, cur, fx)} {unitOf(cur)}</strong> {inflow ? 'en ingresos' : 'en gastos'}</>}
-          </p>
-        </div>
-      )}
+      </div>
+      </div>
 
       {loading && all.length === 0 ? (
         <Loading />
+      ) : filtered.length === 0 && home && !sheetOpen ? (
+        <EmptyState icon="🧾" title="Todavía no hay movimientos este mes">Tocá + arriba para agregar uno.</EmptyState>
       ) : filtered.length === 0 ? (
         <div className="mb-empty">
           <span>{empty}</span>
           {(count > 0 || q) && (
             <Button variant="link" onClick={() => { setF(EMPTY); setPk('month'); setQ(''); }}>Quitar filtros</Button>
+          )}
+        </div>
+      ) : home ? (
+        <div className="mb-flat">
+          {filtered.slice(0, sheetOpen ? shown : SHEET_ROWS).map((t) => (dim(t) ? (
+            <div key={t.id} className="sel-dim"><TxRow t={t} showDate /></div>
+          ) : (
+            <div key={t.id} className="mb-hold" {...(sheetOpen && canCategorize(t) ? press(t.id) : {})}><TxRow t={t} showDate pick={pickOf(t)} /></div>
+          )))}
+          {sheetOpen && filtered.length > shown && (
+            <Button variant="secondary" size="sm" onClick={() => setShown((n) => n + 150)}>Mostrar más</Button>
           )}
         </div>
       ) : table ? (

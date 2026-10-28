@@ -1,16 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Button, EmptyState, Grabber, SheetHeader } from '../ds';
+import { Button, Grabber, SheetHeader } from '../ds';
 import type { Tx } from '../lib/types';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { Icon } from '.';
-import { TxRow } from './TxRow';
 import { PendingPayments } from './PendingPayments';
 import { GettingStarted } from './GettingStarted';
 
 /**
  * The sheet on the home screen. Collapsed it shows what needs attention and the latest movements under
- * the summary; pulled up, the same highlights stay on top and the list below becomes the full one with
- * search and filters. Horizontal swipes keep moving
+ * the summary; pulled up, everything stays where it was and only the search and filters fold in above the
+ * rows (no remount, no flash), and the list can scroll on. Horizontal swipes keep moving
  * between panels while it's collapsed.
  */
 export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolean; setOpen: (v: boolean) => void; recent: Tx[]; topRef: React.RefObject<HTMLElement | null>; focus: number }) {
@@ -121,15 +120,8 @@ export function TxSheet({ open, setOpen, recent, topRef, focus }: { open: boolea
         {/* what needs attention (rides to confirm, payments due, first steps) stays put when the sheet opens */}
         <GettingStarted variant="sheet" />
         <PendingPayments />
-        {open ? (
-          <MovementsBrowser autoFocus={focusKey > 0} key={focusKey} />
-        ) : recent.length === 0 ? (
-          <EmptyState icon="🧾" title="Todavía no hay movimientos">Tocá + arriba para agregar uno.</EmptyState>
-        ) : (
-          <div className="tx-sheet-recent">
-            {recent.map((t) => <TxRow key={t.id} t={t} showDate />)}
-          </div>
-        )}
+        {/* one list in both states: the closed sheet's rows stay put and the search and filters fold in above them */}
+        <MovementsBrowser sheet={{ open, focus: focusKey }} />
       </div>
       {!open && <div className="tx-sheet-fade" aria-hidden="true" />}
     </div>

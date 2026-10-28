@@ -1013,3 +1013,14 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 .acc-groups { display: flex; flex-direction: column; gap: 16px; padding: 8px 24px; }
 .acc-goals .section-head { padding: 0 4px; }
 .acc-groups-desk { gap: 16px; }
+
+/* the movements browser: controls in place everywhere; in the home sheet they fold in when it opens */
+.mb-controls, .mb-controls > .mb-reveal-inner { display: contents; }
+.mb-reveal { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(-6px); transition: grid-template-rows .34s cubic-bezier(.2,.8,.2,1), opacity .22s ease, transform .34s cubic-bezier(.2,.8,.2,1); }
+.mb-reveal.is-open { grid-template-rows: 1fr; opacity: 1; transform: none; transition-delay: 0s, .06s, 0s; }
+.mb-reveal > .mb-reveal-inner { min-height: 0; overflow: hidden; margin: 0 -16px; padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.mb-reveal.is-open > .mb-reveal-inner { padding-bottom: 6px; }
+.tx-sheet-body > .mb { gap: 0; }
+.tx-sheet-body .mb-flat { margin-top: 4px; }
+.mb-flat { display: flex; flex-direction: column; }
+@media (prefers-reduced-motion: reduce) { .mb-reveal, .mb-reveal.is-open { transition: none; transform: none; } }
