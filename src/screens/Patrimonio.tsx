@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AccountGroup, AccountRow, Button, HomeHeader, Money, Progress } from '../ds';
 import { db } from '../lib/api';
-import { cardOutstanding } from '../lib/calc';
+import { cardOutstanding, cardPaidThrough } from '../lib/calc';
 import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
 import { go, navigate, useApp } from '../store';
@@ -37,14 +37,13 @@ export interface WorthData {
 
 const toCrc = (v: number, a: Account, fx: number) => (a.currency === 'USD' ? v * fx : v);
 
-/** What's been charged to a card since its last recorded payment, split by the currency of each charge. */
-function cardByCurrency(card: Account, txs: Tx[]) {
-  const pays = txs.filter((t) => t.to_account_id === card.id && t.kind === 'transfer').map((t) => t.occurred_at).sort();
-  const since = pays[pays.length - 1] || '';
+/** What's been charged to a card since it was last paid, split by the currency of each charge. */
+function cardByCurrency(card: Account, txs: Tx[], spaceCards: Set<string>) {
+  const since = cardPaidThrough(card, txs, spaceCards);
   const out = { CRC: 0, USD: 0 };
   for (const t of txs) {
-    if (t.account_id !== card.id || t.occurred_at <= since) continue;
-    const sign = t.kind === 'expense' ? 1 : t.kind === 'refund' ? -1 : 0;
+    if (t.account_id !== card.id || t.occurred_at < since) continue;
+    const sign = t.kind === 'expense' && !t.hold ? 1 : t.kind === 'refund' ? -1 : 0;
     out[t.currency === 'USD' ? 'USD' : 'CRC'] += sign * Number(t.amount);
   }
   return out;
@@ -69,7 +68,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const cards = accs.filter((a) => a.kind === 'credit_card').map((a) => a.id);
       const since = new Date(Date.now() - 60 * 86400000).toISOString();
       const ct = cards.length
-        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold').eq('space_id', spaceId).gte('occurred_at', since).limit(3000).then((r) => r.filter((t) => t.hold !== 'void'))
+        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').eq('space_id', spaceId).gte('occurred_at', since).limit(3000).then((r) => r.filter((t) => t.hold !== 'void'))
         : [];
       if (!alive) return;
       setAccounts(accs);
@@ -88,11 +87,12 @@ export function useNetWorth(spaceId: string | null): WorthData {
   const cardDebt: Record<string, number> = {};
   const cardSplit: Record<string, { CRC: number; USD: number }> = {};
   const now = Date.now();
+  const spaceCards = new Set(accounts.filter((a) => a.kind === 'credit_card').map((a) => a.id));
   for (const a of accounts) {
     if (a.kind === 'credit_card') {
-      const owed = cardOutstanding(a, cardTx);
+      const owed = cardOutstanding(a, cardTx, spaceCards);
       cardDebt[a.id] = owed;
-      cardSplit[a.id] = cardByCurrency(a, cardTx);
+      cardSplit[a.id] = cardByCurrency(a, cardTx, spaceCards);
       debts += owed;
       cards += owed;
       continue;
@@ -317,6 +317,36 @@ export function Cuentas() {
   );
 }
 
+/** "Ya la pagué": records a payment to the card so what's owed goes back to zero (with undo). */
+function CardPaid({ a, owed, onDone }: { a: Account; owed: number; onDone: () => void }) {
+  const { space, accounts, toast, bump } = useApp();
+  const [busy, setBusy] = useState(false);
+  if (owed <= 0) return null;
+  async function paid() {
+    if (!space) return;
+    setBusy(true);
+    try {
+      const debit = accounts.find((x) => x.kind === 'debit' && !x.archived && x.space_id === a.space_id);
+      const [tx] = await db.insert<Tx>('transactions', {
+        space_id: a.space_id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
+        merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: a.id, source: 'system',
+      });
+      toast(`✅ ${a.name}: pagada`, async () => {
+        if (tx?.id) await db.remove('transactions', { id: tx.id });
+        onDone();
+        bump();
+      });
+      onDone();
+      bump();
+    } catch {
+      toast('No se pudo registrar el pago');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <Button variant="secondary" size="sm" className="acc-update" leading={<Icon name="check" size={16} />} disabled={busy} onClick={paid}>Ya la pagué</Button>;
+}
+
 /** One account: its card, the key number and its movements with filters. */
 export function AccountView({ id }: { id: string }) {
   const { space, accounts } = useApp();
@@ -326,7 +356,7 @@ export function AccountView({ id }: { id: string }) {
   if (!a) return <Loading />;
   const isCard = a.kind === 'credit_card';
   // the card already shows what's owed or the balance; only the action to update it stays
-  const figures = isCard ? null : (
+  const figures = isCard ? <CardPaid a={a} owed={w.cardDebt[a.id] || 0} onDone={w.reload} /> : (
     <Button variant="secondary" size="sm" className="acc-update" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldo</Button>
   );
   if (desk) {

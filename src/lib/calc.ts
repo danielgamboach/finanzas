@@ -110,15 +110,31 @@ export function categoryStats(cats: Category[], txs: Tx[], month: Range, week: R
     .sort((a, b) => a.cat.sort - b.cat.sort);
 }
 
-/** Money owed on a credit card since the last recorded payment to it. */
-export function cardOutstanding(card: Account, txs: Tx[]) {
-  const onCard = txs.filter((t) => t.account_id === card.id || t.to_account_id === card.id).sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
-  let owed = 0;
-  for (const t of onCard) {
-    if (t.to_account_id === card.id && t.kind === 'transfer') owed = Math.max(0, owed - Number(t.amount_crc));
-    else owed += spend(t);
+/**
+ * Since when a credit card is unpaid. Paying a card brings it back to zero, whatever the amount:
+ * - the weekly "Pago de tarjeta" of a shared space (external_id `card-week:<start>`) covers that whole week
+ *   on every card of the space, so it's paid through the end of that week;
+ * - any other payment to the card (a transfer to it) covers everything up to the payment.
+ * With no payment recorded yet, only the current month counts.
+ */
+export function cardPaidThrough(card: Account, txs: Tx[], spaceCards: Set<string>) {
+  const t = todayCR();
+  let through = crIso(t.y, t.m, 1);
+  for (const x of txs) {
+    if (x.kind !== 'transfer' || !x.to_account_id || !spaceCards.has(x.to_account_id)) continue;
+    const week = x.external_id?.match(/^card-week:(\d{4})-(\d{2})-(\d{2})$/);
+    let end: string | null = null;
+    if (week) end = crIso(Number(week[1]), Number(week[2]) - 1, Number(week[3]) + 7);
+    else if (x.to_account_id === card.id) end = x.occurred_at;
+    if (end && end > through) through = end;
   }
-  return owed;
+  return through;
+}
+
+/** Money owed on a credit card: what was charged to it since it was last paid. */
+export function cardOutstanding(card: Account, txs: Tx[], spaceCards: Set<string> = new Set([card.id])) {
+  const since = cardPaidThrough(card, txs, spaceCards);
+  return Math.max(0, txs.filter((t) => t.account_id === card.id && t.occurred_at >= since).reduce((a, t) => a + spend(t), 0));
 }
 
 export function tagsOf(t: Tx): string[] {
