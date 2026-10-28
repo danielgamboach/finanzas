@@ -135,6 +135,16 @@ function dailySpend({ p_from, p_to }) {
 export const rpcs = {
   daily_spend: dailySpend,
   is_app_admin: true,
+  admin_merchants_without_photo: [
+    { merchant_id: null, name: 'Culqi', raw: 'CULQI LA MOLINA', movements: 11, last_at: '2026-10-20T15:00:00Z' },
+    { merchant_id: null, name: 'Parqueo Fércori', raw: 'PARQUEO FERCORI SAN J', movements: 6, last_at: '2026-10-18T15:00:00Z' },
+    { merchant_id: null, name: 'Lebanese Cuisine', raw: 'LEBANESE CUISINE SAN J', movements: 6, last_at: '2026-10-12T15:00:00Z' },
+    { merchant_id: null, name: 'La Empanadita', raw: 'LA EMPANADITA 4 MATA', movements: 5, last_at: '2026-10-10T15:00:00Z' },
+    { merchant_id: null, name: 'Noisy Neighbours', raw: 'NOISY NEIGHBOURS SAN J', movements: 3, last_at: '2026-10-02T15:00:00Z' },
+    { merchant_id: null, name: 'Soda Tapia', raw: 'SODA TAPIA', movements: 3, last_at: '2026-09-28T15:00:00Z' },
+    { merchant_id: null, name: 'Cinepolis P Lincon San J', raw: 'CINEPOLIS P LINCON SAN J', movements: 2, last_at: '2026-09-20T15:00:00Z' },
+    { merchant_id: null, name: 'Tulsi Café y Plantas', raw: 'TULSI CAFE Y PLANTAS SAN J', movements: 1, last_at: '2026-09-02T15:00:00Z' },
+  ],
   recurring_suggestions: [],
   vapid_public_key: null,
 };

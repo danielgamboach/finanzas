@@ -175,6 +175,12 @@ export function Ajustes() {
           <Icon name="chevRight" size={18} />
         </a>
       )}
+      {isAdmin && (
+        <a className="card pad row gap10 link-card" href="#/sin-logo">
+          <span className="grow col"><strong className="sm">📸 Comercios sin logo</strong><span className="muted small">Los de todos los espacios, para ir poniéndoles foto.</span></span>
+          <Icon name="chevRight" size={18} />
+        </a>
+      )}
 
       <Button variant="destructive-outline" size="lg" onClick={() => auth.signOut()}>Cerrar sesión</Button>
       <footer className="credits">

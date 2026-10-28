@@ -99,7 +99,7 @@ export function namePhoto(list: Merchant[], ...names: (string | null | undefined
 }
 
 // Words that say what kind of place it is, not which one ("Soda Tapia", "Taco Bell").
-const GENERIC = new Set(['soda', 'restaurante', 'rest', 'cafe', 'cafeteria', 'bar', 'pizzeria', 'pizza', 'taco', 'taqueria', 'burger', 'la', 'el', 'los', 'las', 'the', 'super', 'supermercado', 'mini', 'farmacia', 'panaderia', 'tienda', 'hotel', 'auto', 'mas', 'casa', 'cine', 'pops']);
+const GENERIC = new Set(['soda', 'restaurante', 'rest', 'cafe', 'cafeteria', 'bar', 'pizzeria', 'pizza', 'taco', 'taqueria', 'burger', 'la', 'el', 'los', 'las', 'the', 'super', 'supermercado', 'mini', 'farmacia', 'panaderia', 'tienda', 'hotel', 'auto', 'mas', 'casa', 'cine', 'pops', 'parqueo', 'estacionamiento', 'publico', 'restaurant', 'minisuper', 'market']);
 
 /** A sensible default pattern from a merchant name: the distinctive part, without the branch. */
 export function defaultPattern(name: string) {

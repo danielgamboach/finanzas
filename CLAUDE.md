@@ -101,6 +101,7 @@ Preautorizaciones de Uber y Didi (`is_hold_merchant`): solo quedan "Por confirma
 - Escrituras solo por funciones con reglas: `merchant_create`, `merchant_add_pattern` ("Unir con otro comercio"), `merchant_disable_pattern` (deshacer; los patrones nunca se borran), `merchant_set_photo`, `merchant_rename`. Cualquiera puede crear un comercio, unir con al menos 3 letras y poner el primer logo; solo un admin (`is_app_admin()`, tabla `app_admins`) reemplaza o quita un logo, renombra comercios ajenos o mueve patrones ajenos.
 - Logos: 192 px JPEG, siempre un archivo nuevo en `<space_id>/m-<uuid>.jpg` del bucket `merchant-photos` (público). Los 82 logos originales siguen en sus rutas de antes. `merchant_photos` quedó como historial de solo lectura y ya no se usa.
 - En el app: `src/lib/merchants.ts` (misma regla de coincidencia, `txMerchant`, `txPhoto`), `src/ui/Merchant.tsx` (campo de foto en el formulario, hoja de foto, hoja de unir). Ajustes ya no lista fotos.
+- Comercios sin logo (solo admin): Ajustes → "Comercios sin logo" (`#/sin-logo`, `src/screens/SinLogo.tsx`). La RPC `admin_merchants_without_photo()` (security definer, falla si no es admin) junta de todos los espacios los comercios del catálogo sin foto y los nombres que no están en el catálogo (agrupados por nombre limpio), con cantidad de movimientos y sin montos; deja fuera SINPE, transferencias, comisiones y cajeros. Tocar uno abre la hoja de foto; al guardar sale de la lista, y con él los demás nombres que cubra el patrón nuevo.
 
 ## Cómo trabajar
 

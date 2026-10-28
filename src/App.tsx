@@ -8,6 +8,7 @@ import { AccountEdit, AccountView, GoalEdit, Saldos } from './screens/Patrimonio
 import { Shell } from './screens/Shell';
 import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
+import { SinLogo } from './screens/SinLogo';
 import { NotifPrompt } from './screens/NotifPrompt';
 import { Onboarding, pendingInvite, setPendingInvite } from './screens/Onboarding';
 import { db } from './lib/api';
@@ -139,6 +140,7 @@ function DesktopModal({ children }: { children: React.ReactNode }) {
 }
 
 function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
+  const { isAdmin } = useApp();
   switch (a) {
     case '':
     case undefined:
@@ -166,6 +168,8 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return <GoalEdit key={b} id={b} />;
     case 'ajustes':
       return <Ajustes />;
+    case 'sin-logo':
+      return isAdmin ? <SinLogo /> : <Ajustes />;
     default:
       return <Shell route="" />;
   }

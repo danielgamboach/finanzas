@@ -21,7 +21,7 @@ import { useApp } from '../store';
 import { Emo, Icon, Sheet } from '.';
 
 /** A merchant's face in lists: its logo, or its initial. */
-function Face({ m, size = 36 }: { m: Merchant | null; size?: number }) {
+export function Face({ m, size = 36 }: { m: Merchant | null; size?: number }) {
   const url = m ? photoUrl(m) : null;
   if (url) return <Emo e="" img={url} size={size} />;
   return (
@@ -76,9 +76,9 @@ export function MerchantPhotoField({ spaceId, name, raw, merchantId }: { spaceId
 }
 
 /** Pick a logo. For a merchant that isn't in the catalog yet, also its name and the words that identify it. */
-export function PhotoSheet({ spaceId, merchant, suggestion = '', onClose }: { spaceId: string; merchant: Merchant | null; suggestion?: string; onClose: () => void }) {
+export function PhotoSheet({ spaceId, merchant, suggestion = '', nameHint, onSaved, onClose }: { spaceId: string; merchant: Merchant | null; suggestion?: string; nameHint?: string; onSaved?: () => void; onClose: () => void }) {
   const { toast, reloadMeta, bump, isAdmin } = useApp();
-  const [name, setName] = useState(merchant?.name || defaultName(suggestion));
+  const [name, setName] = useState(merchant?.name || nameHint || defaultName(suggestion));
   const [pattern, setPattern] = useState(defaultPattern(suggestion));
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -103,6 +103,7 @@ export function PhotoSheet({ spaceId, merchant, suggestion = '', onClose }: { sp
       await reloadMeta();
       bump();
       toast('📸 Foto guardada');
+      if (file) onSaved?.();
       onClose();
     } catch (e) {
       toast(merchantError(e));
