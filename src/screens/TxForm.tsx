@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Chip, Switch } from '../ds';
+import { Bone, Button, Chip, FormSkeleton, Loader, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
@@ -231,7 +231,24 @@ export function TxForm({ id }: { id?: string }) {
     return base;
   }, [sharedSpaces.length]);
 
-  if (loadingTx) return <Loading />;
+  if (loadingTx) {
+    return (
+      <div className="form-screen">
+        <div className="sheet-page" aria-label="Editar movimiento">
+          <div className="grabber" />
+          <div className="form-head">
+            <h1 className="form-title">Editar movimiento</h1>
+            <Button variant="secondary" size="xs" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
+          </div>
+          <Loader>
+            <Bone height={36} radius="xl" />
+            <span className="amount-block"><Bone width={180} height={56} radius="lg" /></span>
+            <FormSkeleton fields={3} />
+          </Loader>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="form-screen">

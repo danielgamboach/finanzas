@@ -1,0 +1,13 @@
+/* Skeletons: the shape of what's coming, with the same paddings as the real pieces */
+.ds-loader { display: contents; }
+.ds-loader__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ds-skel-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.ds-skel-summary.is-center { align-items: center; }
+.ds-skel-row .ds-row__text { gap: 8px; }
+.ds-skel-row .ds-row__below { padding-top: 4px; }
+.ds-skel-tx { display: flex; flex-direction: column; }
+.ds-skel-tx__head { padding: 14px 4px 6px; }
+.ds-skel-tx__row .ds-tx__mid { gap: 8px; }
+.ds-skel-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--radius-2xl); background: var(--card); --secondary: var(--secondary-on-card); }
+.ds-skel-form__field { display: flex; flex-direction: column; gap: 8px; }
+.ds-skel-chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; width: 100%; }

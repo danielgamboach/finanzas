@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ListGroup, Money, Tag } from '../ds';
+import { Bone, Button, ListGroup, Loader, Money, Tag, TxListSkeleton } from '../ds';
+import { DetailSkeleton } from './Skeletons';
 import { createPortal } from 'react-dom';
 import { db } from '../lib/api';
 import { catLabel } from '../lib/cats';
@@ -86,7 +87,7 @@ export function TxDetail({ id }: { id: string }) {
           <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
           <Button variant="primary" size="xs" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={14} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
         </div>
-        {t ? <Body t={t} /> : <Loading />}
+        {t ? <Body t={t} /> : <DetailSkeleton />}
       </div>
     </div>,
     document.body,
@@ -339,7 +340,7 @@ function SameMerchant({ t, name, merchant }: { t: Tx; name: string; merchant: Me
       footer={others.length > shown ? <Button variant="ghost" size="xs" onClick={() => setShown((n) => n + 40)}>Ver {Math.min(40, others.length - shown)} más</Button> : undefined}
     >
       {!rows ? (
-        <Loading />
+        <Loader><div className="txd-stats">{[0, 1, 2].map((i) => <span key={i}><Bone width={56} height={16} /><Bone width={44} height={10} /></span>)}</div><TxListSkeleton days={1} rows={3} /></Loader>
       ) : (
         <>
           {stats && stats.buys > 0 && (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EmptyState, ListGroup, ListRow, PageHeader, SearchField } from '../ds';
+import { EmptyState, GroupSkeleton, ListGroup, ListRow, PageHeader, SearchField } from '../ds';
+import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { normWords } from '../lib/merchants';
 import { navigateBack, useApp } from '../store';
@@ -42,7 +43,7 @@ export function SinLogo() {
     return left.filter((r) => normWords(`${r.name} ${r.raw || ''}`).includes(` ${n}`));
   }, [rows, done, q]);
 
-  if (!rows || !space) return <Loading />;
+  if (!rows || !space) return <PageSkeleton title="Comercios sin logo" back nav={false} hero={false}><GroupSkeleton rows={6} value={false} /></PageSkeleton>;
   const left = rows.filter((r) => !done.has(keyOf(r))).length;
   const merchant = pick?.merchant_id ? merchants.find((m) => m.id === pick.merchant_id) || null : null;
 

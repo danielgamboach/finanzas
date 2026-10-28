@@ -19,7 +19,7 @@ export const tint = (c?: string | null, strong = true) => (PALETTE[c || 'gray'] 
 
 export { Icon } from '../ds/atoms/Icon/Icon';
 import { Icon } from '../ds/atoms/Icon/Icon';
-import { Avatar, PageHeader, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
+import { Avatar, GroupSkeleton, Loader, PageHeader, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
 
 /** A merchant's or category's face: the photo, or the emoji on the category color. Thin wrapper over the DS Avatar. */
 export function Emo({ e, color, size = 48, img, badge }: { e: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
@@ -87,6 +87,7 @@ export function Toast() {
   return <DsToast className="toast" message={toastMsg} onUndo={toastUndo ? undo : undefined} />;
 }
 
+/** Generic placeholder: a group of rows. Screens use the shaped skeletons in ./Skeletons. */
 export function Loading() {
-  return <div className="loading" aria-label="Cargando">Cargando…</div>;
+  return <Loader><GroupSkeleton rows={4} title={false} /></Loader>;
 }

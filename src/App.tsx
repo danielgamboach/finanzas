@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppSkeleton } from './ui/Skeletons';
 import { AppProvider, go, useApp, useRoute } from './store';
 import { Loading, Toast } from './ui';
 import { Ajustes } from './screens/Ajustes';
@@ -61,8 +62,8 @@ function Router() {
   const detail = a === 'mov' && !!b && c !== 'editar';
   if (!modal) bg.current = path;
   if (!session) return <Login />;
-  if (!ready) return <Loading />;
-  if (spaces.length === 0) return <Loading />;
+  if (!ready) return <AppSkeleton />;
+  if (spaces.length === 0) return <AppSkeleton />;
   // first time in: a short setup before anything else
   if (profile && !profile.onboarded_at) return <Onboarding />;
   if (a === 'bienvenida' && isAdmin) return <Onboarding preview key={path} />;

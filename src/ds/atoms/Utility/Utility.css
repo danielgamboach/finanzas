@@ -6,5 +6,12 @@
 @media (prefers-reduced-motion: reduce) { .ds-spinner { animation-duration: 2s; } }
 .ds-skeleton { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .ds-skeleton span { display: block; height: 12px; border-radius: var(--radius-full); background: var(--secondary); animation: ds-pulse 1.4s ease-in-out infinite; }
+.ds-bone { display: block; flex-shrink: 0; max-width: 100%; background: var(--secondary); animation: ds-pulse 1.4s ease-in-out infinite; }
+.ds-bone--r-md { border-radius: var(--radius-md); }
+.ds-bone--r-lg { border-radius: var(--radius-lg); }
+.ds-bone--r-xl { border-radius: var(--radius-xl); }
+.ds-bone--r-2xl { border-radius: var(--radius-2xl); }
+.ds-bone--r-full { border-radius: var(--radius-full); }
+@media (prefers-reduced-motion: reduce) { .ds-bone, .ds-skeleton span { animation: none; } }
 .ds-skeleton span:last-child:not(:first-child) { width: 60%; }
 @keyframes ds-pulse { 50% { opacity: .5; } }

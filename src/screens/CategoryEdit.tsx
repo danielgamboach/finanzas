@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, PageHeader, Progress, Switch } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, Loader, PageHeader, Progress, Switch, TxListSkeleton } from '../ds';
+import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
 import { amount, crIso, money, monthName, monthShort, parseAmount, shortK, todayCR, unitOf } from '../lib/format';
@@ -51,8 +52,7 @@ export function CategoryEdit({ id }: { id: string }) {
   const range = useMemo(() => ({ from: crIso(t.y, t.m - 5, 1), to: crIso(t.y, t.m + 1, 1) }), [t.y, t.m]);
   const { txs } = useTxs(isNew ? null : range);
 
-  if (!space) return <Loading />;
-  if (!isNew && !existing) return <Loading />;
+  if (!space || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Nueva categoría' : 'Editar categoría'} />;
 
   const fam = familyIds(categories, id);
   const mine = txs.filter((x) => x.category_id && fam.has(x.category_id));
@@ -267,7 +267,7 @@ export function CategoryView({ id }: { id: string }) {
     document.querySelector('.sub-chips .pill.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [sub, txs.length]);
 
-  if (!space || !cat) return <Loading />;
+  if (!space || !cat) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
   const parent = parentOf(categories, cat);
   const kids = childrenOf(categories, cat.id);
   const fam = familyIds(categories, id);
@@ -334,7 +334,7 @@ export function CategoryView({ id }: { id: string }) {
         )}
 
         {loading && txs.length === 0 ? (
-          <Loading />
+          <Loader><TxListSkeleton /></Loader>
         ) : groups.length === 0 ? (
           <EmptyState icon={cat.emoji} title={`Sin movimientos · ${period.label}`}>Probá con otro período.</EmptyState>
         ) : (

@@ -19,6 +19,17 @@ export const Spinner = ({ size = 20, label = 'Cargando' }: { size?: number; labe
 );
 
 /** Placeholder lines while content loads. */
+/** Text lines while something loads (the AI note, a paragraph). */
 export const Skeleton = ({ lines = 3 }: { lines?: number }) => (
   <span className="ds-skeleton" aria-hidden="true">{Array.from({ length: lines }, (_, i) => <span key={i} />)}</span>
+);
+
+/**
+ * One placeholder shape with the same pulse: a line of text, a number, an avatar, a button.
+ * width/height in px (or any CSS length); radius follows the token scale.
+ */
+export const Bone = ({ width = '100%', height = 12, radius = 'full', className, style }: {
+  width?: number | string; height?: number | string; radius?: 'md' | 'lg' | 'xl' | '2xl' | 'full'; className?: string; style?: React.CSSProperties;
+}) => (
+  <span className={['ds-bone', `ds-bone--r-${radius}`, className].filter(Boolean).join(' ')} style={{ width, height, ...style }} aria-hidden="true" />
 );

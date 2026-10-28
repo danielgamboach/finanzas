@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, PageHeader, Switch } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, SummarySkeleton, Switch } from '../ds';
+import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { pickerOrder } from '../lib/cats';
 import { namePhoto } from '../lib/merchants';
 import { db } from '../lib/api';
@@ -141,7 +142,7 @@ export function Recurrentes() {
     db.rpc<RecurringSuggestion[]>('recurring_suggestions', { p_space: space.id }).then(setSugs).catch(() => setSugs([]));
   }, [space, version]);
 
-  if (!space) return <Loading />;
+  if (!space) return <PageSkeleton title="Recurrentes" back nav={false}><GroupSkeleton rows={2} action value={false} /><GroupSkeleton rows={3} /></PageSkeleton>;
   const active = items.filter((r) => r.active);
   const paused = items.filter((r) => !r.active);
   const monthly = active.reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency], 0);
@@ -213,12 +214,12 @@ export function Recurrentes() {
         actions={<Button variant="secondary" size="xs" iconOnly href="#/recurrente/nueva" aria-label="Nuevo recurrente"><Icon name="plus" size={16} solid /></Button>}
       />
       <div className="page-hero">
-        <BalanceSummary
+        {loading && items.length === 0 ? <Loader><SummarySkeleton /></Loader> : <BalanceSummary
           label={headerLabel}
           value={amount(headerTotal, cur, fx)}
           unit={unitOf(cur)}
           meta={`${count} ${count === 1 ? (current === 'todos' ? 'pago activo' : 'pago') : current === 'todos' ? 'pagos activos' : 'pagos'}`}
-        />
+        />}
       </div>
 
       {items.length > 0 && (
@@ -265,7 +266,7 @@ export function Recurrentes() {
             )}
 
             {loading && items.length === 0 ? (
-              <Loading />
+              <Loader><GroupSkeleton rows={4} /></Loader>
             ) : rest.length === 0 && toConfirm.length === 0 ? (
               <EmptyState icon="🔁" title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
                 Alquiler, internet, Netflix… Los de tarjeta se marcan solos cuando llega el voucher.
@@ -331,7 +332,7 @@ export function RecurringEdit({ id }: { id: string }) {
     });
   }, [id, isNew]);
 
-  if (!space) return <Loading />;
+  if (!space) return <FormPageSkeleton title="Recurrente" />;
   const set = <K extends keyof Recurring>(k: K, v: Recurring[K]) => setR((x) => ({ ...x, [k]: v }));
   const expenseCats = pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived));
   const spaceAccounts = accounts.filter((a) => !a.archived && (r.method === 'card' ? a.kind === 'credit_card' || a.kind === 'debit' : a.kind !== 'credit_card'));

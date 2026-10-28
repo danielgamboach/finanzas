@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { BalanceSummary, Delta, ListGroup, ListRow, PageHeader, Progress, Segmented } from '../ds';
+import { BalanceSummary, ChartSkeleton, Delta, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, Segmented, SummarySkeleton } from '../ds';
+import { PageSkeleton } from '../ui/Skeletons';
 import { categoryStats, cumulative, inRange, monthBudget, monthRange, spend, sumSpend, weekRange, type CatStat } from '../lib/calc';
 import { rootId } from '../lib/cats';
 import { amount, cap, crIso, crLocal, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
@@ -28,7 +29,7 @@ export function Analisis() {
   // the AI always talks about the current month and week
   const nowMonth = monthRange(t.y, t.m);
 
-  if (!space) return <Loading />;
+  if (!space) return <PageSkeleton title="Análisis"><ChartSkeleton height={120} /><GroupSkeleton rows={5} below /></PageSkeleton>;
   const fp = fingerprint(txs.filter((x) => inRange(x, nowMonth) || inRange(x, week)), categories, dateKey(new Date().toISOString()));
   const stats = categoryStats(categories, txs, month, week, isCurrent);
   const inMonth = txs.filter((x) => inRange(x, month));
@@ -60,7 +61,8 @@ export function Analisis() {
       meta={budget > 0 ? `de ${amount(budget, cur, fx)} ${unitOf(cur)} de presupuesto` : null}
     />
   );
-  const chart = (
+  const first = loading && txs.length === 0;
+  const chart = first ? <Loader><ChartSkeleton height={120} /></Loader> : (
     <section className="month-card" aria-label={`Gasto de ${monthName(ym[1])} contra ${prevName}`}>
       <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(prevName)} fmt={fmt} />
     </section>
@@ -80,7 +82,7 @@ export function Analisis() {
           <MonthNav ym={ym} setYm={setYm} />
         </header>
         {loading && txs.length === 0 ? (
-          <Loading />
+          <Loader><div className="dgrid analisis-grid"><div className="dcol gap24"><SummarySkeleton /><ChartSkeleton height={120} /><GroupSkeleton rows={5} below /></div><div className="dcol"><GroupSkeleton rows={1} leading="none" value={false} /><GroupSkeleton rows={5} /></div></div></Loader>
         ) : (
           <div className="dgrid analisis-grid">
             <div className="dcol gap24">
@@ -101,12 +103,12 @@ export function Analisis() {
   return (
     <div className="page">
       <PageHeader title="Análisis" actions={<MonthNav ym={ym} setYm={setYm} />} />
-      <div className="page-hero">{summary}</div>
+      <div className="page-hero">{first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
       <div className="page-body">
         {chart}
         {ai}
         <Segmented value={tab} options={[{ value: 'limits', label: 'Presupuesto' }, { value: 'analysis', label: 'Tendencias' }]} onChange={setTab} />
-        {loading && txs.length === 0 ? <Loading /> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
+        {loading && txs.length === 0 ? <Loader><GroupSkeleton rows={5} below={tab === 'limits'} /></Loader> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { needsConfirm, useRecurring } from '../lib/recurring';
 import { byKind } from '../lib/accounts';
 import { go, useApp } from '../store';
 import { Icon } from '../ui';
-import { Badge, Button, ListGroup, ListRow } from '../ds';
+import { Badge, Button, GroupSkeleton, ListGroup, ListRow, Loader } from '../ds';
 import { SpendOverview, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { AccountListRow, useNetWorth } from '../screens/Patrimonio';
@@ -161,10 +161,11 @@ function DeskAccounts() {
   const { space } = useApp();
   const w = useNetWorth(space?.id || null);
   const accs = [...w.accounts].sort(byKind).slice(0, 5);
+  if (w.loading && accs.length === 0) return <Loader><GroupSkeleton rows={4} leading="icon" /></Loader>;
   return (
     <ListGroup title="Cuentas" action={<a href="#/cuentas">Ver todas</a>}>
       {accs.length === 0 ? (
-        <ListRow title={w.loading ? 'Cargando…' : 'Agregá tus cuentas'} chevron={!w.loading} href={w.loading ? undefined : '#/cuenta/nueva'} />
+        <ListRow title="Agregá tus cuentas" chevron href="#/cuenta/nueva" />
       ) : accs.map((a) => <AccountListRow key={a.id} a={a} w={w} />)}
     </ListGroup>
   );

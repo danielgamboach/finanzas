@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Chip, EmptyState, ListGroup, ListRow, SearchField, Switch } from '../ds';
+import { Badge, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, SearchField, Switch, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { spend, sumKind, sumSpend, tagsOf } from '../lib/calc';
 import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, type PeriodKey } from '../lib/period';
@@ -217,7 +217,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       </div>
 
       {loading && all.length === 0 ? (
-        <Loading />
+        table ? <Loader><GroupSkeleton rows={8} title={false} /></Loader> : <Loader><TxListSkeleton days={home ? 2 : 3} rows={4} density={home ? 'sheet' : 'list'} /></Loader>
       ) : filtered.length === 0 && home && !sheetOpen ? (
         <EmptyState icon="🧾" title="Todavía no hay movimientos este mes">Tocá + arriba para agregar uno.</EmptyState>
       ) : filtered.length === 0 ? (

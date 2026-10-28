@@ -10,7 +10,7 @@ export { Switch } from './atoms/Switch/Switch';
 export { Checkbox } from './atoms/Checkbox/Checkbox';
 export { Radio } from './atoms/Radio/Radio';
 export { Progress, type ProgressTone } from './atoms/Progress/Progress';
-export { Kbd, Grabber, Separator, Spinner, Skeleton } from './atoms/Utility/Utility';
+export { Kbd, Grabber, Separator, Spinner, Skeleton, Bone } from './atoms/Utility/Utility';
 export { Chip, type ChipProps } from './molecules/Chip/Chip';
 export { Segmented, type SegmentedOption } from './molecules/Segmented/Segmented';
 export { SearchField } from './molecules/SearchField/SearchField';
@@ -40,3 +40,4 @@ export { PendingPayments, PendingPaymentRow } from './organisms/PendingPayments/
 export { AccountRow, AccountGroup, type AccountRowProps } from './organisms/AccountRow/AccountRow';
 export { ListGroup, ListRow, type ListRowProps, type RowTone } from './molecules/ListGroup/ListGroup';
 export { PageHeader } from './organisms/PageHeader/PageHeader';
+export { Loader, SummarySkeleton, GroupSkeleton, RowSkeleton, TxListSkeleton, FormSkeleton, ChartSkeleton } from './molecules/Skeletons/Skeletons';

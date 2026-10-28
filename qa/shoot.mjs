@@ -1,6 +1,7 @@
 // Local QA: serves dist/ and opens the app with Supabase mocked by qa/fixtures.mjs.
 // Usage: node qa/shoot.mjs [outDir] [route[@width]] ...   e.g. node qa/shoot.mjs qa/out / /movimientos@1440
 // QA_ACTION=path/to/module.mjs runs its default export (page, route) before each screenshot (taps, drags).
+// QA_HANG=table,rpc,... leaves those requests unanswered, to capture the loading skeletons.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
@@ -72,6 +73,9 @@ for (const spec of shots) {
   await ctx.route('https://vzgnujopgryuskixcnnx.supabase.co/**', async (r) => {
     const u = new URL(r.request().url());
     const json = (body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    // QA_HANG=transactions,balance_snapshots never answers those calls, to capture loading skeletons
+    const hang = (process.env.QA_HANG || '').split(',').filter(Boolean);
+    if (hang.some((h) => u.pathname.endsWith('/' + h))) return;
     if (u.pathname.startsWith('/rest/v1/rpc/')) {
       const rpc = fx.rpcs[u.pathname.split('/').pop()];
       return json(typeof rpc === 'function' ? rpc(JSON.parse(r.request().postData() || '{}')) : rpc ?? []);

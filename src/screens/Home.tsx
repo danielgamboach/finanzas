@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
@@ -7,7 +8,7 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, SpendChart } from '../ds';
+import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { ProfileButton } from '../ui/ProfileMenu';
 import { openKai } from '../ui/Kai';
@@ -177,7 +178,7 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
 
   return (
     <>
-      <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} />
+      {shown || !h.loading ? <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} /> : <Loader><SummarySkeleton /></Loader>}
       <SpendChart
         bars={shown?.bars ?? []}
         format={(n) => amount(n, cur, fx)}
@@ -203,7 +204,7 @@ export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
 export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
   const topRef = useRef<HTMLDivElement>(null);
   const h = useHomeSummary();
-  if (!h) return <Loading />;
+  if (!h) return <HomeSkeleton />;
 
   return (
     <div className="home">

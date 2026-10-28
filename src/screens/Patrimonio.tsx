@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, ListGroup, ListRow, PageHeader, Progress } from '../ds';
+import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
+import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { cardOutstanding, cardPaidThrough } from '../lib/calc';
 import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
@@ -216,7 +217,7 @@ export function AccountCard({ a, w, onClick, style, big = false }: { a: Account;
 export function Cuentas() {
   const { space, cur, fx } = useApp();
   const w = useNetWorth(space?.id || null);
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goals, setGoals] = useState<Goal[] | null>(null);
   const { version } = useApp();
   useEffect(() => {
     if (!space) return;
@@ -224,12 +225,12 @@ export function Cuentas() {
   }, [space, version]);
 
   const desk = useDesktop();
-  if (!space) return <Loading />;
+  if (!space) return <PageSkeleton title="Cuentas" heroAction><GroupSkeleton rows={2} leading="icon" /><GroupSkeleton rows={2} leading="icon" /></PageSkeleton>;
   const accs = [...w.accounts].sort(byKind);
   const hasAssets = accs.some((a) => a.kind !== 'credit_card');
 
   const groups = w.loading && accs.length === 0 ? (
-    <Loading />
+    <Loader><GroupSkeleton rows={2} leading="icon" /><GroupSkeleton rows={2} leading="icon" start={2} /></Loader>
   ) : accs.length === 0 ? (
     <EmptyState icon="💳" title="Agregá tus cuentas" action={<Button variant="primary" size="sm" href="#/cuenta/nueva" leading={<Icon name="plus" size={16} solid />}>Nueva cuenta</Button>}>
       Tarjetas, ahorros, inversiones. Con el saldo de cada una sale tu patrimonio.
@@ -245,7 +246,7 @@ export function Cuentas() {
       );
     })
   );
-  const goalList = (
+  const goalList = goals === null ? <Loader><GroupSkeleton rows={1} below /></Loader> : (
     <ListGroup title="Metas" action={<a href="#/meta/nueva">Nueva</a>}>
       {goals.length === 0 ? (
         <ListRow leading={<Emo e="🎯" color="butter" size={40} />} title="Creá tu primera meta" detail="Ej. 🏡 Casa, con las cuentas que suman" chevron href="#/meta/nueva" />
@@ -304,7 +305,7 @@ export function Cuentas() {
   return (
     <div className="page">
       <PageHeader title="Cuentas" actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>} />
-      {worth && <div className="page-hero">{worth}</div>}
+      {worth ? <div className="page-hero">{worth}</div> : w.loading && accs.length === 0 ? <div className="page-hero"><Loader><SummarySkeleton action /></Loader></div> : null}
       <div className="page-body">
         {groups}
         {goalList}
@@ -349,7 +350,7 @@ export function AccountView({ id }: { id: string }) {
   const w = useNetWorth(space?.id || null);
   const desk = useDesktop();
   const a = w.accounts.find((x) => x.id === id) || accounts.find((x) => x.id === id);
-  if (!a) return <Loading />;
+  if (!a) return <PageSkeleton back nav={false} heroAction><TxListSkeleton /></PageSkeleton>;
   const isCard = a.kind === 'credit_card';
   const s = w.latest[a.id];
   const details = [KIND_LABEL[a.kind], a.institution, a.last4 ? `**${a.last4}` : ''].filter(Boolean).join(' · ');
@@ -435,7 +436,7 @@ export function Saldos() {
       <PageHeader title="Actualizar saldos" onBack={navigateBack} />
       <div className="page-body">
         <p className="page-text">Poné el saldo de hoy de cada cuenta. Dejá en blanco las que no cambiaron.</p>
-        {w.loading ? <Loading /> : editable.length === 0 ? (
+        {w.loading ? <Loader><GroupSkeleton rows={3} title={false} leading="icon" value={false} action /></Loader> : editable.length === 0 ? (
           <EmptyState icon="🏦" title="Primero agregá una cuenta" action={<Button variant="primary" size="sm" href="#/cuenta/nueva">Nueva cuenta</Button>} />
         ) : (
           <ListGroup>
