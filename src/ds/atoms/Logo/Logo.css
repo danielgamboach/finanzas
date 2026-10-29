@@ -1,0 +1,8 @@
+.ds-logo { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--foreground); white-space: nowrap; }
+.ds-logo__mark { display: block; flex: none; }
+.ds-logo__name { letter-spacing: var(--tracking-tight); }
+.ds-logo__kai { font-weight: var(--font-weight-bold); }
+.ds-logo__product { font-weight: var(--font-weight-light); }
+.ds-logo--sm { gap: 6px; font-size: var(--text-base); line-height: var(--text-base--line-height); }
+.ds-logo--md { font-size: var(--text-lg); line-height: var(--text-lg--line-height); }
+.ds-logo--lg { gap: 12px; font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }

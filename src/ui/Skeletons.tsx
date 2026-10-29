@@ -1,6 +1,6 @@
 import { useMenu } from '../lib/menu';
 import React from 'react';
-import { Bone, ChartSkeleton, FormSkeleton, GroupSkeleton, Loader, PageHeader, SummarySkeleton, TxListSkeleton } from '../ds';
+import { Bone, ChartSkeleton, FormSkeleton, GroupSkeleton, Loader, Logo, PageHeader, SummarySkeleton, TxListSkeleton } from '../ds';
 import { navigateBack } from '../store';
 import { useDesktop } from '../lib/useDesktop';
 
@@ -16,7 +16,7 @@ export function HomeSkeleton() {
       <div className="home home-skel">
         <div className="home-top">
           <div className="ds-home-header">
-            <span className="row gap10"><Bone width={32} height={32} radius="xl" /><Bone width={110} height={16} /></span>
+            <span className="row gap12"><Bone width={32} height={32} radius="xl" /><Logo /></span>
             <span className="row gap8"><Bone width={32} height={32} radius="xl" /><Bone width={32} height={32} radius="xl" /></span>
           </div>
           <div className="home-summary">

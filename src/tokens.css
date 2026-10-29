@@ -268,6 +268,7 @@
   --text-5xl--line-height: 48px;
   --text-6xl: 60px;
   --text-6xl--line-height: 60px;
+  --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;

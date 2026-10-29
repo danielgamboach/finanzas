@@ -1,4 +1,5 @@
 .ds-home-header { position: relative; height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px; }
+.ds-home-header__lead { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ds-home-header__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ds-home-header__btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: var(--radius-xl); background: var(--secondary); color: var(--foreground); text-decoration: none; }
 .ds-home-header__btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

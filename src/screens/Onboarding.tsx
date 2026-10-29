@@ -31,10 +31,10 @@ export const inviteLink = (code: string) => `${location.origin}/#/unirme/${code}
 /** Shares the invite with the phone's share sheet, or copies the link when there isn't one. */
 export async function shareInvite(code: string, spaceName: string): Promise<'shared' | 'copied' | 'cancel'> {
   const url = inviteLink(code);
-  const text = `Te invito a ${spaceName} en Finanzas, para llevar nuestros gastos juntos.`;
+  const text = `Te invito a ${spaceName} en Kai Finance, para llevar nuestros gastos juntos.`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Finanzas', text, url });
+      await navigator.share({ title: 'Kai Finance', text, url });
       return 'shared';
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return 'cancel';
@@ -192,10 +192,10 @@ function UsoStep({ first, value, onPick, onNext, onSkip }: { first: string; valu
     <>
       <div className="ob-head">
         <span className="ob-icon" aria-hidden="true"><Icon name="wave" size={28} /></span>
-        <h1 className="ob-title" tabIndex={-1}>{first ? `¡Hola, ${first}!` : '¡Hola!'} ¿Cómo vas a usar Finanzas?</h1>
+        <h1 className="ob-title" tabIndex={-1}>{first ? `¡Hola, ${first}!` : '¡Hola!'} ¿Cómo vas a usar Kai Finance?</h1>
         <p className="ob-sub">Así lo dejamos listo para vos. Todo se puede cambiar después.</p>
       </div>
-      <div className="ob-opts" role="radiogroup" aria-label="Cómo vas a usar Finanzas">
+      <div className="ob-opts" role="radiogroup" aria-label="Cómo vas a usar Kai Finance">
         {opts.map((o) => (
           <button key={o.u} role="radio" aria-checked={value === o.u} className={value === o.u ? 'ob-opt on' : 'ob-opt'} onClick={() => onPick(o.u)}>
             <span className="ob-opt-emo" aria-hidden="true"><Icon name={o.icon} size={22} /></span>

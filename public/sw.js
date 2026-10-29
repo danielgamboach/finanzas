@@ -30,7 +30,7 @@ self.addEventListener('push', (e) => {
     d = { body: e.data ? e.data.text() : '' };
   }
   e.waitUntil(
-    self.registration.showNotification(d.title || 'Finanzas', {
+    self.registration.showNotification(d.title || 'Kai Finance', {
       body: d.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',

@@ -8,7 +8,7 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
+import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, Logo, MenuButton, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { usePendingCount } from '../ui/AppMenu';
 import { openKai } from '../ui/Kai';
@@ -144,7 +144,8 @@ function readSpan(): Span {
  * The top of Inicio (phone and desktop): what went out in the chosen range, the change against the
  * previous one, what's left of the month's budget, and the bars with the quick ranges (D S M 6M 1A YTD).
  */
-export function SpendOverview({ h }: { h: HomeSummary }) {
+/** `showSpace`: on the phone the space goes in the summary label (the bar carries the logo). */
+export function SpendOverview({ h, showSpace }: { h: HomeSummary; showSpace?: boolean }) {
   const { cur, fx, version } = useApp();
   const [span, setSpanState] = useState<Span>(readSpan);
   const setSpan = (v: Span) => {
@@ -179,7 +180,7 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
 
   return (
     <>
-      {shown || !h.loading ? <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} /> : <Loader><SummarySkeleton /></Loader>}
+      {shown || !h.loading ? <BalanceSummary label={showSpace ? `${h.space.emoji} ${h.space.name} · ${s.def.label}` : s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} /> : <Loader><SummarySkeleton /></Loader>}
       <SpendChart
         bars={shown?.bars ?? []}
         format={(n) => amount(n, cur, fx)}
@@ -214,16 +215,16 @@ export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boo
       <div className="home-top">
         <HomeHeader
           actions={<HomeHeaderButton icon="plus" label="Nuevo movimiento" onClick={() => go('/agregar')} />}
-          center={<button type="button" className="ds-home-header__title" onClick={() => menu?.open()} aria-label={`Espacio ${h.space.name}, abrir menú`}>{h.space.emoji} {h.space.name}</button>}
         >
           <MenuButton
             onClick={() => menu?.open()}
             dot={pending > 0}
             dotLabel={`${pending} ${pending === 1 ? 'pago por confirmar' : 'pagos por confirmar'}`}
           />
+          <Logo />
         </HomeHeader>
         <div ref={topRef} className="home-summary">
-          <SpendOverview h={h} />
+          <SpendOverview h={h} showSpace />
         </div>
       </div>
 

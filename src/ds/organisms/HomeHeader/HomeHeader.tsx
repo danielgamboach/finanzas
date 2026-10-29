@@ -2,11 +2,11 @@ import React from 'react';
 import { Icon } from '../../atoms/Icon/Icon';
 import './HomeHeader.css';
 
-/** Top bar of Inicio (62 px): the menu button on the left, an optional centered title (the space), quick actions on the right. */
+/** Top bar of Inicio (62 px): the menu button and the logo on the left, an optional centered title, quick actions on the right. */
 export function HomeHeader({ children, center, actions }: { children: React.ReactNode; center?: React.ReactNode; actions?: React.ReactNode }) {
   return (
     <header className="ds-home-header">
-      {children}
+      <div className="ds-home-header__lead">{children}</div>
       {center && <div className="ds-home-header__center">{center}</div>}
       {actions && <div className="ds-home-header__actions">{actions}</div>}
     </header>

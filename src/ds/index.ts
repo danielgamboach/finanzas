@@ -4,6 +4,7 @@ export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from '.
 export { Badge } from './atoms/Badge/Badge';
 export { Tag, type TagTone } from './atoms/Tag/Tag';
 export { Avatar, type AvatarProps, type AvatarColor } from './atoms/Avatar/Avatar';
+export { Logo } from './atoms/Logo/Logo';
 export { Money, type MoneySize, type MoneyTone } from './atoms/Money/Money';
 export { Input, type InputProps } from './atoms/Input/Input';
 export { Switch } from './atoms/Switch/Switch';

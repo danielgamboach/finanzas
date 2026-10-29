@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { auth } from '../lib/api';
-import { Button, Icon } from '../ds';
+import { Button, Icon, Logo } from '../ds';
 import { pendingInvite } from './Onboarding';
 
 export function Login() {
@@ -38,7 +38,7 @@ export function Login() {
   return (
     <div className="login">
       <div className="login-hero">
-        <span className="login-icon" aria-hidden="true"><Icon name="wallet" size={28} /></span>
+        <Logo size="lg" />
         <h1 className="headline">Tus finanzas, <strong>claras</strong> y en pareja</h1>
         <p className="muted">Gastos, presupuestos y patrimonio en colones y dólares.</p>
       </div>

@@ -1,6 +1,6 @@
 {
-  "name": "Finanzas",
-  "short_name": "Finanzas",
+  "name": "Kai Finance",
+  "short_name": "Kai Finance",
   "description": "Gastos, presupuestos y patrimonio en colones y dólares.",
   "start_url": "/#/",
   "display": "standalone",

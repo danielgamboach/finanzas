@@ -3,7 +3,7 @@ import { needsConfirm, useRecurring } from '../lib/recurring';
 import { byKind } from '../lib/accounts';
 import { go, useApp } from '../store';
 import { Icon } from '../ui';
-import { Badge, Button, GroupSkeleton, ListGroup, ListRow, Loader } from '../ds';
+import { Badge, Button, GroupSkeleton, ListGroup, ListRow, Loader, Logo } from '../ds';
 import { SpendOverview, useHomeSummary } from '../screens/Home';
 import { MovementsBrowser } from '../screens/Movimientos';
 import { AccountListRow, useNetWorth } from '../screens/Patrimonio';
@@ -60,7 +60,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
   return (
     <div className="desk">
       <aside className="dside" aria-label="Navegación">
-        <div className="dbrand"><span className="dbrand-mark" aria-hidden="true">¢</span>Finanzas</div>
+        <div className="dbrand"><Logo /></div>
         <SpaceSwitch />
         <Button variant="primary" size="md" className="dnew" href="#/agregar" leading={<Icon name="plus" size={18} />} trailing={<kbd>N</kbd>}>Nuevo movimiento</Button>
         <button className="dkai" onClick={() => openKai()}><Icon name="sparkle" size={18} />Preguntale a Kai<kbd>K</kbd></button>
