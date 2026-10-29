@@ -6,7 +6,8 @@ import { customKey, customParts, periodRange, PRESETS, recentMonths, usePeriod, 
 import { amount, unitOf } from '../lib/format';
 import { catLabel, familyIds, pickerOrder } from '../lib/cats';
 import { byKind } from '../lib/accounts';
-import { useApp, useTxs } from '../store';
+import { TX_SELECT, useApp, useTxs } from '../store';
+import type { Tx } from '../lib/types';
 import { Icon, Loading, Segmented, Sheet } from '../ui';
 import { restoreCategories, snapCategories } from '../lib/undo';
 import { canCategorize, TxRow, TxTableRow } from '../ui/TxRow';
@@ -19,6 +20,46 @@ const EMPTY: Filters = { kind: 'todos', review: false, rec: false, cat: '', acc:
 /** Rows the closed home sheet shows (the rest fade out under the summary). */
 const SHEET_ROWS = 14;
 const todayStr = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
+
+/**
+ * Searching looks at every movement of the space (or of the account), whatever the period and filters say:
+ * merchant, bank name, note and tags, category names and the exact amount. Asked to the database, so it
+ * reaches movements older than the loaded period.
+ */
+function useSearch(q: string, spaceId: string | undefined, accountId: string | undefined) {
+  const { categories, version } = useApp();
+  const [res, setRes] = useState<{ q: string; txs: Tx[] } | null>(null);
+  const term = q.trim();
+  useEffect(() => {
+    if (!term || !spaceId) return setRes(null);
+    let alive = true;
+    const t = window.setTimeout(() => {
+      const clean = term.replace(/["\\(),*]/g, ' ').trim();
+      if (!clean) return setRes({ q: term, txs: [] });
+      const like = (c: string) => `${c}.ilike."*${clean}*"`;
+      const conds = [like('merchant'), like('raw_merchant'), like('note')];
+      const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const cats = new Set<string>();
+      categories.filter((c) => norm(c.name).includes(norm(clean))).forEach((c) => familyIds(categories, c.id).forEach((id) => cats.add(id)));
+      if (cats.size) conds.push(`category_id.in.(${[...cats].join(',')})`);
+      const n = Number(clean.replace(/\./g, '').replace(',', '.'));
+      if (/^[\d.,]+$/.test(clean) && Number.isFinite(n) && n > 0) conds.push(`amount.eq.${n}`);
+      let query = db.from<Tx>('transactions', TX_SELECT).eq('space_id', spaceId);
+      query = accountId ? query.and(`or(${conds.join(',')})`, `or(account_id.eq.${accountId},to_account_id.eq.${accountId})`) : query.or(...conds);
+      query
+        .order('occurred_at', false)
+        .limit(300)
+        .then((rows) => alive && setRes({ q: term, txs: rows }))
+        .catch(() => alive && setRes({ q: term, txs: [] }));
+    }, 250);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [term, spaceId, accountId, version]);
+  return { results: res && res.q === term ? res.txs : null, searching: !!term };
+}
 
 /**
  * Every movement of the space: a search field, one "Filtros" button and the active filters as
@@ -90,7 +131,8 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       return true;
     });
   };
-  const filtered = useMemo(() => apply(txs, f), [txs, f, q, categories, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { results, searching } = useSearch(q, space?.id, accountId);
+  const filtered = useMemo(() => (searching ? results || [] : apply(txs, f)), [txs, f, q, categories, accountId, searching, results]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = groupByDay(filtered);
   const selectable = filtered.filter(canCategorize);
@@ -173,7 +215,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
 
   const inflow = f.kind === 'ingresos';
   const total = inflow ? sumKind(filtered, 'income') + sumKind(filtered, 'contribution') : sumSpend(filtered);
-  const empty = review.length === 0 && f.review ? 'Nada por revisar.' : 'Nada con estos filtros.';
+  const empty = searching ? `Nada con “${q.trim()}” en tus movimientos.` : review.length === 0 && f.review ? 'Nada por revisar.' : 'Nada con estos filtros.';
 
   return (
     <div className={table ? 'mb mb-table' : 'mb'}>
@@ -187,6 +229,9 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         </Button>
       </div>
 
+      {searching ? (
+        <p className="mb-search-note">En todos tus movimientos, sin filtros.</p>
+      ) : (
       <div className="mb-chips" aria-label="Filtros">
         {pk !== 'month' && pk !== 'lastmonth' && <Chip size="sm" selected trailing="chevron" onClick={() => setSheet(true)}>{period.label}</Chip>}
         <Chip size="sm" selected={pk === 'month'} onClick={() => setPk('month')}>Este mes</Chip>
@@ -199,8 +244,9 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
           <Chip size="sm" className="mb-chip-hint" onClick={() => setF({ ...f, review: true })}>{review.length} por revisar</Chip>
         )}
       </div>
+      )}
 
-      {f.review && (withSuggestion.length > 0 || unchecked.length > 0) && (
+      {!searching && f.review && (withSuggestion.length > 0 || unchecked.length > 0) && (
         <div className="ai-bar">
           <span className="ai-bar-text">
             <strong><span className="inline-icon"><Icon name="wand" size={14} /></span> Categorías con IA</strong>
@@ -216,15 +262,17 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       </div>
       </div>
 
-      {loading && all.length === 0 ? (
+      {(loading && all.length === 0 && !searching) || (searching && results === null) ? (
         table ? <Loader><GroupSkeleton rows={8} title={false} /></Loader> : <Loader><TxListSkeleton days={home ? 2 : 3} rows={4} density={home ? 'sheet' : 'list'} /></Loader>
-      ) : filtered.length === 0 && home && !sheetOpen ? (
+      ) : filtered.length === 0 && home && !sheetOpen && !searching ? (
         <EmptyState icon={<Icon name="receipt" size={24} />} title="Todavía no hay movimientos este mes">Tocá + arriba para agregar uno.</EmptyState>
       ) : filtered.length === 0 ? (
         <div className="mb-empty">
           <span>{empty}</span>
-          {(count > 0 || q) && (
-            <Button variant="link" onClick={() => { setF(EMPTY); setPk('month'); setQ(''); }}>Quitar filtros</Button>
+          {searching ? (
+            <Button variant="link" onClick={() => setQ('')}>Borrar búsqueda</Button>
+          ) : count > 0 && (
+            <Button variant="link" onClick={() => { setF(EMPTY); setPk('month'); }}>Quitar filtros</Button>
           )}
         </div>
       ) : home ? (

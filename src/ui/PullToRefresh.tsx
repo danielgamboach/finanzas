@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Spinner } from '../ds';
 import { Icon } from '.';
 
 const PULL = 72; // px of pull (after resistance) that reloads
 // places where a downward drag already means something else
-const SKIP = '[role="dialog"], .sheet-backdrop, .tx-sheet.open, .ds-chart__plot, input, textarea, select, [data-no-ptr]';
+const SKIP = '[role="dialog"], .sheet-backdrop, .app-menu, .shell-scrim, .form-layer, .tx-sheet.open, .ds-chart__plot, input, textarea, select, [data-no-ptr]';
 
 /** Every scrollable box from the touched element up is at its top. */
 function atTop(el: Element | null) {
@@ -17,7 +18,8 @@ function atTop(el: Element | null) {
 
 /**
  * Pull down while already at the top of a screen to reload the app (fresh data and, when there is one,
- * the newest version). A round badge follows the finger and turns into a spinner once it's far enough.
+ * the newest version). The app slides down with the finger and uncovers a round badge that stays put behind it,
+ * which turns into a spinner once it's far enough.
  * Phone only; sheets, drawers and the chart keep their own drags.
  */
 export function PullToRefresh() {
@@ -27,9 +29,15 @@ export function PullToRefresh() {
 
   useEffect(() => {
     let sx = 0, sy = 0, armed = false, decided = false, pulling = false;
-    const set = (v: number) => {
+    // the whole app moves down with the finger and uncovers the indicator, which stays put underneath
+    const root = document.getElementById('root');
+    const set = (v: number, animate = false) => {
       yRef.current = v;
       setY(v);
+      if (!root) return;
+      root.style.transition = animate ? 'transform .28s cubic-bezier(.2,.8,.2,1)' : 'none';
+      root.style.transform = v ? `translateY(${v}px)` : '';
+      root.classList.toggle('ptr-pulling', v > 0);
     };
     const start = (e: TouchEvent) => {
       if (e.touches.length !== 1) return (armed = false);
@@ -60,11 +68,11 @@ export function PullToRefresh() {
       armed = false;
       if (yRef.current >= PULL) {
         setLoading(true);
-        set(PULL);
+        set(PULL, true);
         navigator.vibrate?.(10);
         // a beat so the spinner is seen before the page goes
         setTimeout(() => location.reload(), 250);
-      } else set(0);
+      } else set(0, true);
     };
     addEventListener('touchstart', start, { passive: true });
     addEventListener('touchmove', move, { passive: false });
@@ -80,9 +88,13 @@ export function PullToRefresh() {
 
   if (!y && !loading) return null;
   const ready = y >= PULL;
-  return (
-    <div className={`ptr${y === 0 ? ' is-idle' : ''}`} style={{ transform: `translate(-50%, ${y - 44}px)` }} role="status" aria-label={loading ? 'Recargando' : ready ? 'Soltá para recargar' : 'Jalá para recargar'}>
-      {loading ? <Spinner size={18} label="Recargando" /> : <span style={{ transform: `rotate(${(y / PULL) * 270}deg)`, opacity: Math.min(1, y / PULL + 0.2) }} className={ready ? 'ptr-icon is-ready' : 'ptr-icon'}><Icon name="refresh" size={18} /></span>}
-    </div>
+  // outside #root, so it stays behind the app while the app moves
+  return createPortal(
+    <div className="ptr" role="status" aria-label={loading ? 'Recargando' : ready ? 'Soltá para recargar' : 'Jalá para recargar'}>
+      <span className="ptr-badge">
+        {loading ? <Spinner size={18} label="Recargando" /> : <span style={{ transform: `rotate(${(Math.min(y, PULL) / PULL) * 270}deg)`, opacity: Math.min(1, y / PULL + 0.2) }} className={ready ? 'ptr-icon is-ready' : 'ptr-icon'}><Icon name="refresh" size={18} /></span>}
+      </span>
+    </div>,
+    document.body,
   );
 }

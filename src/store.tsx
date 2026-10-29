@@ -225,9 +225,38 @@ export function useRoute() {
   return path;
 }
 
+// On the phone, the detail and the movement form open without adding a page to the browser history: iOS turns an
+// edge swipe into its own back/forward navigation, which fought the app's swipes (menu, new movement) and drew a
+// second copy of the screen. Each one remembers where it came from and closeModal() goes back there.
+const MODAL_PATH = /^\/(agregar|mov\/)/;
+const isPhone = () => !window.matchMedia?.('(min-width: 1024px)').matches;
+const modalReturns: string[] = [];
+const here = () => location.hash.replace(/^#/, '') || '/';
+
 export const go = (path: string) => {
+  if (isPhone() && MODAL_PATH.test(path)) {
+    modalReturns.push(here());
+    location.replace(`#${path}`);
+    return;
+  }
   location.hash = path;
 };
+
+/** Top-level pages on the phone (menu destinations) replace each other instead of piling up in the history. */
+export const goTop = (path: string) => {
+  if (here() === path) return;
+  if (isPhone()) location.replace(`#${path}`);
+  else location.hash = path;
+};
+
+/** Closes the detail or the form: back to where it was opened from (`all`: past every open layer, after a delete). */
+export function closeModal(all = false) {
+  let r = modalReturns.pop();
+  if (all) while (r !== undefined && MODAL_PATH.test(r)) r = modalReturns.pop();
+  if (r !== undefined) location.replace(`#${r}`);
+  else if (history.length > 1) history.back();
+  else location.replace('#/');
+}
 
 type VT = { finished: Promise<void> };
 const startVT = (cb: () => Promise<void>): VT | null => {

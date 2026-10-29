@@ -18,7 +18,7 @@ const NAV = [
   { k: 'movimientos', label: 'Movimientos', icon: 'list', match: ['movimientos'] },
   { k: 'cuentas', label: 'Cuentas', icon: 'cards', match: ['cuentas', 'patrimonio', 'cuenta', 'saldos', 'meta'] },
   { k: 'categorias', label: 'Categorías', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto', 'categoria'] },
-  { k: 'tendencias', label: 'Tendencias', icon: 'chart', match: ['tendencias'] },
+  { k: 'tendencias', label: 'Mis finanzas', icon: 'chart', match: ['tendencias'] },
 ];
 
 /** Desktop frame: a fixed sidebar and a scrolling content area. No swipes, sheets or floating bars. */

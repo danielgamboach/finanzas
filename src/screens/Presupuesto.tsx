@@ -97,7 +97,7 @@ export function Categorias() {
 }
 
 /**
- * Tendencias (menu): how the month is going against the last one (the cumulative chart and the AI note),
+ * Mis finanzas (menu, route #/tendencias): how the month is going against the last one (the cumulative chart and the AI note),
  * spending per month, category by category against last month and the top merchants.
  */
 export function Tendencias() {
@@ -106,7 +106,7 @@ export function Tendencias() {
   const desk = useDesktop();
   const menu = useMenu();
   const d = useMonthData(ym);
-  if (!space) return <PageSkeleton title="Tendencias" hero={false}><ChartSkeleton height={120} /><GroupSkeleton rows={4} /></PageSkeleton>;
+  if (!space) return <PageSkeleton title="Mis finanzas" hero={false}><ChartSkeleton height={120} /><GroupSkeleton rows={4} /></PageSkeleton>;
 
   // the AI always talks about the current month and week
   const t = todayCR();
@@ -125,7 +125,7 @@ export function Tendencias() {
     return (
       <div className="dpage">
         <header className="dpage-head">
-          <h1 className="dtitle">Tendencias</h1>
+          <h1 className="dtitle">Mis finanzas</h1>
           <MonthNav ym={ym} setYm={setYm} />
         </header>
         <div className="dgrid analisis-grid">
@@ -141,7 +141,7 @@ export function Tendencias() {
 
   return (
     <div className="page">
-      <PageHeader title="Tendencias" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
+      <PageHeader title="Mis finanzas" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
       <div className="page-body tendencias-body">
         {chart}
         {ai}

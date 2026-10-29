@@ -9,7 +9,7 @@ import { amount, cap, money, moneyRaw, shortDate, unitOf } from '../lib/format';
 import { normWords, photoUrl, txBadge, txMerchant, type Merchant } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { useDesktop } from '../lib/useDesktop';
-import { go, TX_SELECT, useApp } from '../store';
+import { closeModal, go, TX_SELECT, useApp } from '../store';
 import { Emo, Icon, Loading } from '.';
 import { TxRow } from './TxRow';
 import { MergeSheet } from './Merchant';
@@ -29,8 +29,7 @@ const fullDate = new Intl.DateTimeFormat('es-CR', { weekday: 'short', day: 'nume
 const timeFmt = new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Costa_Rica' });
 
 function close() {
-  if (history.length > 1) history.back();
-  else go('/');
+  closeModal();
 }
 
 /** A movement, read-only: every detail, then the other movements of the same merchant. */

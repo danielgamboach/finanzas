@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { TxForm } from '../screens/TxForm';
-import { navigateBack } from '../store';
+import { closeModal } from '../store';
 import { swipeBlocked } from '../lib/swipe';
 
 export type FormSpec = { key: string; id?: string };
@@ -114,7 +114,7 @@ export const FormLayer = forwardRef<FormLayerHandle, { spec: FormSpec | null; on
       const speed = dx / Math.max(1, Date.now() - st);
       if (dx > n.clientWidth * 0.35 || (dx > 40 && speed > 0.5)) {
         set(0, true);
-        navigateBack();
+        closeModal();
       } else set(1, true);
     };
     n.addEventListener('touchstart', start, { passive: true });
@@ -132,7 +132,7 @@ export const FormLayer = forwardRef<FormLayerHandle, { spec: FormSpec | null; on
   // Esc closes it on a keyboard
   useEffect(() => {
     if (!spec) return;
-    const on = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('.sheet-backdrop') && navigateBack();
+    const on = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('.sheet-backdrop') && closeModal();
     addEventListener('keydown', on);
     return () => removeEventListener('keydown', on);
   }, [spec]);

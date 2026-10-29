@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AppSkeleton } from './ui/Skeletons';
-import { AppProvider, go, useApp, useRoute } from './store';
+import { AppProvider, closeModal, go, useApp, useRoute } from './store';
 import { Loading, Toast } from './ui';
 import { Ajustes } from './screens/Ajustes';
 import { CategoryEdit, CategoryView } from './screens/CategoryEdit';
@@ -126,7 +126,7 @@ function DesktopScreen({ a, b, c }: { a?: string; b?: string; c?: string }) {
 
 /** Centered dialog over the current page; Esc or a click outside closes it. */
 function DesktopModal({ children }: { children: React.ReactNode }) {
-  const close = () => (history.length > 1 ? history.back() : go('/'));
+  const close = () => closeModal();
   const closeRef = useRef(close);
   closeRef.current = close;
   useEffect(() => {

@@ -5,12 +5,13 @@ import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
 import { useDesktop } from '../lib/useDesktop';
 import { MerchantPhotoField } from '../ui/Merchant';
+import { MerchantInput } from '../ui/MerchantInput';
 import { merchantSiblings, setMerchantCategory } from '../lib/merchantCategory';
 import { txMerchant } from '../lib/merchants';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
-import { go, TX_SELECT, useApp } from '../store';
+import { closeModal, go, TX_SELECT, useApp } from '../store';
 import { Icon, Loading, Segmented } from '../ui';
 
 type FormType = 'gasto' | 'ingreso' | 'transferir' | 'aporte';
@@ -44,7 +45,7 @@ function rulePattern(raw: string) {
 /** On the phone the form is a page that comes in from the right (back arrow); on desktop, a centered dialog with X. */
 function FormHead({ title }: { title: string }) {
   const desk = useDesktop();
-  const close = () => (history.length > 1 ? history.back() : go('/'));
+  const close = () => closeModal();
   if (!desk) return <PageHeader className="form-page-head" title={title} onBack={close} backLabel="Cerrar" />;
   return (
     <div className="form-head">
@@ -221,7 +222,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
       else toast(applied > 1 ? `Guardado · ${applied} movimientos más categorizados` : 'Guardado');
       bump();
       await app.reloadMeta();
-      history.length > 1 ? history.back() : go('/');
+      closeModal();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar');
     } finally {
@@ -234,7 +235,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
     await db.remove('transactions', { id });
     toast('Movimiento eliminado');
     bump();
-    history.length > 1 ? history.back() : go('/');
+    closeModal(true);
   }
 
   const typeOptions = useMemo<[FormType, string][]>(() => {
@@ -296,6 +297,19 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
           </label>
           {num > 0 && <span className="muted-label">≈ {eq}</span>}
         </div>
+
+        <MerchantInput
+          value={merchant}
+          onChange={setMerchant}
+          onPick={(name, cat) => {
+            setMerchant(name);
+            if (cat && !categoryId && (type === 'gasto' || type === 'ingreso')) setCategoryId(cat);
+          }}
+          spaceId={spaceId}
+          cats={cats}
+          suggest={type !== 'aporte'}
+          placeholder={type === 'aporte' ? 'Detalle (opcional)' : type === 'transferir' ? '¿Para qué? (opcional)' : '¿Dónde?'}
+        />
 
         <div className="grid2">
           {spaces
@@ -365,10 +379,6 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         )}
 
         <div className="field-card">
-          <label className="field-row">
-            <span>{type === 'aporte' ? 'Detalle' : 'Comercio o detalle'}</span>
-            <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder={type === 'aporte' ? 'Aporte de octubre' : 'Ej. Feria, SINPE a Juan'} />
-          </label>
           {(type === 'gasto' || type === 'ingreso') && <MerchantPhotoField spaceId={spaceId} name={merchant} raw={orig?.raw_merchant} merchantId={orig && merchant === orig.merchant ? orig.merchant_id : null} />}
           {type !== 'aporte' && (
             <label className="field-row">

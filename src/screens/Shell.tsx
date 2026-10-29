@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MenuCtx } from '../lib/menu';
-import { useRoute } from '../store';
+import { go, useRoute } from '../store';
 import { AppMenu, MENU_ROUTES } from '../ui/AppMenu';
 import { FormLayer, formSpecOf, type FormLayerHandle } from '../ui/FormLayer';
 import { swipeBlocked } from '../lib/swipe';
@@ -175,7 +175,7 @@ export function Shell({ route }: { route: string }) {
         const p = -dx / r.clientWidth;
         const commit = p > 0.35 || (p > 0.08 && speed < -0.5);
         form.current?.peekEnd(commit);
-        if (commit) location.hash = '/agregar';
+        if (commit) go('/agregar');
       }
       mode = 'none';
     };

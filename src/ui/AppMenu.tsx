@@ -1,15 +1,14 @@
-import { Avatar, Button, Icon, Segmented, SideMenu, SideMenuItem } from '../ds';
+import { Avatar, Icon, Segmented, SideMenu, SideMenuItem } from '../ds';
 import { needsConfirm, useRecurring } from '../lib/recurring';
-import { go, useApp } from '../store';
+import { goTop, useApp } from '../store';
 import { openKai } from './Kai';
 
 /** Menu destinations: the key is the route; `match` lists other routes that light the same item. */
 export const MENU = [
-  { k: '', label: 'Inicio', icon: 'house', match: [''] },
-  { k: 'movimientos', label: 'Movimientos', icon: 'list', match: ['movimientos'] },
+  { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
   { k: 'cuentas', label: 'Cuentas', icon: 'cards', match: ['cuentas', 'patrimonio'] },
   { k: 'categorias', label: 'Categorías', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto'] },
-  { k: 'tendencias', label: 'Tendencias', icon: 'chart', match: ['tendencias'] },
+  { k: 'tendencias', label: 'Mis finanzas', icon: 'chart', match: ['tendencias'] },
   { k: 'recurrentes', label: 'Recurrentes', icon: 'repeat', match: ['recurrentes'] },
 ] as const;
 
@@ -23,7 +22,7 @@ export function usePendingCount() {
 }
 
 /**
- * What the phone menu holds: a new movement, the destinations, Kai, the spaces (one tap to switch) and,
+ * What the phone menu holds: the destinations, Kai, the spaces (one tap to switch) and,
  * at the bottom, the currency and the person, which leads to Ajustes.
  */
 export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: () => void; menuRef?: React.Ref<HTMLElement> }) {
@@ -31,7 +30,7 @@ export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: (
   const pending = usePendingCount();
   const to = (path: string) => {
     onClose();
-    if ((location.hash.replace(/^#/, '') || '/') !== path) go(path);
+    goTop(path);
   };
   const isOn = (keys: readonly string[]) => keys.includes(route);
 
@@ -39,7 +38,6 @@ export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: (
     <SideMenu
       menuRef={menuRef}
       className="app-menu"
-      top={<Button variant="secondary" size="md" block leading={<Icon name="plus" size={18} solid />} onClick={() => to('/agregar')}>Nuevo movimiento</Button>}
       footer={
         <>
           <div className="app-menu-cur">
