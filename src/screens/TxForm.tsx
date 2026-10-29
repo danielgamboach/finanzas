@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bone, Button, Chip, FormSkeleton, Loader, Switch } from '../ds';
+import { Bone, Button, Chip, FormSkeleton, Loader, PageHeader, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
-import { useDragToClose } from '../ui/useDragToClose';
+import { useDesktop } from '../lib/useDesktop';
 import { MerchantPhotoField } from '../ui/Merchant';
 import { merchantSiblings, setMerchantCategory } from '../lib/merchantCategory';
 import { txMerchant } from '../lib/merchants';
@@ -41,7 +41,20 @@ function rulePattern(raw: string) {
     .trim();
 }
 
-export function TxForm({ id }: { id?: string }) {
+/** On the phone the form is a page that comes in from the right (back arrow); on desktop, a centered dialog with X. */
+function FormHead({ title }: { title: string }) {
+  const desk = useDesktop();
+  const close = () => (history.length > 1 ? history.back() : go('/'));
+  if (!desk) return <PageHeader className="form-page-head" title={title} onBack={close} backLabel="Cerrar" />;
+  return (
+    <div className="form-head">
+      <h1 className="form-title">{title}</h1>
+      <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
+    </div>
+  );
+}
+
+export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAmount?: boolean }) {
   const app = useApp();
   const { spaces, members, profiles, userId, fx, toast, bump } = app;
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
@@ -60,7 +73,6 @@ export function TxForm({ id }: { id?: string }) {
   const [when, setWhen] = useState(toInputDateTime(new Date().toISOString()));
   const [note, setNote] = useState('');
   const [repeat, setRepeat] = useState(false);
-  const dragRef = useDragToClose<HTMLDivElement>(() => (history.length > 1 ? history.back() : go('/')), 'window');
   const [remember, setRemember] = useState(true);
   const [applyAll, setApplyAll] = useState(true);
   const [siblings, setSiblings] = useState(0);
@@ -235,11 +247,7 @@ export function TxForm({ id }: { id?: string }) {
     return (
       <div className="form-screen">
         <div className="sheet-page" aria-label="Editar movimiento">
-          <div className="grabber" />
-          <div className="form-head">
-            <h1 className="form-title">Editar movimiento</h1>
-            <Button variant="secondary" size="xs" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
-          </div>
+          <FormHead title="Editar movimiento" />
           <Loader>
             <Bone height={36} radius="xl" />
             <span className="amount-block"><Bone width={180} height={56} radius="lg" /></span>
@@ -252,12 +260,8 @@ export function TxForm({ id }: { id?: string }) {
 
   return (
     <div className="form-screen">
-      <div ref={dragRef} className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
-        <div className="grabber" />
-        <div className="form-head">
-          <h1 className="form-title">{id ? 'Editar movimiento' : 'Nuevo movimiento'}</h1>
-          <Button variant="secondary" size="xs" iconOnly onClick={() => (history.length > 1 ? history.back() : go('/'))} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
-        </div>
+      <div className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
+        <FormHead title={id ? 'Editar movimiento' : 'Nuevo movimiento'} />
 
         {orig?.raw_merchant && (
           <div className="from-bank">
@@ -282,7 +286,7 @@ export function TxForm({ id }: { id?: string }) {
             <span className="amount-sym">{cur === 'USD' ? '$' : '¢'}</span>
             <input
               inputMode="decimal"
-              autoFocus={!id}
+              autoFocus={autoFocusAmount}
               placeholder="0"
               value={displayAmount(amount)}
               onChange={(e) => setAmount(rawAmount(e.target.value))}

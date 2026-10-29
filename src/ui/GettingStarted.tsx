@@ -53,7 +53,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
     { key: 'tx', emoji: '✍️', title: 'Anotá tu primer gasto', sub: 'Tocá + arriba y listo, toma segundos.', done: st.tx, run: () => go('/agregar') },
     { key: 'acc', emoji: '💳', title: 'Agregá una cuenta', sub: 'La tarjeta o el efectivo con que pagás.', done: st.acc, run: () => go('/cuenta/nueva') },
     { key: 'rec', emoji: '🔁', title: 'Agregá tus pagos fijos', sub: 'Alquiler, servicios, suscripciones. Te avisamos antes.', done: st.rec, run: () => go('/recurrentes') },
-    { key: 'lim', emoji: '🎯', title: 'Ponele un límite a una categoría', sub: 'Así sabés cuánto te queda en el mes.', done: st.lim, run: () => go('/analisis') },
+    { key: 'lim', emoji: '🎯', title: 'Ponele un límite a una categoría', sub: 'Así sabés cuánto te queda en el mes.', done: st.lim, run: () => go('/categorias') },
   ];
   if (ownShared) {
     items.push({

@@ -58,6 +58,7 @@ MAP = {
     'deltaDown': 'arrow-small-down',
     'spinner': 'spinner',
     'wand': 'magic-wand',
+    'menu': 'menu-burger',
     'angleRight': 'angle-right',
     'bank': 'bank',
     'chartHistogram': 'chart-histogram',

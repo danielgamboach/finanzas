@@ -1,3 +1,4 @@
+import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
 import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
 import { PageSkeleton } from '../ui/Skeletons';
@@ -225,6 +226,7 @@ export function Cuentas() {
   }, [space, version]);
 
   const desk = useDesktop();
+  const menu = useMenu();
   if (!space) return <PageSkeleton title="Cuentas" heroAction><GroupSkeleton rows={2} leading="icon" /><GroupSkeleton rows={2} leading="icon" /></PageSkeleton>;
   const accs = [...w.accounts].sort(byKind);
   const hasAssets = accs.some((a) => a.kind !== 'credit_card');
@@ -304,7 +306,7 @@ export function Cuentas() {
 
   return (
     <div className="page">
-      <PageHeader title="Cuentas" actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>} />
+      <PageHeader title="Cuentas" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly href="#/cuenta/nueva" aria-label="Agregar cuenta"><Icon name="plus" size={16} solid /></Button>} />
       {worth ? <div className="page-hero">{worth}</div> : w.loading && accs.length === 0 ? <div className="page-hero"><Loader><SummarySkeleton action /></Loader></div> : null}
       <div className="page-body">
         {groups}

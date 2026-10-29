@@ -8,9 +8,10 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, SpendChart, SummarySkeleton } from '../ds';
+import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
-import { ProfileButton } from '../ui/ProfileMenu';
+import { usePendingCount } from '../ui/AppMenu';
+import { useMenu } from '../lib/menu';
 import { openKai } from '../ui/Kai';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
@@ -201,16 +202,23 @@ export function MerchantFace({ tx, size }: { tx: Tx; size: number }) {
   return ph ? <img src={ph} alt="" /> : <span style={{ fontSize: size * 0.5 }}>{cat?.emoji || '🛍️'}</span>;
 }
 
-export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boolean) => void; goPanel: (i: number) => void; focus: number; onSearch?: () => void }) {
+export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boolean) => void; focus: number }) {
   const topRef = useRef<HTMLDivElement>(null);
   const h = useHomeSummary();
+  const menu = useMenu();
+  const pending = usePendingCount();
   if (!h) return <HomeSkeleton />;
 
   return (
     <div className="home">
       <div className="home-top">
-        <HomeHeader actions={<><HomeHeaderButton icon="plus" label="Agregar gasto" href="#/agregar" /><KaiButton onClick={() => openKai()} /></>}>
-          <ProfileButton />
+        <HomeHeader actions={<><HomeHeaderButton icon="plus" label="Nuevo movimiento" href="#/agregar" /><KaiButton onClick={() => openKai()} /></>}>
+          <MenuButton
+            onClick={() => menu?.open()}
+            title={<>{h.space.emoji} {h.space.name}</>}
+            dot={pending > 0}
+            dotLabel={`${pending} ${pending === 1 ? 'pago por confirmar' : 'pagos por confirmar'}`}
+          />
         </HomeHeader>
         <div ref={topRef} className="home-summary">
           <SpendOverview h={h} />

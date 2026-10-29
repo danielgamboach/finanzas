@@ -1,3 +1,4 @@
+import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
 import { BalanceSummary, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, SummarySkeleton, Switch } from '../ds';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
@@ -142,7 +143,8 @@ export function Recurrentes() {
     db.rpc<RecurringSuggestion[]>('recurring_suggestions', { p_space: space.id }).then(setSugs).catch(() => setSugs([]));
   }, [space, version]);
 
-  if (!space) return <PageSkeleton title="Recurrentes" back nav={false}><GroupSkeleton rows={2} action value={false} /><GroupSkeleton rows={3} /></PageSkeleton>;
+  const menu = useMenu();
+  if (!space) return <PageSkeleton title="Recurrentes" back={!menu} nav={false}><GroupSkeleton rows={2} action value={false} /><GroupSkeleton rows={3} /></PageSkeleton>;
   const active = items.filter((r) => r.active);
   const paused = items.filter((r) => !r.active);
   const monthly = active.reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency], 0);
@@ -210,7 +212,8 @@ export function Recurrentes() {
     <div className="page no-nav">
       <PageHeader
         title="Recurrentes"
-        onBack={navigateBack}
+        onBack={menu ? undefined : navigateBack}
+        onMenu={menu?.open}
         actions={<Button variant="secondary" size="xs" iconOnly href="#/recurrente/nueva" aria-label="Nuevo recurrente"><Icon name="plus" size={16} solid /></Button>}
       />
       <div className="page-hero">

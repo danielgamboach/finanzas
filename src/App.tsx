@@ -6,14 +6,15 @@ import { Ajustes } from './screens/Ajustes';
 import { CategoryEdit, CategoryView } from './screens/CategoryEdit';
 import { Login } from './screens/Login';
 import { AccountEdit, AccountView, GoalEdit, Saldos } from './screens/Patrimonio';
-import { Shell } from './screens/Shell';
+import { isShellRoute, Shell } from './screens/Shell';
+import { FormLayer, formSpecOf } from './ui/FormLayer';
 import { RecurringEdit, Recurrentes } from './screens/Recurrentes';
 import { TxForm } from './screens/TxForm';
 import { SinLogo } from './screens/SinLogo';
 import { NotifPrompt } from './screens/NotifPrompt';
 import { Onboarding, pendingInvite, setPendingInvite } from './screens/Onboarding';
 import { db } from './lib/api';
-import { Analisis } from './screens/Presupuesto';
+import { Categorias, Tendencias } from './screens/Presupuesto';
 import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
 import { useDesktop } from './lib/useDesktop';
@@ -83,22 +84,15 @@ function Router() {
     );
   }
 
-  if (detail) {
-    // the page underneath stays mounted (same position in the tree), the detail slides over it
-    const [, ba, bb, bc] = bg.current.split('/');
-    return (
-      <>
-        <Screen a={ba} b={bb} c={bc} />
-        <TxDetail id={b!} />
-        <NotifPrompt />
-        <PullToRefresh />
-      </>
-    );
-  }
-
+  // phone: the page underneath always stays mounted in the same place; the detail (drawer) and the
+  // movement form (from the right) open over it
+  const [, ba, bb, bc] = bg.current.split('/');
+  const form = modal && !detail;
   return (
     <>
-      <Screen a={a} b={b} c={c} />
+      <Screen a={ba} b={bb} c={bc} />
+      {form && !isShellRoute(ba) && <FormLayer spec={formSpecOf(path)} />}
+      {detail && <TxDetail id={b!} />}
       <NotifPrompt />
       <PullToRefresh />
     </>
@@ -112,12 +106,19 @@ function DesktopScreen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return <DesktopHome />;
     case 'movimientos':
       return <DesktopMovements />;
+    case 'categorias':
     case 'analisis':
     case 'presupuesto':
-      return <Analisis />;
+      return <Categorias />;
+    case 'tendencias':
+      return <Tendencias />;
     case 'cuentas':
     case 'patrimonio':
       return <Cuentas />;
+    case 'recurrentes':
+      return <Recurrentes />;
+    case 'ajustes':
+      return <Ajustes />;
     default:
       return <Screen a={a} b={b} c={c} />;
   }
@@ -150,6 +151,10 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
     case 'presupuesto':
     case 'cuentas':
     case 'patrimonio':
+    case 'categorias':
+    case 'tendencias':
+    case 'recurrentes':
+    case 'ajustes':
       return <Shell route={a || ''} />;
     case 'agregar':
       return <TxForm key="new" />;
@@ -157,8 +162,6 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return <TxForm key={b} id={b} />;
     case 'categoria':
       return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
-    case 'recurrentes':
-      return <Recurrentes />;
     case 'recurrente':
       return <RecurringEdit key={b} id={b} />;
     case 'saldos':
@@ -167,8 +170,6 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return b === 'nueva' || c === 'editar' ? <AccountEdit key={b} id={b} /> : <AccountView key={b} id={b} />;
     case 'meta':
       return <GoalEdit key={b} id={b} />;
-    case 'ajustes':
-      return <Ajustes />;
     case 'sin-logo':
       return isAdmin ? <SinLogo /> : <Ajustes />;
     default:

@@ -11,34 +11,24 @@ import { AiNote, fingerprint } from '../ui/AiNote';
 import { dateKey } from '../lib/format';
 import { MonthNav, useMonth } from './Home';
 import { useDesktop } from '../lib/useDesktop';
+import { useMenu } from '../lib/menu';
 import { txBadge, txMerchant, photoUrl } from '../lib/merchants';
 
-/** Left panel: the month at a glance, budgets by category and trends. */
-export function Analisis() {
-  const { space, categories, cur, fx } = useApp();
-  const [tab, setTab] = useState<'limits' | 'analysis'>('limits');
-  const [ym, setYm] = useMonth();
-  const desk = useDesktop();
+/** Everything both pages compute for the chosen month (six months back for the trends, plus this week). */
+function useMonthData(ym: [number, number]) {
+  const { space, categories } = useApp();
   const t = todayCR();
   const isCurrent = ym[0] === t.y && ym[1] === t.m;
   const month = monthRange(ym[0], ym[1]);
   const week = weekRange(space?.week_start ?? 5);
-  // six months back for the analysis, plus the current week
   const range = useMemo(() => ({ from: crIso(ym[0], ym[1] - 5, 1), to: [month.to, week.to].sort()[1] }), [ym, month.to, week.to]);
   const { txs, loading } = useTxs(range);
-  // the AI always talks about the current month and week
-  const nowMonth = monthRange(t.y, t.m);
-
-  if (!space) return <PageSkeleton title="Análisis"><ChartSkeleton height={120} /><GroupSkeleton rows={5} below /></PageSkeleton>;
-  const fp = fingerprint(txs.filter((x) => inRange(x, nowMonth) || inRange(x, week)), categories, dateKey(new Date().toISOString()));
   const stats = categoryStats(categories, txs, month, week, isCurrent);
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
   const budget = stats.reduce((a, s) => a + (s.cat.limit_amount ? (s.cat.limit_period === 'weekly' ? Number(s.cat.limit_amount) * 4.33 : Number(s.cat.limit_amount)) : 0), 0);
   const l = crLocal(month.from);
   const daysInMonth = new Date(Date.UTC(l.getUTCFullYear(), l.getUTCMonth() + 1, 0)).getUTCDate();
-
-  // month chart: this month (up to today) against the previous one
   const pr = monthRange(ym[0], ym[1] - 1);
   const pl = crLocal(pr.from);
   const prevDays = new Date(Date.UTC(pl.getUTCFullYear(), pl.getUTCMonth() + 1, 0)).getUTCDate();
@@ -47,53 +37,50 @@ export function Analisis() {
   const prevSeries = prevTxs.length ? cumulative(prevTxs, pl.getUTCFullYear(), pl.getUTCMonth(), prevDays) : null;
   const dayN = isCurrent ? t.d : daysInMonth;
   const prevSoFar = prevSeries ? prevSeries[Math.min(dayN, prevDays) - 1] : 0;
-  const diff = spent - prevSoFar;
-  const fmt = (v: number) => money(v, cur, fx);
+  return { txs, loading, first: loading && txs.length === 0, isCurrent, week, stats, spent, budget, daysInMonth, curSeries, prevSeries, prevSoFar, prevName: monthName(pl.getUTCMonth()) };
+}
 
-  const ai = <AiNote spaceId={space.id} fp={fp} ready={!loading && isCurrent} />;
-  const prevName = monthName(pl.getUTCMonth());
+/**
+ * Categorías (menu): the month's spending against the budget and every category with its bar.
+ * The breakdown by subcategory lives in each category.
+ */
+export function Categorias() {
+  const { space, cur, fx } = useApp();
+  const [ym, setYm] = useMonth();
+  const desk = useDesktop();
+  const menu = useMenu();
+  const d = useMonthData(ym);
+  if (!space) return <PageSkeleton title="Categorías"><GroupSkeleton rows={5} below /></PageSkeleton>;
+
+  const diff = d.spent - d.prevSoFar;
   const summary = (
     <BalanceSummary
       label={`Gasto de ${monthName(ym[1])}`}
-      value={amount(spent, cur, fx)}
+      value={amount(d.spent, cur, fx)}
       unit={unitOf(cur)}
-      delta={prevSeries && Math.abs(diff) >= 1 ? { value: `${amount(Math.abs(diff), cur, fx)} ${unitOf(cur)}`, good: diff <= 0, direction: diff > 0 ? 'up' : 'down', vs: `${diff > 0 ? 'más' : 'menos'} que ${prevName}${isCurrent ? ' a esta altura' : ''}` } : null}
-      meta={budget > 0 ? `de ${amount(budget, cur, fx)} ${unitOf(cur)} de presupuesto` : null}
+      delta={d.prevSeries && Math.abs(diff) >= 1 ? { value: `${amount(Math.abs(diff), cur, fx)} ${unitOf(cur)}`, good: diff <= 0, direction: diff > 0 ? 'up' : 'down', vs: `${diff > 0 ? 'más' : 'menos'} que ${d.prevName}${d.isCurrent ? ' a esta altura' : ''}` } : null}
+      meta={d.budget > 0 ? `de ${amount(d.budget, cur, fx)} ${unitOf(cur)} de presupuesto` : null}
     />
-  );
-  const first = loading && txs.length === 0;
-  const chart = first ? <Loader><ChartSkeleton height={120} /></Loader> : (
-    <section className="month-card" aria-label={`Gasto de ${monthName(ym[1])} contra ${prevName}`}>
-      <MonthChart current={curSeries} previous={prevSeries} days={daysInMonth} budget={budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(prevName)} fmt={fmt} />
-    </section>
   );
   const limits = (
     <ListGroup title="Categorías" action={<a href="#/categoria/nueva">Nueva</a>}>
-      {stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
+      {d.stats.map((s) => <CatRow key={s.cat.id} s={s} />)}
     </ListGroup>
   );
 
   if (desk) {
-    // desktop: everything at once, budget on the left and trends on the right
     return (
       <div className="dpage">
         <header className="dpage-head">
-          <h1 className="dtitle">Análisis</h1>
+          <h1 className="dtitle">Categorías</h1>
           <MonthNav ym={ym} setYm={setYm} />
         </header>
-        {loading && txs.length === 0 ? (
-          <Loader><div className="dgrid analisis-grid"><div className="dcol gap24"><SummarySkeleton /><ChartSkeleton height={120} /><GroupSkeleton rows={5} below /></div><div className="dcol"><GroupSkeleton rows={1} leading="none" value={false} /><GroupSkeleton rows={5} /></div></div></Loader>
+        {d.first ? (
+          <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={6} below /></div></Loader>
         ) : (
-          <div className="dgrid analisis-grid">
-            <div className="dcol gap24">
-              {summary}
-              {chart}
-              {ai}
-              {limits}
-            </div>
-            <div className="dcol">
-              <Analysis txs={txs} ym={ym} />
-            </div>
+          <div className="dcol gap24 dnarrow">
+            {summary}
+            {limits}
           </div>
         )}
       </div>
@@ -102,13 +89,63 @@ export function Analisis() {
 
   return (
     <div className="page">
-      <PageHeader title="Análisis" actions={<MonthNav ym={ym} setYm={setYm} />} />
-      <div className="page-hero">{first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
-      <div className="page-body">
+      <PageHeader title="Categorías" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
+      <div className="page-hero">{d.first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
+      <div className="page-body">{d.first ? <Loader><GroupSkeleton rows={5} below /></Loader> : limits}</div>
+    </div>
+  );
+}
+
+/**
+ * Tendencias (menu): how the month is going against the last one (the cumulative chart and the AI note),
+ * spending per month, category by category against last month and the top merchants.
+ */
+export function Tendencias() {
+  const { space, categories, cur, fx } = useApp();
+  const [ym, setYm] = useMonth();
+  const desk = useDesktop();
+  const menu = useMenu();
+  const d = useMonthData(ym);
+  if (!space) return <PageSkeleton title="Tendencias" hero={false}><ChartSkeleton height={120} /><GroupSkeleton rows={4} /></PageSkeleton>;
+
+  // the AI always talks about the current month and week
+  const t = todayCR();
+  const nowMonth = monthRange(t.y, t.m);
+  const fp = fingerprint(d.txs.filter((x) => inRange(x, nowMonth) || inRange(x, d.week)), categories, dateKey(new Date().toISOString()));
+  const ai = <AiNote spaceId={space.id} fp={fp} ready={!d.loading && d.isCurrent} />;
+  const fmt = (v: number) => money(v, cur, fx);
+  const chart = d.first ? <Loader><ChartSkeleton height={120} /></Loader> : (
+    <section className="month-card" aria-label={`Gasto de ${monthName(ym[1])} contra ${d.prevName}`}>
+      <MonthChart current={d.curSeries} previous={d.prevSeries} days={d.daysInMonth} budget={d.budget} curLabel={cap(monthName(ym[1]))} prevLabel={cap(d.prevName)} fmt={fmt} />
+    </section>
+  );
+  const groups = d.first ? <Loader><GroupSkeleton rows={1} leading="none" value={false} /><GroupSkeleton rows={4} /></Loader> : <Analysis txs={d.txs} ym={ym} />;
+
+  if (desk) {
+    return (
+      <div className="dpage">
+        <header className="dpage-head">
+          <h1 className="dtitle">Tendencias</h1>
+          <MonthNav ym={ym} setYm={setYm} />
+        </header>
+        <div className="dgrid analisis-grid">
+          <div className="dcol gap24">
+            {chart}
+            {ai}
+          </div>
+          <div className="dcol">{groups}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <PageHeader title="Tendencias" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
+      <div className="page-body tendencias-body">
         {chart}
         {ai}
-        <Segmented value={tab} options={[{ value: 'limits', label: 'Presupuesto' }, { value: 'analysis', label: 'Tendencias' }]} onChange={setTab} />
-        {loading && txs.length === 0 ? <Loader><GroupSkeleton rows={5} below={tab === 'limits'} /></Loader> : tab === 'limits' ? limits : <Analysis txs={txs} ym={ym} />}
+        {groups}
       </div>
     </div>
   );

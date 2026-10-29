@@ -106,7 +106,7 @@ export function CategoryEdit({ id }: { id: string }) {
     await reloadMeta();
     bump();
     toast('Categoría eliminada');
-    go('/presupuesto');
+    go('/categorias');
   }
 
   return (

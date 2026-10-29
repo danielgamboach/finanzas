@@ -14,10 +14,11 @@ import { TxTableRow } from '../ui/TxRow';
 import { greeting } from '../lib/greetings';
 
 const NAV = [
-  { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
-  { k: 'analisis', label: 'Análisis', icon: 'chart', match: ['analisis', 'presupuesto', 'categoria'] },
+  { k: '', label: 'Inicio', icon: 'house', match: [''] },
+  { k: 'movimientos', label: 'Movimientos', icon: 'list', match: ['movimientos'] },
   { k: 'cuentas', label: 'Cuentas', icon: 'cards', match: ['cuentas', 'patrimonio', 'cuenta', 'saldos', 'meta'] },
-  { k: 'movimientos', label: 'Movimientos', icon: 'list', match: [] as string[] },
+  { k: 'categorias', label: 'Categorías', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto', 'categoria'] },
+  { k: 'tendencias', label: 'Tendencias', icon: 'chart', match: ['tendencias'] },
 ];
 
 /** Desktop frame: a fixed sidebar and a scrolling content area. No swipes, sheets or floating bars. */
@@ -54,7 +55,7 @@ export function DesktopLayout({ route, children }: { route: string; children: Re
     return () => removeEventListener('keydown', on);
   }, [route]);
 
-  const isOn = (n: (typeof NAV)[number]) => (n.k === 'movimientos' ? route === 'movimientos' : n.match.includes(route) && !(n.k === '' && route === 'movimientos'));
+  const isOn = (n: (typeof NAV)[number]) => (n.match as readonly string[]).includes(route);
 
   return (
     <div className="desk">

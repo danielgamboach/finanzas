@@ -39,5 +39,6 @@ export { TxRow, type TxRowProps, type TxAmountTone } from './organisms/TxRow/TxR
 export { PendingPayments, PendingPaymentRow } from './organisms/PendingPayments/PendingPayments';
 export { AccountRow, AccountGroup, type AccountRowProps } from './organisms/AccountRow/AccountRow';
 export { ListGroup, ListRow, type ListRowProps, type RowTone } from './molecules/ListGroup/ListGroup';
+export { SideMenu, SideMenuItem, MenuButton } from './organisms/SideMenu/SideMenu';
 export { PageHeader } from './organisms/PageHeader/PageHeader';
 export { Loader, SummarySkeleton, GroupSkeleton, RowSkeleton, TxListSkeleton, FormSkeleton, ChartSkeleton } from './molecules/Skeletons/Skeletons';

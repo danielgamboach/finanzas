@@ -1,3 +1,4 @@
+import { useMenu } from '../lib/menu';
 import React from 'react';
 import { Bone, ChartSkeleton, FormSkeleton, GroupSkeleton, Loader, PageHeader, SummarySkeleton, TxListSkeleton } from '../ds';
 import { navigateBack } from '../store';
@@ -15,7 +16,7 @@ export function HomeSkeleton() {
       <div className="home home-skel">
         <div className="home-top">
           <div className="ds-home-header">
-            <span className="row gap8"><Bone width={40} height={40} radius="2xl" /><Bone width={88} height={14} /></span>
+            <span className="row gap10"><Bone width={32} height={32} radius="xl" /><Bone width={110} height={16} /></span>
             <span className="row gap8"><Bone width={32} height={32} radius="xl" /><Bone width={32} height={32} radius="xl" /></span>
           </div>
           <div className="home-summary">
@@ -73,9 +74,10 @@ export function AppSkeleton() {
 export function PageSkeleton({ title, back = false, hero = true, heroAction = false, nav = true, children }: {
   title?: React.ReactNode; back?: boolean; hero?: boolean; heroAction?: boolean; nav?: boolean; children?: React.ReactNode;
 }) {
+  const menu = useMenu();
   return (
     <div className={nav ? 'page' : 'page no-nav'}>
-      <PageHeader title={title ?? <Bone width={160} height={back ? 24 : 28} radius="lg" />} onBack={back ? navigateBack : undefined} />
+      <PageHeader title={title ?? <Bone width={160} height={back ? 24 : 28} radius="lg" />} onBack={back ? navigateBack : undefined} onMenu={back ? undefined : menu?.open} />
       <Loader>
         {hero && <div className="page-hero"><SummarySkeleton action={heroAction} /></div>}
         <div className="page-body">{children ?? <GroupSkeleton rows={4} />}</div>

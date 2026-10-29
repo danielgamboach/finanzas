@@ -1,3 +1,4 @@
+import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
 import { Button, ListGroup, ListRow, PageHeader, Switch } from '../ds';
 import { auth, db } from '../lib/api';
@@ -8,6 +9,7 @@ import { shareInvite } from './Onboarding';
 import { accountIcon } from './Patrimonio';
 
 export function Ajustes() {
+  const menu = useMenu();
   const { isAdmin, profile, userId, spaces, members, profiles, accounts, categories, space, fx, toast, reloadMeta, bump, setSpaceId } = useApp();
   const [name, setName] = useState(profile?.name || '');
   const [emoji, setEmoji] = useState(profile?.emoji || '🙂');
@@ -68,7 +70,7 @@ export function Ajustes() {
 
   return (
     <div className="page no-nav">
-      <PageHeader title="Ajustes" onBack={navigateBack} />
+      <PageHeader title="Ajustes" onBack={menu ? undefined : navigateBack} onMenu={menu?.open} />
       <div className="page-body">
         <ListGroup title="Tu perfil">
           <div className="set-form">
