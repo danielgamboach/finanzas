@@ -8,9 +8,10 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
+import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { usePendingCount } from '../ui/AppMenu';
+import { openKai } from '../ui/Kai';
 import { useMenu } from '../lib/menu';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
@@ -211,10 +212,12 @@ export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boo
   return (
     <div className="home">
       <div className="home-top">
-        <HomeHeader actions={<HomeHeaderButton icon="plus" label="Nuevo movimiento" onClick={() => go('/agregar')} />}>
+        <HomeHeader
+          actions={<HomeHeaderButton icon="plus" label="Nuevo movimiento" onClick={() => go('/agregar')} />}
+          center={<button type="button" className="ds-home-header__title" onClick={() => menu?.open()} aria-label={`Espacio ${h.space.name}, abrir menú`}>{h.space.emoji} {h.space.name}</button>}
+        >
           <MenuButton
             onClick={() => menu?.open()}
-            title={<>{h.space.emoji} {h.space.name}</>}
             dot={pending > 0}
             dotLabel={`${pending} ${pending === 1 ? 'pago por confirmar' : 'pagos por confirmar'}`}
           />
@@ -225,6 +228,7 @@ export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boo
       </div>
 
       <TxSheet open={open} setOpen={setOpen} recent={h.recent} topRef={topRef} focus={focus} />
+      <KaiButton type="fab" className={open ? 'home-kai is-hidden' : 'home-kai'} onClick={() => openKai()} />
     </div>
   );
 }

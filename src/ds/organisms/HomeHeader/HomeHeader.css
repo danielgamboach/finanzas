@@ -1,4 +1,8 @@
-.ds-home-header { height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px; }
+.ds-home-header { position: relative; height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 16px; }
 .ds-home-header__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ds-home-header__btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: var(--radius-xl); background: var(--secondary); color: var(--foreground); text-decoration: none; }
 .ds-home-header__btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ds-home-header__center { position: absolute; left: 64px; right: 64px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.ds-home-header__center > * { pointer-events: auto; max-width: 100%; }
+.ds-home-header__title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 8px; border: none; border-radius: var(--radius-xl); background: none; color: var(--foreground); font: inherit; font-size: var(--text-lg); line-height: var(--text-lg--line-height); font-weight: var(--font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ds-home-header__title:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }

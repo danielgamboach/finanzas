@@ -1,3 +1,5 @@
 .ds-kai { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; border: none; border-radius: var(--radius-full); background: var(--ai); color: var(--ai-foreground); font: inherit; font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
 .ds-kai--icon { width: 32px; height: 32px; border-radius: var(--radius-xl); background: var(--secondary); color: var(--foreground); }
 .ds-kai--chip { height: 36px; padding: 0 12px 0 10px; }
+.ds-kai--fab { width: 52px; height: 52px; border-radius: var(--radius-full); box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.ds-kai--fab:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

@@ -1,13 +1,12 @@
 import { Avatar, Icon, Segmented, SideMenu, SideMenuItem } from '../ds';
 import { needsConfirm, useRecurring } from '../lib/recurring';
 import { goTop, useApp } from '../store';
-import { openKai } from './Kai';
 
 /** Menu destinations: the key is the route; `match` lists other routes that light the same item. */
 export const MENU = [
   { k: '', label: 'Inicio', icon: 'house', match: ['', 'movimientos'] },
   { k: 'cuentas', label: 'Cuentas', icon: 'cards', match: ['cuentas', 'patrimonio'] },
-  { k: 'categorias', label: 'Categorías', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto'] },
+  { k: 'categorias', label: 'Presupuesto', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto'] },
   { k: 'tendencias', label: 'Mis finanzas', icon: 'chart', match: ['tendencias'] },
   { k: 'recurrentes', label: 'Recurrentes', icon: 'repeat', match: ['recurrentes'] },
 ] as const;
@@ -22,7 +21,7 @@ export function usePendingCount() {
 }
 
 /**
- * What the phone menu holds: the destinations, Kai, the spaces (one tap to switch) and,
+ * What the phone menu holds: the destinations, the spaces (one tap to switch) and,
  * at the bottom, the currency and the person, which leads to Ajustes.
  */
 export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: () => void; menuRef?: React.Ref<HTMLElement> }) {
@@ -66,7 +65,6 @@ export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: (
           ariaLabel={m.k === 'recurrentes' && pending > 0 ? `Recurrentes, ${pending} por confirmar` : undefined}
         />
       ))}
-      <SideMenuItem icon="sparkle" label="Preguntale a Kai" onClick={() => { onClose(); openKai(); }} />
 
       {spaces.length > 1 && (
         <SideMenu.Section title="Espacios">

@@ -1,6 +1,7 @@
 import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
-import { ActionBar, Button, ListGroup, ListRow, PageHeader, Switch } from '../ds';
+import { ActionBar, Button, ListGroup, ListRow, PageHeader, Segmented, Switch } from '../ds';
+import { getTheme, setTheme, type ThemePref } from '../lib/theme';
 import { auth, db } from '../lib/api';
 import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { go, navigateBack, useApp } from '../store';
@@ -9,6 +10,7 @@ import { shareInvite } from './Onboarding';
 import { accountIcon } from './Patrimonio';
 
 export function Ajustes() {
+  const [theme, setThemeState] = useState<ThemePref>(getTheme);
   const menu = useMenu();
   const { isAdmin, profile, userId, spaces, members, profiles, accounts, categories, space, fx, toast, reloadMeta, bump, setSpaceId } = useApp();
   const [name, setName] = useState(profile?.name || '');
@@ -76,6 +78,12 @@ export function Ajustes() {
           <div className="set-form">
             <input className="input emoji-input" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={8} aria-label="Emoji" />
             <input className="input grow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" aria-label="Nombre" />
+          </div>
+        </ListGroup>
+
+        <ListGroup title="Apariencia">
+          <div className="group-pad">
+            <Segmented label="Apariencia" value={theme} onChange={(v) => { setThemeState(v); setTheme(v); }} options={[{ value: 'dark', label: 'Oscuro' }, { value: 'light', label: 'Claro' }, { value: 'system', label: 'Sistema' }]} />
           </div>
         </ListGroup>
 

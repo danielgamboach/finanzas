@@ -383,7 +383,7 @@
   --popover-foreground: var(--color-neutral-800);
   --primary: var(--color-neutral-800);
   --primary-foreground: var(--color-white);
-  --secondary: var(--color-white);
+  --secondary: var(--color-stone-100);
   --secondary-foreground: var(--color-neutral-700);
   --secondary-on-card: var(--color-white);
   --muted: var(--color-stone-100);
@@ -397,6 +397,14 @@
   --success-foreground: var(--color-white);
   --warning: var(--color-amber-700);
   --warning-foreground: var(--color-white);
+  --overlay: color-mix(in srgb, var(--color-black) 30%, transparent);
+  --sidebar: var(--color-stone-100);
+  --sidebar-foreground: var(--color-neutral-700);
+  --sidebar-accent: var(--color-white);
+  --chart-bar: var(--color-stone-300);
+  --chart-comparison: var(--color-stone-400);
+  --chart-current: var(--color-amber-400);
+  --chart-over: var(--color-red-400);
 }
 
 /* controls sitting on a card step up one level so they never blend into it */

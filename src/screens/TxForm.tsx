@@ -82,6 +82,21 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [accs, setAccs] = useState<Account[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // on the phone the bottom button follows the keyboard: amount → add the merchant, any other field → close the
+  // keyboard, nothing focused → save
+  const phone = !useDesktop();
+  const [field, setField] = useState<'amount' | 'text' | null>(null);
+  const onFocusIn = (e: React.FocusEvent) => {
+    const el = e.target as HTMLElement;
+    if (el.closest('.amount-input')) setField('amount');
+    else if (el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'file'].includes(el.type))) setField('text');
+    else setField(null);
+  };
+  const onFocusOut = () => setField(null);
+  // keep the field focused (and the keyboard up) while the bottom button is pressed
+  const keep = (e: React.PointerEvent | React.MouseEvent) => e.preventDefault();
+  const toMerchant = () => document.querySelector<HTMLInputElement>('.merchant-field input')?.focus();
+  const doneTyping = () => (document.activeElement as HTMLElement | null)?.blur?.();
 
   // load the transaction when editing
   useEffect(() => {
@@ -261,7 +276,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
   return (
     <div className="form-screen">
-      <div className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'}>
+      <div className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'} onFocus={onFocusIn} onBlur={onFocusOut}>
         <FormHead title={id ? 'Editar movimiento' : 'Nuevo movimiento'} />
 
         {orig?.raw_merchant && (
@@ -291,6 +306,13 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               placeholder="0"
               value={displayAmount(amount)}
               onChange={(e) => setAmount(rawAmount(e.target.value))}
+              enterKeyHint="next"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  toMerchant();
+                }
+              }}
               className={type === 'ingreso' || type === 'aporte' ? 'pos' : ''}
               style={{ width: `${Math.max(1, displayAmount(amount).length) * 0.62 + 0.3}em` }}
             />
@@ -429,10 +451,21 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
           <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Eliminar movimiento</Button>
         )}
         <ActionBar>
-          <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
-            {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
-          </Button>
+          {phone && field === 'amount' && !merchant.trim() ? (
+            <Button variant="primary" size="lg" block onPointerDown={keep} onMouseDown={keep} onClick={toMerchant}>{type === 'aporte' || type === 'transferir' ? 'Agregar detalle' : 'Agregar comercio'}</Button>
+          ) : phone && field ? (
+            <Button variant="primary" size="lg" block onPointerDown={keep} onMouseDown={keep} onClick={doneTyping}>Continuar</Button>
+          ) : (
+            <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
+              {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
+            </Button>
+          )}
         </ActionBar>
+        {phone && (
+          <div className="form-discard">
+            <Button variant="ghost" size="md" block onClick={() => closeModal()}>Descartar</Button>
+          </div>
+        )}
       </div>
     </div>
   );

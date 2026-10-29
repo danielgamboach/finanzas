@@ -41,7 +41,7 @@ function useMonthData(ym: [number, number]) {
 }
 
 /**
- * Categorías (menu): the month's spending against the budget and every category with its bar.
+ * Presupuesto (menu, route #/categorias): the month's spending against the budget and every category with its bar.
  * The breakdown by subcategory lives in each category.
  */
 export function Categorias() {
@@ -50,7 +50,7 @@ export function Categorias() {
   const desk = useDesktop();
   const menu = useMenu();
   const d = useMonthData(ym);
-  if (!space) return <PageSkeleton title="Categorías"><GroupSkeleton rows={5} below /></PageSkeleton>;
+  if (!space) return <PageSkeleton title="Presupuesto"><GroupSkeleton rows={5} below /></PageSkeleton>;
 
   const diff = d.spent - d.prevSoFar;
   const summary = (
@@ -72,7 +72,7 @@ export function Categorias() {
     return (
       <div className="dpage">
         <header className="dpage-head">
-          <h1 className="dtitle">Categorías</h1>
+          <h1 className="dtitle">Presupuesto</h1>
           <MonthNav ym={ym} setYm={setYm} />
         </header>
         {d.first ? (
@@ -89,7 +89,7 @@ export function Categorias() {
 
   return (
     <div className="page">
-      <PageHeader title="Categorías" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
+      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<MonthNav ym={ym} setYm={setYm} />} />
       <div className="page-hero">{d.first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
       <div className="page-body">{d.first ? <Loader><GroupSkeleton rows={5} below /></Loader> : limits}</div>
     </div>

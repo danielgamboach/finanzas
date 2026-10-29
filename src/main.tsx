@@ -3,7 +3,9 @@ import { App } from './App';
 import './tokens.css';
 import './styles.css';
 import { watchKeyboard } from './lib/keyboard';
+import { initTheme } from './lib/theme';
 
+initTheme();
 watchKeyboard();
 
 createRoot(document.getElementById('root')!).render(<App />);

@@ -17,7 +17,7 @@ const NAV = [
   { k: '', label: 'Inicio', icon: 'house', match: [''] },
   { k: 'movimientos', label: 'Movimientos', icon: 'list', match: ['movimientos'] },
   { k: 'cuentas', label: 'Cuentas', icon: 'cards', match: ['cuentas', 'patrimonio', 'cuenta', 'saldos', 'meta'] },
-  { k: 'categorias', label: 'Categorías', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto', 'categoria'] },
+  { k: 'categorias', label: 'Presupuesto', icon: 'pie', match: ['categorias', 'analisis', 'presupuesto', 'categoria'] },
   { k: 'tendencias', label: 'Mis finanzas', icon: 'chart', match: ['tendencias'] },
 ];
 

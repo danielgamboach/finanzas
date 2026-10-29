@@ -229,9 +229,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         </Button>
       </div>
 
-      {searching ? (
-        <p className="mb-search-note">En todos tus movimientos, sin filtros.</p>
-      ) : (
+      {!searching && (
       <div className="mb-chips" aria-label="Filtros">
         {pk !== 'month' && pk !== 'lastmonth' && <Chip size="sm" selected trailing="chevron" onClick={() => setSheet(true)}>{period.label}</Chip>}
         <Chip size="sm" selected={pk === 'month'} onClick={() => setPk('month')}>Este mes</Chip>
