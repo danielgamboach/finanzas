@@ -14,6 +14,7 @@ export { Progress, type ProgressTone } from './atoms/Progress/Progress';
 export { Kbd, Grabber, Separator, Spinner, Skeleton, Bone } from './atoms/Utility/Utility';
 export { Chip, type ChipProps } from './molecules/Chip/Chip';
 export { Segmented, type SegmentedOption } from './molecules/Segmented/Segmented';
+export { RangeWheel, type RangeWheelOption } from './molecules/RangeWheel/RangeWheel';
 export { SearchField } from './molecules/SearchField/SearchField';
 export { Field } from './molecules/Field/Field';
 export { FieldRow, FieldGroup } from './molecules/FieldRow/FieldRow';

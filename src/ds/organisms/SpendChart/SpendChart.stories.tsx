@@ -8,7 +8,7 @@ export default meta;
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const seed = [8, 60, 14, 22, 100, 10, 100, 4, 6, 18, 30, 6, 100, 5, 20, 4, 6, 100, 7, 5, 4, 16, 30, 6, 5, 100, 6, 20, 5, 100, 4];
 const month: SpendChartBar[] = seed.map((v, i) => ({ value: i < 27 ? v * 2000 : null, prev: ((v * 7) % 90) * 2000, title: `Martes ${i + 1} oct`, curLabel: 'Este mes', prevLabel: `Dom ${i + 1} sep` }));
-const ranges = ['D', 'S', 'M', '6M', '1A', 'YTD'].map((x) => ({ value: x, label: x }));
+const ranges = [['D', 'Día'], ['S', 'Semana'], ['M', 'Mes'], ['6M', 'Semestre'], ['1A', 'Año']].map(([value, label]) => ({ value, label }));
 
 export const Mes: StoryObj = {
   name: 'Mes (por defecto)',

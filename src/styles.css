@@ -26,7 +26,7 @@ input, select { min-width: 0; }
 .col { display: flex; flex-direction: column; }
 .between { justify-content: space-between; }
 .grow { flex: 1; min-width: 0; }
-.gap6 { gap: 6px; } .gap8 { gap: 8px; } .gap10 { gap: 10px; } .gap12 { gap: 12px; } .gap14 { gap: 14px; }
+.gap6 { gap: 6px; } .gap8 { gap: 8px; } .gap10 { gap: 10px; } .gap12 { gap: 12px; } .gap14 { gap: 14px; } .gap16 { gap: 16px; }
 .wrap { flex-wrap: wrap; } .baseline { align-items: baseline; }
 .px4 { padding: 0 4px; margin: 0; }
 .ml-auto { margin-left: auto; }

@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Segmented, type SegmentedOption } from '../../molecules/Segmented/Segmented';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { RangeWheel, type RangeWheelOption } from '../../molecules/RangeWheel/RangeWheel';
 import './SpendChart.css';
 
 export interface SpendChartBar {
@@ -17,10 +17,32 @@ export interface SpendChartBar {
 }
 
 const MIN = 4; // px, an empty bar
-const MAX = 24;
+const LOW = 7; // px, the smallest bar with any spend (so a little stands apart from nothing)
+const MAX = 56;
+const KNEE = 0.82; // share of the height for the ordinary days
 
 /**
- * Spend as thin vertical bars (half hours, quarter days, days or weeks) with the quick ranges underneath.
+ * Bar height for a spend. Daily spend is lopsided: most days are small and a few (rent, the big shop) are huge,
+ * so a plain scale flattens the ordinary days into the floor. The scale bends at the busy end of the ordinary
+ * days (the 85th percentile of the days with spend): below it heights are linear, so a 20.000 day is clearly
+ * four times a 5.000 day; above it they grow on a log curve into the top of the chart, still ordered by size.
+ */
+export function spendScale(values: number[]) {
+  const pos = values.filter((v) => v > 0).sort((a, b) => a - b);
+  const max = pos[pos.length - 1] ?? 1;
+  const p85 = pos.length >= 5 ? pos[Math.floor((pos.length - 1) * 0.85)] : max;
+  // only bend when there really are outliers; otherwise the whole height is linear
+  const knee = p85 * 1.25 < max ? p85 * 1.15 : max;
+  return (v: number | null | undefined) => {
+    if (!v || v <= 0) return MIN;
+    const t = v <= knee ? (v / knee) * (knee < max ? KNEE : 1) : KNEE + (1 - KNEE) * (Math.log(v / knee) / Math.log(max / knee));
+    return Math.round(LOW + (MAX - LOW) * Math.min(1, t));
+  };
+}
+
+/**
+ * Spend as thin vertical bars (half hours, quarter days, days or weeks) with the ranges underneath on a sideways
+ * wheel (the chosen one sits in the middle). Heights follow `spendScale`, so ordinary days are told apart.
  * Touch, drag or hover a bar: it lights up, the same bar of the previous period shows behind it as a
  * wider ghost, and the tooltip compares both. Both ends of the range are labeled under the bars.
  */
@@ -29,7 +51,7 @@ export function SpendChart<T extends string>({ bars, format, unit, ranges, range
   /** Number only, no currency: "100.000". */
   format: (n: number) => string;
   unit?: string;
-  ranges: SegmentedOption<T>[];
+  ranges: RangeWheelOption<T>[];
   range: T;
   onRange: (v: T) => void;
   label?: string;
@@ -45,9 +67,7 @@ export function SpendChart<T extends string>({ bars, format, unit, ranges, range
 
   const shown = bars.length ? bars : Array.from({ length: 31 }, () => null);
   // both periods share the scale, so the ghost of the previous one is honest
-  const max = Math.max(1, ...bars.map((b) => Math.max(b.value ?? 0, b.prev ?? 0)));
-  // square root, so one big day (the rent) doesn't flatten all the others
-  const scale = (v: number | null | undefined) => (v && v > 0 ? MIN + Math.round((MAX - MIN) * Math.sqrt(v / max)) : MIN);
+  const scale = useMemo(() => spendScale(bars.flatMap((b) => [b.value ?? 0, b.prev ?? 0])), [bars]);
   const height = (b: SpendChartBar | null) => scale(b?.value);
 
   // a new range starts clean
@@ -164,7 +184,7 @@ export function SpendChart<T extends string>({ bars, format, unit, ranges, range
           <span>{ends[1]}</span>
         </div>
       )}
-      <Segmented size="ghost" value={range} onChange={onRange} options={ranges} label="Rango del gráfico" />
+      <RangeWheel value={range} onChange={onRange} options={ranges} label="Rango del gráfico" />
     </div>
   );
 }

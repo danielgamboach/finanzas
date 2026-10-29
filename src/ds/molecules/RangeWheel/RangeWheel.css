@@ -1,0 +1,8 @@
+/* RangeWheel: a sideways strip that snaps the chosen option to the middle */
+.ds-wheel { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-mask-image: linear-gradient(to right, transparent, var(--color-black) 20%, var(--color-black) 80%, transparent); mask-image: linear-gradient(to right, transparent, var(--color-black) 20%, var(--color-black) 80%, transparent); }
+.ds-wheel::-webkit-scrollbar { display: none; }
+.ds-wheel__item { flex: none; scroll-snap-align: center; height: 32px; padding: 0 4px; border: none; background: none; font: inherit; font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-normal); color: var(--muted-foreground); white-space: nowrap; cursor: pointer; transition: color .15s ease; -webkit-tap-highlight-color: transparent; }
+.ds-wheel__item.is-center { color: var(--foreground); font-weight: var(--font-weight-medium); }
+.ds-wheel__item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: var(--radius-lg); }
+/* room so the first and last options can reach the middle */
+.ds-wheel::before, .ds-wheel::after { content: ''; flex: 0 0 calc(50% - 40px); }

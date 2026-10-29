@@ -1,7 +1,7 @@
 .ds-chart { display: flex; flex-direction: column; gap: 8px; position: relative; }
-.ds-chart__plot { position: relative; height: 72px; padding-top: 40px; display: flex; align-items: flex-end; justify-content: space-between; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; cursor: default; }
+.ds-chart__plot { position: relative; height: 104px; padding-top: 40px; display: flex; align-items: flex-end; justify-content: space-between; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; cursor: default; }
 .ds-chart__plot:focus-visible { box-shadow: 0 0 0 2px var(--ring); border-radius: var(--radius-lg); }
-.ds-chart__slot { position: relative; flex: 0 1 8px; min-width: 2px; height: 32px; padding: 4px 0; display: flex; align-items: flex-end; justify-content: center; }
+.ds-chart__slot { position: relative; flex: 0 1 8px; min-width: 2px; height: 64px; padding: 4px 0; display: flex; align-items: flex-end; justify-content: center; }
 .ds-chart__bar { display: block; width: 2px; border-radius: var(--radius-full); background: var(--muted-foreground); transition: height .25s ease; }
 .ds-chart__slot.is-future .ds-chart__bar { opacity: .3; }
 .ds-chart__bar { position: relative; z-index: 1; transition: height .25s ease, opacity .15s ease, background-color .15s ease; }

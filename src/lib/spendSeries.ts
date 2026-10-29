@@ -4,16 +4,17 @@ import { spend } from './calc';
 import { cap, crLocal, monthName, monthShort, todayCR } from './format';
 import type { Tx } from './types';
 
-/** The quick ranges of the Inicio chart. */
+/** The ranges of the Inicio chart, as the wheel shows them. */
 export type Span = 'D' | 'S' | 'M' | '6M' | '1A' | 'YTD';
 export const SPANS: { value: Span; label: string; aria: string }[] = [
-  { value: 'D', label: 'D', aria: 'Hoy' },
-  { value: 'S', label: 'S', aria: 'Esta semana' },
-  { value: 'M', label: 'M', aria: 'Este mes' },
-  { value: '6M', label: '6M', aria: 'Últimos 6 meses' },
-  { value: '1A', label: '1A', aria: 'Último año' },
-  { value: 'YTD', label: 'YTD', aria: 'Este año a la fecha' },
+  { value: 'D', label: 'Día', aria: 'Hoy' },
+  { value: 'S', label: 'Semana', aria: 'Esta semana' },
+  { value: 'M', label: 'Mes', aria: 'Este mes' },
+  { value: '6M', label: 'Semestre', aria: 'Últimos 6 meses' },
+  { value: '1A', label: 'Año', aria: 'Último año' },
 ];
+/** Still computed (old saved choice, other screens), no longer offered on the wheel. */
+export const YTD_SPAN: Span = 'YTD';
 
 const DAY = 86400000;
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];

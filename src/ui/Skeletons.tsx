@@ -21,8 +21,8 @@ export function HomeSkeleton() {
           </div>
           <div className="home-summary">
             <SummarySkeleton />
-            <ChartSkeleton bars={31} height={64} />
-            <span className="row gap8 home-skel-ranges">{[0, 1, 2, 3, 4, 5].map((i) => <Bone key={i} width={20} height={12} />)}</span>
+            <ChartSkeleton bars={31} height={96} />
+            <span className="row gap16 home-skel-ranges">{[48, 32, 56].map((w, i) => <Bone key={i} width={w} height={12} />)}</span>
           </div>
         </div>
         <div className="home-skel-sheet">
@@ -51,7 +51,7 @@ function DesktopSkeleton() {
           <div className="dpage">
             <Bone width={420} height={36} radius="lg" />
             <div className="dhome-top">
-              <div className="dhero"><SummarySkeleton /><ChartSkeleton bars={31} height={64} /></div>
+              <div className="dhero"><SummarySkeleton /><ChartSkeleton bars={31} height={96} /></div>
               <GroupSkeleton rows={4} leading="icon" />
             </div>
             <GroupSkeleton rows={6} />
