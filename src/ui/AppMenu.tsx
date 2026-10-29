@@ -1,4 +1,4 @@
-import { Avatar, Icon, Segmented, SideMenu, SideMenuItem } from '../ds';
+import { Avatar, Icon, Logo, Segmented, SideMenu, SideMenuItem } from '../ds';
 import { needsConfirm, useRecurring } from '../lib/recurring';
 import { goTop, useApp } from '../store';
 
@@ -37,6 +37,7 @@ export function AppMenu({ route, onClose, menuRef }: { route: string; onClose: (
     <SideMenu
       menuRef={menuRef}
       className="app-menu"
+      top={<Logo className="app-menu-logo" />}
       footer={
         <>
           <div className="app-menu-cur">
