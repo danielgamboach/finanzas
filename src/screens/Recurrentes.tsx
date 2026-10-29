@@ -1,6 +1,6 @@
 import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
-import { BalanceSummary, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, SummarySkeleton, Switch } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, SummarySkeleton, Switch, ActionBar } from '../ds';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { pickerOrder } from '../lib/cats';
 import { namePhoto } from '../lib/merchants';
@@ -462,10 +462,14 @@ export function RecurringEdit({ id }: { id: string }) {
 
       {!isNew && r.last_paid_on && <p className="page-text">Último pago registrado: {shortDay(r.last_paid_on)}</p>}
       </div>
-      <div className="page-actions">
+      {!isNew && (
+        <div className="page-actions">
+          <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar recurrente</Button>
+        </div>
+      )}
+      <ActionBar>
         <Button variant="primary" size="lg" block onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-        {!isNew && <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar recurrente</Button>}
-      </div>
+      </ActionBar>
     </div>
   );
 }

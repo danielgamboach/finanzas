@@ -1,0 +1,3 @@
+/* ActionBar: sticky at the bottom of the scrolling box, with a fade so the content slides under it */
+.ds-action-bar { position: sticky; bottom: 0; z-index: 6; display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 24px 24px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, color-mix(in srgb, var(--background) 0%, transparent), var(--background) 24px); pointer-events: none; }
+.ds-action-bar > * { pointer-events: auto; }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bone, Button, Chip, FormSkeleton, Loader, PageHeader, Switch } from '../ds';
+import { Bone, Button, Chip, FormSkeleton, Loader, PageHeader, Switch, ActionBar } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
@@ -415,12 +415,14 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
         {error && <div className="error">{error}</div>}
 
-        <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
-          {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
-        </Button>
         {id && (
           <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Eliminar movimiento</Button>
         )}
+        <ActionBar>
+          <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
+            {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
+          </Button>
+        </ActionBar>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ export { Menu, MenuItem } from './molecules/Menu/Menu';
 export { EmptyState } from './molecules/EmptyState/EmptyState';
 export { Toast } from './molecules/Toast/Toast';
 export { Card } from './molecules/Card/Card';
+export { ActionBar } from './molecules/ActionBar/ActionBar';
 export { SheetHeader } from './molecules/SheetHeader/SheetHeader';
 export { ProfileButton } from './organisms/ProfileButton/ProfileButton';
 export { KaiButton } from './organisms/KaiButton/KaiButton';

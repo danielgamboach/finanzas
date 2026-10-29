@@ -1063,10 +1063,11 @@ a.dcard:hover .dface { box-shadow: 0 0 0 3px var(--accent); }
 html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .shell { position: fixed; inset: 0; overflow: hidden; background: var(--sidebar); --menu-p: 0; --form-p: 0; --shell-ease: cubic-bezier(.2,.8,.2,1); }
 .shell-menu { position: absolute; top: 0; bottom: 0; left: 0; width: var(--menu-w); z-index: 1; transform: translateX(calc((var(--menu-p) - 1) * 24%)); opacity: calc(.3 + var(--menu-p) * .7); transition: transform .32s var(--shell-ease), opacity .32s var(--shell-ease); }
-.shell-stage { position: absolute; inset: 0; z-index: 2; overflow: hidden; background: var(--background); transform: translateX(calc(var(--menu-p) * var(--menu-w))) translateX(calc(var(--form-p) * -24%)); transition: transform .32s var(--shell-ease), border-radius .32s var(--shell-ease); will-change: transform; }
+.shell-stage { position: absolute; inset: 0; z-index: 2; overflow: hidden; background: var(--background); transform: translateX(calc(var(--menu-p) * var(--menu-w))) translateX(calc(var(--form-p) * -100%)); transition: transform .32s var(--shell-ease), border-radius .32s var(--shell-ease); will-change: transform; }
 .shell.menu-on .shell-stage { border-radius: var(--radius-3xl) 0 0 var(--radius-3xl); box-shadow: -8px 0 32px rgba(0,0,0,.35); }
+.shell.form-on .shell-stage { border-radius: 0 var(--radius-3xl) var(--radius-3xl) 0; box-shadow: 8px 0 32px rgba(0,0,0,.35); }
 .shell-stage > .panel { height: 100%; }
-.shell-scrim { position: absolute; inset: 0; z-index: 3; border: none; padding: 0; margin: 0; background: var(--overlay); opacity: calc((var(--menu-p) + var(--form-p)) * .6); pointer-events: none; transform: translateX(calc(var(--menu-p) * var(--menu-w))) translateX(calc(var(--form-p) * -24%)); transition: transform .32s var(--shell-ease), opacity .32s var(--shell-ease); -webkit-tap-highlight-color: transparent; }
+.shell-scrim { position: absolute; inset: 0; z-index: 3; border: none; padding: 0; margin: 0; background: var(--overlay); opacity: calc((var(--menu-p) + var(--form-p)) * .6); pointer-events: none; transform: translateX(calc(var(--menu-p) * var(--menu-w))) translateX(calc(var(--form-p) * -100%)); transition: transform .32s var(--shell-ease), opacity .32s var(--shell-ease); -webkit-tap-highlight-color: transparent; }
 .shell.menu-on .shell-scrim { pointer-events: auto; border-radius: var(--radius-3xl) 0 0 var(--radius-3xl); }
 .shell.dragging .shell-menu, .shell.dragging .shell-stage, .shell.dragging .shell-scrim,
 .shell.form-dragging .shell-stage, .shell.form-dragging .shell-scrim { transition: none; }
@@ -1074,6 +1075,8 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 
 .form-layer { position: fixed; inset: 0; z-index: 40; --form-p: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--background); transform: translateX(calc((1 - var(--form-p)) * 100%)); transition: transform .32s cubic-bezier(.2,.8,.2,1); box-shadow: -12px 0 32px rgba(0,0,0,.3); will-change: transform; }
 .form-layer.dragging { transition: none; }
+/* inside the phone shell the form lives under the page (like the menu, on the other side) and drifts in a little */
+.shell .form-layer { position: absolute; z-index: 1; box-shadow: none; transform: translateX(calc((1 - var(--form-p)) * 24%)); }
 .form-layer .form-screen { min-height: 100%; padding-top: env(safe-area-inset-top); background: var(--background); }
 .form-layer .sheet-page { min-height: 0; border-radius: 0; padding-top: 0; }
 .form-layer .form-page-head { margin: 0 -24px -4px; }
@@ -1083,3 +1086,13 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 }
 .dnarrow { max-width: 640px; }
 .tendencias-body { padding-top: 16px; }
+
+/* sticky save: the box that ends with it drops its own bottom padding (the bar carries the safe area) */
+.page:has(> .ds-action-bar), .sheet-page:has(> .ds-action-bar), .sheet:has(> .ds-action-bar) { padding-bottom: 0; }
+.sheet-page > .ds-action-bar, .sheet > .ds-action-bar { margin: 0 -24px; }
+.page:has(> .ds-action-bar) { min-height: 100dvh; }
+@media (min-width: 1024px) {
+  .sheet > .ds-action-bar { margin: 0 -20px; padding: 16px 20px 20px; }
+  .desk-modal .sheet-page > .ds-action-bar { padding-bottom: 24px; }
+  .dmain .page > .ds-action-bar { padding-bottom: 24px; }
+}

@@ -38,9 +38,9 @@ function Page({ route, open, setOpen, focus }: { route: string; open: boolean; s
 }
 
 /**
- * The phone frame. The page sits on top of the menu: swiping right (or the menu button) slides the page to the
- * right and uncovers the menu, like Claude's app. On Inicio, swiping left pulls "Nuevo movimiento" in from the
- * right edge; the form also opens that way from + and leaves to the right.
+ * The phone frame. The page sits on top of two layers: swiping right (or the menu button) slides the page to the
+ * right and uncovers the menu, like Claude's app; on Inicio, swiping left (or +) slides it to the left and uncovers
+ * "Nuevo movimiento", which sits under the page on the right side. Same motion, mirrored.
  */
 export function Shell({ route }: { route: string }) {
   const path = useRoute();
@@ -73,11 +73,12 @@ export function Shell({ route }: { route: string }) {
   const ctx = useRef({ open: openMenu });
   ctx.current.open = openMenu;
 
-  // the page underneath leans left a little while the form comes in
+  // the mirror of the menu: the page slides off to the left and uncovers the form underneath
   const paintForm = useCallback((p: number, animate: boolean) => {
     const r = root.current;
     if (!r) return;
     r.classList.toggle('form-dragging', !animate);
+    r.classList.toggle('form-on', p > 0);
     r.style.setProperty('--form-p', String(p));
   }, []);
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '../ds';
+import { ActionBar, Button } from '../ds';
 import { db } from '../lib/api';
 import {
   addPattern,
@@ -158,11 +158,15 @@ export function PhotoSheet({ spaceId, merchant, suggestion = '', nameHint, onSav
                 ? `Ojo: “${suggestion}” no contiene “${clean}”, así que este movimiento no la mostraría.`
                 : 'Usá la parte que se repite, sin la sucursal. “Starbucks” sirve para Starbucks Multiplaza y Starbucks Escazú.'}
         </span>
-        {!locked && <Button variant="primary" size="xl" onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : 'Guardar'}</Button>}
         {merchant && current && isAdmin && (
           <Button variant="destructive-outline" size="lg" leading={<Icon name="trash" size={18} />} onClick={remove} disabled={busy}>Quitar foto</Button>
         )}
       </div>
+      {!locked && (
+        <ActionBar>
+          <Button variant="primary" size="lg" block onClick={save} disabled={!canSave}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+        </ActionBar>
+      )}
     </Sheet>
   );
 }

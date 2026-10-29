@@ -1,6 +1,6 @@
 import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
-import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
+import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton, ActionBar } from '../ds';
 import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { cardOutstanding, cardPaidThrough } from '../lib/calc';
@@ -463,9 +463,9 @@ export function Saldos() {
           </ListGroup>
         )}
       </div>
-      <div className="page-actions">
+      <ActionBar>
         <Button variant="primary" size="lg" block onClick={save} disabled={busy || !Object.values(vals).some((v) => v.trim())}>{busy ? 'Guardando…' : 'Guardar saldos'}</Button>
-      </div>
+      </ActionBar>
     </div>
   );
 }
@@ -591,10 +591,14 @@ export function AccountEdit({ id }: { id: string }) {
         )}
       </div>
       </div>
-      <div className="page-actions">
+      {!isNew && (
+        <div className="page-actions">
+          <Button variant="ghost" size="md" block onClick={archive}>Archivar cuenta</Button>
+        </div>
+      )}
+      <ActionBar>
         <Button variant="primary" size="lg" block onClick={save} disabled={busy || !acc.name?.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-        {!isNew && <Button variant="ghost" size="md" block onClick={archive}>Archivar cuenta</Button>}
-      </div>
+      </ActionBar>
     </div>
   );
 }
@@ -666,10 +670,14 @@ export function GoalEdit({ id }: { id: string }) {
         ))}
       </div>
       </div>
-      <div className="page-actions">
+      {!isNew && (
+        <div className="page-actions">
+          <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar meta</Button>
+        </div>
+      )}
+      <ActionBar>
         <Button variant="primary" size="lg" block onClick={save} disabled={!g.name?.trim() || !parseAmount(target)}>Guardar meta</Button>
-        {!isNew && <Button variant="ghost" size="md" block className="danger" leading={<Icon name="trash" size={16} />} onClick={remove}>Eliminar meta</Button>}
-      </div>
+      </ActionBar>
     </div>
   );
 }

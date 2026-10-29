@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, Loader, PageHeader, Progress, Switch, TxListSkeleton } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, Loader, PageHeader, Progress, Switch, TxListSkeleton, ActionBar } from '../ds';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
@@ -237,11 +237,15 @@ export function CategoryEdit({ id }: { id: string }) {
         </>
       )}
       </div>
-      <div className="page-actions">
+      {!isNew && (
+        <div className="page-actions">
+          <Button variant="ghost" size="md" block onClick={archive}>{existing?.archived ? 'Restaurar categoría' : 'Archivar (oculta, conserva el historial)'}</Button>
+          {!confirmDelete && <Button variant="ghost" size="md" block className="danger" onClick={() => setConfirmDelete(true)} leading={<Icon name="trash" size={16} />}>Eliminar categoría</Button>}
+        </div>
+      )}
+      <ActionBar>
         <Button variant="primary" size="lg" block onClick={save} disabled={busy || !name.trim()}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-        {!isNew && <Button variant="ghost" size="md" block onClick={archive}>{existing?.archived ? 'Restaurar categoría' : 'Archivar (oculta, conserva el historial)'}</Button>}
-        {!isNew && !confirmDelete && <Button variant="ghost" size="md" block className="danger" onClick={() => setConfirmDelete(true)} leading={<Icon name="trash" size={16} />}>Eliminar categoría</Button>}
-      </div>
+      </ActionBar>
     </div>
   );
 }

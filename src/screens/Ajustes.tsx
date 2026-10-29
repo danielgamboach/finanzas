@@ -1,6 +1,6 @@
 import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
-import { Button, ListGroup, ListRow, PageHeader, Switch } from '../ds';
+import { ActionBar, Button, ListGroup, ListRow, PageHeader, Switch } from '../ds';
 import { auth, db } from '../lib/api';
 import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { go, navigateBack, useApp } from '../store';
@@ -76,7 +76,6 @@ export function Ajustes() {
           <div className="set-form">
             <input className="input emoji-input" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={8} aria-label="Emoji" />
             <input className="input grow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" aria-label="Nombre" />
-            <Button variant={dirty ? 'primary' : 'secondary'} size="sm" onClick={saveProfile} disabled={!dirty}>Guardar</Button>
           </div>
         </ListGroup>
 
@@ -166,6 +165,11 @@ export function Ajustes() {
           Uicons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon</a>
         </footer>
       </div>
+      {dirty && (
+        <ActionBar>
+          <Button variant="primary" size="lg" block onClick={saveProfile}>Guardar perfil</Button>
+        </ActionBar>
+      )}
     </div>
   );
 }
