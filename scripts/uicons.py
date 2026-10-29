@@ -67,6 +67,17 @@ MAP = {
     'receipt': 'receipt',
     'folder': 'folder',
     'money': 'money',
+    'target': 'bullseye',
+    'envelope': 'envelope',
+    'key': 'key',
+    'users': 'users',
+    'clock': 'clock',
+    'warning': 'triangle-warning',
+    'share': 'arrow-up-from-square',
+    'confetti': 'confetti',
+    'wave': 'hand-wave',
+    'checkCircle': 'check-circle',
+    'link': 'link',
 }
 
 # Los que además se usan rellenos (fi-ss-*): agregar y la flecha del cambio en Inicio.

@@ -1,7 +1,7 @@
 .ds-opt { border: none; font: inherit; color: var(--foreground); display: flex; align-items: center; text-align: left; }
 .ds-opt--option { width: 100%; gap: 12px; padding: 16px; border-radius: var(--radius-3xl); background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
 .ds-opt--option.is-selected { box-shadow: inset 0 0 0 2px var(--primary); }
-.ds-opt__icon { font-size: var(--text-3xl); line-height: 1; flex: none; }
+.ds-opt__icon { display: inline-flex; font-size: var(--text-3xl); line-height: 1; flex: none; }
 .ds-opt__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ds-opt__title { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); }
 .ds-opt__desc { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); color: var(--muted-foreground); }

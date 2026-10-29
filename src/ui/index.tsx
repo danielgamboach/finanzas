@@ -22,8 +22,8 @@ import { Icon } from '../ds/atoms/Icon/Icon';
 import { Avatar, GroupSkeleton, Loader, PageHeader, SheetHeader, Segmented as DsSegmented, Toast as DsToast } from '../ds';
 
 /** A merchant's or category's face: the photo, or the emoji on the category color. Thin wrapper over the DS Avatar. */
-export function Emo({ e, color, size = 48, img, badge }: { e: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
-  return <Avatar emoji={e} color={color || 'gray'} size={size} img={img} badge={badge} />;
+export function Emo({ e, icon, color, size = 48, img, badge }: { e?: string; icon?: string; color?: string | null; size?: number; img?: string | null; badge?: string | null }) {
+  return <Avatar emoji={e} icon={icon} color={color || 'gray'} size={size} img={img} badge={badge} />;
 }
 
 export function BigMoney({ crc, size = 60 }: { crc: number; size?: number }) {

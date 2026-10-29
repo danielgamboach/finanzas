@@ -44,7 +44,7 @@ function useInviteLink(path: string) {
       .then(async (sid) => {
         await reloadMeta();
         setSpaceId(sid);
-        toast('🎉 Te uniste al espacio compartido');
+        toast('Te uniste al espacio compartido');
       })
       .catch(() => toast('Esa invitación ya no sirve. Pedí un enlace nuevo.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps

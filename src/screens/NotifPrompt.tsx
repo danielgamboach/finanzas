@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../ds';
+import { Button, Icon } from '../ds';
 import { dismissPrompt, enablePush, permission, promptDismissed, pushSupport, refreshPush, sendTestPush } from '../lib/push';
 import { useApp } from '../store';
 
@@ -26,7 +26,7 @@ export function NotifPrompt() {
     try {
       const p = await enablePush();
       if (p === 'granted') {
-        toast('🔔 Notificaciones activadas');
+        toast('Notificaciones activadas');
         sendTestPush().catch(() => undefined);
       } else if (p === 'denied') toast('Quedaron bloqueadas. Podés activarlas en los ajustes del teléfono.');
       close();
@@ -41,18 +41,18 @@ export function NotifPrompt() {
   return (
     <div className="notif-prompt" role="dialog" aria-modal="true" aria-labelledby="np-title">
       <div className="np-card">
-        <span className="np-emoji" aria-hidden="true">🔔</span>
+        <span className="np-icon" aria-hidden="true"><Icon name="bell" size={32} /></span>
         <h1 id="np-title" className="np-title">Activá las notificaciones</h1>
         <p className="np-sub">Solo para lo importante, nada de spam.</p>
         <ul className="np-list">
-          <li><span aria-hidden="true">⚠️</span><span>Cuando una categoría llega al <strong>80%</strong> y al <strong>100%</strong> de su límite.</span></li>
-          <li><span aria-hidden="true">💳</span><span>El día de pago, <strong>cuánto toca pagar de la tarjeta</strong>.</span></li>
+          <li><span className="np-li-icon" aria-hidden="true"><Icon name="warning" size={18} /></span><span>Cuando una categoría llega al <strong>80%</strong> y al <strong>100%</strong> de su límite.</span></li>
+          <li><span className="np-li-icon" aria-hidden="true"><Icon name="cards" size={18} /></span><span>El día de pago, <strong>cuánto toca pagar de la tarjeta</strong>.</span></li>
         </ul>
         {support === 'ios-install' ? (
           <>
             <div className="np-ios">
               <strong>En iPhone primero hay que instalar la app</strong>
-              <span>Tocá <b>Compartir</b> <span aria-hidden="true">⬆️</span> en Safari, elegí <b>Agregar a inicio</b> y abrila desde ese ícono. Ahí te vamos a pedir el permiso.</span>
+              <span>Tocá <b>Compartir</b> <span className="inline-icon" aria-hidden="true"><Icon name="share" size={14} /></span> en Safari, elegí <b>Agregar a inicio</b> y abrila desde ese ícono. Ahí te vamos a pedir el permiso.</span>
             </div>
             <Button variant="primary" size="xl" onClick={close}>Entendido</Button>
           </>

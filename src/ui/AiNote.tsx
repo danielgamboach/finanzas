@@ -50,7 +50,7 @@ export function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; re
     try {
       const r = await db.fn<{ ok: boolean; emoji?: string; text?: string; tone?: Insight['tone'] }>('insight', { space_id: spaceId, prev: cached?.text });
       if (r.ok && r.text) {
-        const v: Insight = { emoji: r.emoji || '✨', text: r.text, tone: r.tone || 'neutral', fp, at: Date.now() };
+        const v: Insight = { emoji: r.emoji || '', text: r.text, tone: r.tone || 'neutral', fp, at: Date.now() };
         writeInsight(spaceId, v);
         setNote(v);
       } else setFailed(true);
@@ -72,7 +72,7 @@ export function AiNote({ spaceId, fp, ready }: { spaceId: string; fp: string; re
   if (!note && failed) return null;
   return (
     <section className={`ai-card tone-${note?.tone || 'neutral'}`} aria-live="polite" aria-busy={busy}>
-      <span className="ai-card-emoji" aria-hidden="true">{note?.emoji || '✨'}</span>
+      <span className="ai-card-icon" aria-hidden="true"><Icon name="wand" size={16} stroke={2.4} /></span>
       <span className="ai-card-body">
         {note ? (
           <p className={busy ? 'ai-card-text busy' : 'ai-card-text'}>{note.text}</p>

@@ -102,7 +102,7 @@ export function PhotoSheet({ spaceId, merchant, suggestion = '', nameHint, onSav
       if (file) await setLogo(id, spaceId, file);
       await reloadMeta();
       bump();
-      toast('📸 Foto guardada');
+      toast('Foto guardada');
       if (file) onSaved?.();
       onClose();
     } catch (e) {
@@ -218,7 +218,7 @@ export function MergeSheet({ t, preset, onClose }: { t: Tx; preset?: Merchant | 
       await reloadMeta();
       bump();
       const more = linked.length > 1 ? ` · ${linked.length} movimientos` : '';
-      toast(`🔗 ${label} → ${target}${more}`, async () => {
+      toast(`${label} → ${target}${more}`, async () => {
         for (const id of undoIds) await disablePattern(id);
         await reloadMeta();
       });

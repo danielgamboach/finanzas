@@ -44,10 +44,10 @@ export async function shareInvite(code: string, spaceName: string): Promise<'sha
   return 'copied';
 }
 
-const KINDS: { k: Kind; emoji: string; label: string; name: string; color: string }[] = [
-  { k: 'credit_card', emoji: '💳', label: 'Tarjeta de crédito', name: 'Tarjeta de crédito', color: 'violet' },
-  { k: 'debit', emoji: '🏦', label: 'Tarjeta de débito', name: 'Tarjeta de débito', color: 'blue' },
-  { k: 'cash', emoji: '💵', label: 'Efectivo', name: 'Efectivo', color: 'emerald' },
+const KINDS: { k: Kind; emoji: string; icon: string; label: string; name: string; color: string }[] = [
+  { k: 'credit_card', emoji: '💳', icon: 'cards', label: 'Tarjeta de crédito', name: 'Tarjeta de crédito', color: 'violet' },
+  { k: 'debit', emoji: '🏦', icon: 'bank', label: 'Tarjeta de débito', name: 'Tarjeta de débito', color: 'blue' },
+  { k: 'cash', emoji: '💵', icon: 'money', label: 'Efectivo', name: 'Efectivo', color: 'emerald' },
 ];
 
 const SPACE_EMOJIS = ['🫶', '🏡', '🐾', '✈️'];
@@ -183,22 +183,22 @@ function Actions({ children }: { children: React.ReactNode }) {
 }
 
 function UsoStep({ first, value, onPick, onNext, onSkip }: { first: string; value: Uso | null; onPick: (u: Uso) => void; onNext: () => void; onSkip: () => void }) {
-  const opts: { u: Uso; emoji: string; title: string; sub: string }[] = [
-    { u: 'solo', emoji: '🙋', title: 'Solo yo', sub: 'Tus gastos, en privado.' },
-    { u: 'compartido', emoji: '🫶', title: 'Con mi pareja o alguien más', sub: 'Un espacio compartido, además del tuyo.' },
-    { u: 'invitado', emoji: '🔑', title: 'Me invitaron', sub: 'Tengo un código para unirme.' },
+  const opts: { u: Uso; icon: string; title: string; sub: string }[] = [
+    { u: 'solo', icon: 'user', title: 'Solo yo', sub: 'Tus gastos, en privado.' },
+    { u: 'compartido', icon: 'users', title: 'Con mi pareja o alguien más', sub: 'Un espacio compartido, además del tuyo.' },
+    { u: 'invitado', icon: 'key', title: 'Me invitaron', sub: 'Tengo un código para unirme.' },
   ];
   return (
     <>
       <div className="ob-head">
-        <span className="ob-emoji" aria-hidden="true">👋</span>
+        <span className="ob-icon" aria-hidden="true"><Icon name="wave" size={28} /></span>
         <h1 className="ob-title" tabIndex={-1}>{first ? `¡Hola, ${first}!` : '¡Hola!'} ¿Cómo vas a usar Finanzas?</h1>
         <p className="ob-sub">Así lo dejamos listo para vos. Todo se puede cambiar después.</p>
       </div>
       <div className="ob-opts" role="radiogroup" aria-label="Cómo vas a usar Finanzas">
         {opts.map((o) => (
           <button key={o.u} role="radio" aria-checked={value === o.u} className={value === o.u ? 'ob-opt on' : 'ob-opt'} onClick={() => onPick(o.u)}>
-            <span className="ob-opt-emo" aria-hidden="true">{o.emoji}</span>
+            <span className="ob-opt-emo" aria-hidden="true"><Icon name={o.icon} size={22} /></span>
             <span className="ob-opt-text">
               <strong>{o.title}</strong>
               <span>{o.sub}</span>
@@ -255,7 +255,7 @@ function EspacioStep({ preview, created, onCreated, onNext }: { preview: boolean
     return (
       <>
         <div className="ob-head">
-          <span className="ob-emoji" aria-hidden="true">💌</span>
+          <span className="ob-icon" aria-hidden="true"><Icon name="envelope" size={28} /></span>
           <h1 className="ob-title" tabIndex={-1}>Invitá a quien comparte {created.name} con vos</h1>
           <p className="ob-sub">Mandale el enlace. Si ya tiene cuenta, también puede escribir el código.</p>
         </div>
@@ -338,7 +338,7 @@ function CodigoStep({ preview, initial, fromLink, joined, onJoined, onNext }: { 
     return (
       <>
         <div className="ob-head">
-          <span className="ob-emoji" aria-hidden="true">🎉</span>
+          <span className="ob-icon" aria-hidden="true"><Icon name="confetti" size={28} /></span>
           <h1 className="ob-title" tabIndex={-1}>¡Ya estás en {joined.name}!</h1>
           <p className="ob-sub">Ahí ves los gastos que comparten. Tus gastos personales quedan en tu espacio, solo para vos.</p>
         </div>
@@ -352,7 +352,7 @@ function CodigoStep({ preview, initial, fromLink, joined, onJoined, onNext }: { 
   return (
     <>
       <div className="ob-head">
-        <span className="ob-emoji" aria-hidden="true">🔑</span>
+        <span className="ob-icon" aria-hidden="true"><Icon name="key" size={28} /></span>
         <h1 className="ob-title" tabIndex={-1}>{fromLink ? 'Te invitaron a un espacio compartido' : 'Escribí el código que te pasaron'}</h1>
         <p className="ob-sub">{fromLink ? 'Confirmá y te unimos. Tus gastos personales siguen siendo solo tuyos.' : 'Son 12 letras y números. Lo encuentran en Ajustes, en Espacios.'}</p>
       </div>
@@ -437,14 +437,14 @@ function CuentaStep({ preview, personalId, shared, onSaved, onSkip }: { preview:
         </span>
         <span className="wc-bottom">
           <span className="wc-sub">{meta.label}</span>
-          <span className="wc-kind">{meta.emoji}</span>
+          <span className="wc-kind"><Icon name={meta.icon} size={24} solid /></span>
         </span>
       </div>
 
       <div className="ob-kinds" role="radiogroup" aria-label="Tipo de cuenta">
         {KINDS.map((k) => (
           <button key={k.k} role="radio" aria-checked={kind === k.k} className={kind === k.k ? 'ob-kind on' : 'ob-kind'} onClick={() => setKind(k.k)}>
-            <span aria-hidden="true">{k.emoji}</span>{k.k === 'credit_card' ? 'Crédito' : k.k === 'debit' ? 'Débito' : 'Efectivo'}
+            <Icon name={k.icon} size={16} solid />{k.k === 'credit_card' ? 'Crédito' : k.k === 'debit' ? 'Débito' : 'Efectivo'}
           </button>
         ))}
       </div>
@@ -499,7 +499,7 @@ function ListoStep({ first, done, busy, finish }: { first: string; done: string[
   return (
     <>
       <div className="ob-head">
-        <span className="ob-emoji big" aria-hidden="true">🎉</span>
+        <span className="ob-icon big" aria-hidden="true"><Icon name="confetti" size={36} /></span>
         <h1 className="ob-title" tabIndex={-1}>{first ? `¡Listo, ${first}!` : '¡Listo!'}</h1>
         <p className="ob-sub">{done.length ? 'Esto ya quedó:' : 'Ya podés empezar. Lo demás lo configurás cuando querás.'}</p>
       </div>

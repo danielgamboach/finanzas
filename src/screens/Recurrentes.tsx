@@ -20,8 +20,10 @@ export function cleanName(n: string) {
   return n.replace(/(\s+\S*\d\S*)+$/, '').replace(/\.(com|net|io|app)$/i, '').trim() || n;
 }
 
-export function recEmoji(r: Recurring, categories: Category[]) {
-  return categories.find((c) => c.id === r.category_id)?.emoji || (r.method === 'card' ? '💳' : '🔁');
+/** The face of a recurring payment: its category's emoji, or an icon (card or repeat) when it has none. */
+export function recFace(r: Recurring, categories: Category[]): { emoji?: string; icon?: string } {
+  const e = categories.find((c) => c.id === r.category_id)?.emoji;
+  return e ? { emoji: e } : { icon: r.method === 'card' ? 'cards' : 'repeat' };
 }
 
 /** One recurring payment as a row; transfers/cash that are due get "ya pagué / todavía no". */
@@ -38,7 +40,7 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
     setBusy(true);
     try {
       await payRecurring(r, fx, userId);
-      toast(`✅ ${r.merchant} pagado`);
+      toast(`${r.merchant} pagado`);
       bump();
     } catch {
       toast('No se pudo registrar');
@@ -59,7 +61,7 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
   const how = compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`;
   return (
     <ListRow
-      leading={<Emo e={recEmoji(r, categories)} color={!r.active ? 'gray' : cat?.color || 'gray'} img={photo} size={40} />}
+      leading={<Emo e={recFace(r, categories).emoji} icon={recFace(r, categories).icon} color={!r.active ? 'gray' : cat?.color || 'gray'} img={photo} size={40} />}
       title={r.merchant}
       detail={`${how}${r.variable ? ' · Varía' : ''}`}
       value={amountNode}
@@ -97,7 +99,7 @@ export function useCardPayment() {
       space_id: space.id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
       merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: cards[0].id, source: 'system', external_id: key,
     });
-    toast('✅ Pago registrado');
+    toast('Pago registrado');
     bump();
   }
   return { owed, others, paid };
@@ -109,7 +111,7 @@ export function CardPayment({ card }: { card: NonNullable<ReturnType<typeof useC
   const [busy, setBusy] = useState(false);
   return (
     <ListRow
-      leading={<Emo e="💳" color="pink" size={40} />}
+      leading={<Emo icon="cards" color="pink" size={40} />}
       title="Pago de tarjeta"
       detail={<><span className="ds-pp__when is-due">{card.others.length ? `${card.others.join(', ')} transfiere` : 'Semana pasada'}</span> · {amount(card.owed, cur, fx)} {unitOf(cur)}</>}
       actions={<Button variant="primary" size="xs" disabled={busy} onClick={async () => { setBusy(true); try { await card.paid(); } finally { setBusy(false); } }} aria-label="Ya pagué la tarjeta">Pagué</Button>}
@@ -197,7 +199,7 @@ export function Recurrentes() {
       match_pattern: s.raw_merchant ? patternFrom(s.raw_merchant) : s.merchant_key,
       last_paid_on: s.last_date,
     });
-    toast(`🔁 ${cleanName(s.merchant || s.merchant_key)} agregado a recurrentes`);
+    toast(`${cleanName(s.merchant || s.merchant_key)} agregado a recurrentes`);
     bump();
   }
   async function dismiss(s: RecurringSuggestion) {
@@ -249,7 +251,7 @@ export function Recurrentes() {
                   return (
                     <ListRow
                       key={s.merchant_key}
-                      leading={<Emo e={cat?.emoji || '🔁'} color={cat?.color || 'lilac'} size={40} />}
+                      leading={<Emo e={cat?.emoji} icon={cat?.emoji ? undefined : 'repeat'} color={cat?.color || 'lilac'} size={40} />}
                       title={name}
                       detail={`${s.currency === 'USD' ? moneyRaw(Number(s.amount), 'USD') : money(crc, cur, fx)} · ${s.months} meses`}
                       actions={
@@ -271,7 +273,7 @@ export function Recurrentes() {
             {loading && items.length === 0 ? (
               <Loader><GroupSkeleton rows={4} /></Loader>
             ) : rest.length === 0 && toConfirm.length === 0 ? (
-              <EmptyState icon="🔁" title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
+              <EmptyState icon={<Icon name="repeat" size={24} />} title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
                 Alquiler, internet, Netflix… Los de tarjeta se marcan solos cuando llega el voucher.
               </EmptyState>
             ) : rest.length > 0 ? (
@@ -364,7 +366,7 @@ export function RecurringEdit({ id }: { id: string }) {
       if (isNew) await db.insert('recurring', row);
       else await db.update('recurring', { id }, row);
       bump();
-      toast('✅ Recurrente guardado');
+      toast('Recurrente guardado');
       history.back();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo guardar');
@@ -433,7 +435,7 @@ export function RecurringEdit({ id }: { id: string }) {
         <label className="col gap6"><span className="field-label">{r.method === 'card' ? 'Tarjeta' : 'Desde qué cuenta'}</span>
           <select className="input" value={r.account_id || ''} onChange={(e) => set('account_id', e.target.value || null)}>
             <option value="">Sin especificar</option>
-            {spaceAccounts.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>)}
+            {spaceAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>)}
           </select>
         </label>
       </div>

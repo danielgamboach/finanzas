@@ -6,7 +6,7 @@ const meta: Meta<typeof Avatar> = {
   title: 'Átomos/Avatar', component: Avatar, tags: ['autodocs'],
   args: { emoji: '🛒', color: 'mint', size: 'md' },
   argTypes: { color: { control: 'select', options: ['mint', 'peach', 'sky', 'butter', 'lilac', 'pink', 'cyan', 'gray'] }, size: { control: 'inline-radio', options: ['sm', 'md', 'lg'] } },
-  parameters: { docs: { description: { component: 'Cuadrado redondeado: radio xl hasta 32 px, 2xl desde 40. Emoji sobre el color de la categoría, logo del comercio o inicial.' } } },
+  parameters: { docs: { description: { component: 'Cuadrado redondeado: radio xl hasta 32 px, 2xl desde 40. Emoji sobre el color de la categoría (solo categorías, movimientos sin logo, espacios y personas), logo del comercio, ícono (metas, pasos, pagos) o inicial.' } } },
 };
 export default meta;
 export const Playground: StoryObj<typeof Avatar> = {};
@@ -21,6 +21,7 @@ export const Tipos: StoryObj = {
           <Avatar emoji="🍔" color="peach" size={s} />
           <Avatar img={LOGO} size={s} />
           <Avatar initial="K" size={s} />
+          <Avatar icon="target" color="butter" size={s} />
           <Avatar img={LOGO} badge={LOGO} size={s} />
         </div>
       ))}

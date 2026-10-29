@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       if (!u.ok) return reply({ ok: false, reason: 'unauthorized' }, 401);
       const user = await u.json();
       userIds = [user.id];
-      payload = { title: '🔔 Notificaciones activadas', body: 'Así te vamos a avisar de límites y del pago de la tarjeta.', url: '/#/', tag: 'test' };
+      payload = { title: 'Notificaciones activadas', body: 'Así te vamos a avisar de límites y del pago de la tarjeta.', url: '/#/', tag: 'test' };
     }
     if (!userIds.length || !payload.title) return reply({ ok: true, sent: 0 });
 

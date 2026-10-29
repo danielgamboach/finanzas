@@ -5,7 +5,7 @@ import { Icon, Sheet } from '.';
 
 const todayStr = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 
-/** "‹ 📅 Este mes ›" — tap the label to pick a preset, a month or custom dates. */
+/** "‹ Este mes ›" with a calendar icon — tap the label to pick a preset, a month or custom dates. */
 export function PeriodPicker({ value, onChange, weekStart }: { value: PeriodKey; onChange: (k: PeriodKey) => void; weekStart: number }) {
   const [open, setOpen] = useState(false);
   const parts = customParts(value);

@@ -84,7 +84,7 @@ export function CategoryEdit({ id }: { id: string }) {
       else await db.update('categories', { id }, row);
       await reloadMeta();
       bump();
-      toast('✅ Categoría guardada');
+      toast('Categoría guardada');
       history.back();
     } catch (e) {
       toast(e instanceof Error && /duplicate|unique/i.test(e.message) ? 'Ya existe una categoría con ese nombre' : 'No se pudo guardar');
@@ -160,7 +160,7 @@ export function CategoryEdit({ id }: { id: string }) {
 
       {!parent && (
       <div className="card pad col gap14">
-        <Segmented value={kind} options={[['expense', '💸 Gasto'], ['income', '💰 Ingreso']]} onChange={setKind} />
+        <Segmented value={kind} options={[['expense', 'Gasto'], ['income', 'Ingreso']]} onChange={setKind} />
         {kind === 'expense' && (
           <>
             <span className="field-label">Límite</span>

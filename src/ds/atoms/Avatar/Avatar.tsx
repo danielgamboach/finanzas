@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Icon } from '../Icon/Icon';
 import './Avatar.css';
 
 export type AvatarColor = 'mint' | 'peach' | 'sky' | 'butter' | 'lilac' | 'pink' | 'cyan' | 'gray';
@@ -9,6 +10,8 @@ export interface AvatarProps {
   emoji?: string;
   /** A logo or photo (merchants). Falls back to the emoji if it fails to load. */
   img?: string | null;
+  /** An icon name, for faces that aren't a category, a merchant or a person (goals, steps, a card payment). */
+  icon?: string;
   /** One letter, for people without an emoji. */
   initial?: string;
   /** Category color behind the emoji. */
@@ -21,8 +24,8 @@ export interface AvatarProps {
   style?: React.CSSProperties;
 }
 
-/** The face of a merchant, category, person or space: a rounded square with an emoji, a logo or an initial. */
-export function Avatar({ emoji, img, initial, color, size = 'md', badge, className, style }: AvatarProps) {
+/** The face of a merchant, category, person or space: a rounded square with an emoji, a logo, an icon or an initial. */
+export function Avatar({ emoji, img, icon, initial, color, size = 'md', badge, className, style }: AvatarProps) {
   const [broken, setBroken] = useState(false);
   const px = typeof size === 'number' ? size : SIZES[size];
   // radius follows the size: 32 and under xl, bigger 2xl, tiny ones lg
@@ -30,11 +33,11 @@ export function Avatar({ emoji, img, initial, color, size = 'md', badge, classNa
   const photo = img && !broken;
   const face = (
     <span
-      className={['ds-avatar', `ds-avatar--r-${r}`, photo ? 'ds-avatar--photo' : initial && !emoji ? 'ds-avatar--initial' : '', !badge && className].filter(Boolean).join(' ')}
+      className={['ds-avatar', `ds-avatar--r-${r}`, photo ? 'ds-avatar--photo' : initial && !emoji && !icon ? 'ds-avatar--initial' : '', !badge && className].filter(Boolean).join(' ')}
       style={{ width: px, height: px, fontSize: Math.round(px * 0.46), ...(photo || !color ? null : { background: `var(--category-${color})` }), ...(badge ? null : style) }}
       aria-hidden="true"
     >
-      {photo ? <img src={img} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} /> : emoji || initial}
+      {photo ? <img src={img} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} /> : icon ? <Icon name={icon} size={Math.round(px * 0.45)} /> : emoji || initial}
     </span>
   );
   if (!badge) return face;

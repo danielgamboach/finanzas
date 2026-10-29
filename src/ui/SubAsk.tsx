@@ -43,7 +43,7 @@ function SubRow({ t }: { t: Tx }) {
     setBusy(true);
     try {
       await answerSub(t, isSub, f);
-      toast(isSub ? `🔁 ${name} quedó en Recurrentes` : `${name}: listo, no es suscripción`, async () => {
+      toast(isSub ? `${name} quedó en Recurrentes` : `${name}: listo, no es suscripción`, async () => {
         await undoSub(t);
         bump();
       });

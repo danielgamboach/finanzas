@@ -127,8 +127,8 @@ function Body({ t }: { t: Tx }) {
         <span className="chips center">
           {t.hold === 'pending' && <Tag tone="warning" size="sm">Por confirmar</Tag>}
               {review && !suggested && <Tag tone="warning" size="sm">Por revisar</Tag>}
-          {review && suggested && <Tag tone="ai" size="sm">✨ ¿{suggested.emoji} {catLabel(categories, suggested)}?</Tag>}
-          {t.recurring_id && <Tag size="sm">🔁 Recurrente</Tag>}
+          {review && suggested && <Tag tone="ai" size="sm"><Icon name="wand" size={12} />¿{suggested.emoji} {catLabel(categories, suggested)}?</Tag>}
+          {t.recurring_id && <Tag size="sm"><Icon name="repeat" size={12} />Recurrente</Tag>}
           {tags.map((g) => <Tag key={g} size="sm">{g}</Tag>)}
         </span>
       </header>
@@ -143,7 +143,7 @@ function Body({ t }: { t: Tx }) {
             {cat ? (
               <a className="txd-link" href={`#/categoria/${cat.id}`}>
                 {cat.emoji} {catLabel(categories, cat)}
-                {t.category_source === 'ai' && <span className="txd-ai" title="Categorizado por IA">✨ IA</span>}
+                {t.category_source === 'ai' && <span className="txd-ai" title="Categorizado por IA"><Icon name="wand" size={12} />IA</span>}
               </a>
             ) : (
               <span className="muted">Sin categoría</span>

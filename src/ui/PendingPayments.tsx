@@ -5,7 +5,7 @@ import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { PendingPaymentRow, PendingPayments as PendingPaymentsView } from '../ds';
-import { CardPayment, recEmoji, useCardPayment } from '../screens/Recurrentes';
+import { CardPayment, recFace, useCardPayment } from '../screens/Recurrentes';
 import { Holds } from './Holds';
 import { SubAsk } from './SubAsk';
 
@@ -73,7 +73,7 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
     try {
       const txId = await payRecurring(r, fx, userId);
       onPaid(txId);
-      toast(`✅ ${r.merchant} pagado`);
+      toast(`${r.merchant} pagado`);
       bump();
     } catch {
       toast('No se pudo registrar el pago');
@@ -85,7 +85,7 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
   return (
     <PendingPaymentRow
       state={overdue ? 'overdue' : 'due'}
-      face={{ emoji: recEmoji(r, categories), color: categories.find((c) => c.id === r.category_id)?.color || 'gray', img: photo }}
+      face={{ ...recFace(r, categories), color: categories.find((c) => c.id === r.category_id)?.color || 'gray', img: photo }}
       name={r.merchant}
       detail={dueLabel(r.next_due)}
       amount={amountOf(r, cur, fx)}
@@ -116,7 +116,7 @@ function DoneRow({ r, undo, onUndone }: { r: Recurring; undo?: { before: Recurri
   return (
     <PendingPaymentRow
       state="done"
-      face={{ emoji: recEmoji(r, categories), color: 'gray', img: photo }}
+      face={{ ...recFace(r, categories), color: 'gray', img: photo }}
       name={r.merchant}
       detail={`Pagado · ${r.last_paid_on ? shortDay(r.last_paid_on) : 'hoy'}`}
       amount={amountOf(r, cur, fx)}

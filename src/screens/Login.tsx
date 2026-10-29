@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { auth } from '../lib/api';
-import { Button } from '../ds';
+import { Button, Icon } from '../ds';
 import { pendingInvite } from './Onboarding';
 
 export function Login() {
@@ -38,13 +38,13 @@ export function Login() {
   return (
     <div className="login">
       <div className="login-hero">
-        <span className="login-emoji">🫶</span>
+        <span className="login-icon" aria-hidden="true"><Icon name="wallet" size={28} /></span>
         <h1 className="headline">Tus finanzas, <strong>claras</strong> y en pareja</h1>
         <p className="muted">Gastos, presupuestos y patrimonio en colones y dólares.</p>
       </div>
       {invited && (
         <div className="login-invite" role="status">
-          <span aria-hidden="true">💌</span>
+          <Icon name="envelope" size={18} />
           <span>Te invitaron a un espacio compartido. Creá tu cuenta, o entrá si ya tenés una, y te unimos.</span>
         </div>
       )}

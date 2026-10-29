@@ -1,7 +1,7 @@
 .ds-alert { display: flex; align-items: center; text-decoration: none; }
 .ds-alert--md { gap: 12px; padding: 14px 16px; border-radius: var(--radius-3xl); }
 .ds-alert--sm { gap: 8px; padding: 10px 12px; border-radius: var(--radius-2xl); }
-.ds-alert__icon { line-height: 1; flex: none; }
+.ds-alert__icon { display: inline-flex; line-height: 1; flex: none; }
 .ds-alert--md .ds-alert__icon { font-size: var(--text-2xl); }
 .ds-alert--sm .ds-alert__icon { font-size: var(--text-base); }
 .ds-alert__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

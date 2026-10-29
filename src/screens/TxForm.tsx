@@ -217,8 +217,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         if (pattern.length >= 3) applied = await db.rpc<number>('save_rule_and_apply', { p_space: spaceId, p_pattern: pattern, p_category: categoryId });
       }
       const target = cats.find((c) => c.id === categoryId);
-      if (undo) toast(`${target?.emoji || '✅'} Todo ${merchantName} → ${target?.name || 'categoría'} · ${applied} ${applied === 1 ? 'movimiento más' : 'movimientos más'}`, undo);
-      else toast(applied > 1 ? `✅ Guardado · ${applied} movimientos más categorizados` : '✅ Guardado');
+      if (undo) toast(`Todo ${merchantName} → ${target?.name || 'categoría'} · ${applied} ${applied === 1 ? 'movimiento más' : 'movimientos más'}`, undo);
+      else toast(applied > 1 ? `Guardado · ${applied} movimientos más categorizados` : 'Guardado');
       bump();
       await app.reloadMeta();
       history.length > 1 ? history.back() : go('/');
@@ -238,8 +238,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   }
 
   const typeOptions = useMemo<[FormType, string][]>(() => {
-    const base: [FormType, string][] = [['gasto', '💸 Gasto'], ['ingreso', '💰 Ingreso'], ['transferir', '🔄 Mover']];
-    if (sharedSpaces.length) base.push(['aporte', '🤝 Aporte']);
+    const base: [FormType, string][] = [['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['transferir', 'Mover']];
+    if (sharedSpaces.length) base.push(['aporte', 'Aporte']);
     return base;
   }, [sharedSpaces.length]);
 
@@ -265,7 +265,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
         {orig?.raw_merchant && (
           <div className="from-bank">
-            <span>🏦</span>
+            <Icon name="bank" size={18} solid />
             <span className="col">
               <strong>Del banco: {orig.raw_merchant}</strong>
               <span>{orig.currency} {String(orig.amount)} {orig.currency === 'USD' ? `· tipo de cambio ${Number(orig.fx_rate).toFixed(2)}` : ''}</span>
@@ -312,7 +312,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
           <div className="col gap10">
             <span className="field-label">Categoría</span>
             {orig?.status === 'review' && orig.suggested_category_id && categoryId === orig.suggested_category_id && (
-              <span className="hint">✨ Sugerida por IA{orig.ai_confidence ? ` · ${Math.round(Number(orig.ai_confidence) * 100)}% de confianza` : ''}. Confirmala o elegí otra.</span>
+              <span className="hint"><span className="inline-icon"><Icon name="wand" size={12} /></span> Sugerida por IA{orig.ai_confidence ? ` · ${Math.round(Number(orig.ai_confidence) * 100)}% de confianza` : ''}. Confirmala o elegí otra.</span>
             )}
             <div className="cat-grid">
               {shownCats.map((c) => (
@@ -331,7 +331,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               ))}
               {shownCats.length < visibleCats.length && (
                 <button className="cat-tile" onClick={() => setShowAllCats(true)}>
-                  <span className="cat-emoji">✨</span>
+                  <span className="cat-emoji"><Icon name="dots" size={20} /></span>
                   Más
                 </button>
               )}
@@ -374,9 +374,9 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
             <label className="field-row">
               <span>{type === 'transferir' ? 'Desde' : 'Cuenta'}</span>
               <select value={accountId || ''} onChange={(e) => setAccountId(e.target.value || null)}>
-                <option value="">{type === 'transferir' ? 'Elegir…' : '💵 Efectivo / SINPE'}</option>
+                <option value="">{type === 'transferir' ? 'Elegir…' : 'Efectivo / SINPE'}</option>
                 {accs.map((a) => (
-                  <option key={a.id} value={a.id}>{a.emoji} {a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
+                  <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
                 ))}
               </select>
             </label>
@@ -387,7 +387,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               <select value={toAccountId || ''} onChange={(e) => setToAccountId(e.target.value || null)}>
                 <option value="">Elegir…</option>
                 {accs.map((a) => (
-                  <option key={a.id} value={a.id}>{a.emoji} {a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
+                  <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
                 ))}
               </select>
             </label>
@@ -399,7 +399,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
           {!id && (
             <div className="field-row">
               <span className="col">
-                <span>🔁 Repetir cada mes</span>
+                <span>Repetir cada mes</span>
                 <small>{repeat ? 'Queda en Recurrentes y te avisamos el próximo mes' : 'Para alquiler, suscripciones o salario'}</small>
               </span>
               <Switch checked={repeat} label="Repetir cada mes" onChange={() => setRepeat((r) => !r)} />

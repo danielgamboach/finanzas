@@ -205,10 +205,10 @@ export function AccountCard({ a, w, onClick, style, big = false }: { a: Account;
       </span>
       <span className="wc-bottom">
         <span className="col">
-          <span className="wc-sub">{f.stale && a.kind !== 'credit_card' ? '⏰ ' : ''}{f.sub}</span>
+          <span className="wc-sub">{f.stale && a.kind !== 'credit_card' && <Icon name="clock" size={12} />}{f.sub}</span>
           <span className="wc-amt">{f.main}</span>
         </span>
-        {a.brand ? <span className="wc-brand">{BRANDS[a.brand]}</span> : <span className="wc-kind" aria-hidden="true">{a.emoji}</span>}
+        {a.brand ? <span className="wc-brand">{BRANDS[a.brand]}</span> : <span className="wc-kind" aria-hidden="true"><Icon name={KIND_ICON[a.kind] || 'folder'} size={24} solid /></span>}
       </span>
     </Tag>
   );
@@ -234,7 +234,7 @@ export function Cuentas() {
   const groups = w.loading && accs.length === 0 ? (
     <Loader><GroupSkeleton rows={2} leading="icon" /><GroupSkeleton rows={2} leading="icon" start={2} /></Loader>
   ) : accs.length === 0 ? (
-    <EmptyState icon="💳" title="Agregá tus cuentas" action={<Button variant="primary" size="sm" href="#/cuenta/nueva" leading={<Icon name="plus" size={16} solid />}>Nueva cuenta</Button>}>
+    <EmptyState icon={<Icon name="cards" size={24} />} title="Agregá tus cuentas" action={<Button variant="primary" size="sm" href="#/cuenta/nueva" leading={<Icon name="plus" size={16} solid />}>Nueva cuenta</Button>}>
       Tarjetas, ahorros, inversiones. Con el saldo de cada una sale tu patrimonio.
     </EmptyState>
   ) : (
@@ -251,7 +251,7 @@ export function Cuentas() {
   const goalList = goals === null ? <Loader><GroupSkeleton rows={1} below /></Loader> : (
     <ListGroup title="Metas" action={<a href="#/meta/nueva">Nueva</a>}>
       {goals.length === 0 ? (
-        <ListRow leading={<Emo e="🎯" color="butter" size={40} />} title="Creá tu primera meta" detail="Ej. 🏡 Casa, con las cuentas que suman" chevron href="#/meta/nueva" />
+        <ListRow leading={<Emo icon="target" color="butter" size={40} />} title="Creá tu primera meta" detail="Ej. Casa, con las cuentas que suman" chevron href="#/meta/nueva" />
       ) : (
         goals.map((gl) => {
           const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
@@ -261,7 +261,7 @@ export function Cuentas() {
           return (
             <ListRow
               key={gl.id}
-              leading={<Emo e={gl.emoji || '🎯'} color={gl.color || 'butter'} size={40} />}
+              leading={<Emo icon="target" color={gl.color || 'butter'} size={40} />}
               title={gl.name}
               detail={`${money(saved, cur, fx)} de ${money(target, cur, fx)}`}
               value={`${pct}%`}
@@ -330,7 +330,7 @@ function CardPaid({ a, owed, onDone }: { a: Account; owed: number; onDone: () =>
         space_id: a.space_id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
         merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: a.id, source: 'system',
       });
-      toast(`✅ ${a.name}: pagada`, async () => {
+      toast(`${a.name}: pagada`, async () => {
         if (tx?.id) await db.remove('transactions', { id: tx.id });
         onDone();
         bump();
@@ -428,7 +428,7 @@ export function Saldos() {
       .map(([account_id, v]) => ({ account_id, balance: parseAmount(v), taken_on: today }));
     if (rows.length) await db.upsert('balance_snapshots', rows, 'account_id,taken_on');
     bump();
-    toast(`✅ ${rows.length} saldo${rows.length === 1 ? '' : 's'} actualizado${rows.length === 1 ? '' : 's'}`);
+    toast(`${rows.length} saldo${rows.length === 1 ? '' : 's'} actualizado${rows.length === 1 ? '' : 's'}`);
     setBusy(false);
     history.back();
   }
@@ -439,7 +439,7 @@ export function Saldos() {
       <div className="page-body">
         <p className="page-text">Poné el saldo de hoy de cada cuenta. Dejá en blanco las que no cambiaron.</p>
         {w.loading ? <Loader><GroupSkeleton rows={3} title={false} leading="icon" value={false} action /></Loader> : editable.length === 0 ? (
-          <EmptyState icon="🏦" title="Primero agregá una cuenta" action={<Button variant="primary" size="sm" href="#/cuenta/nueva">Nueva cuenta</Button>} />
+          <EmptyState icon={<Icon name="bank" size={24} />} title="Primero agregá una cuenta" action={<Button variant="primary" size="sm" href="#/cuenta/nueva">Nueva cuenta</Button>} />
         ) : (
           <ListGroup>
             {editable.map((a) => {
@@ -513,7 +513,7 @@ export function AccountEdit({ id }: { id: string }) {
       }
       await reloadMeta();
       bump();
-      toast('✅ Cuenta guardada');
+      toast('Cuenta guardada');
       history.back();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo guardar');
@@ -565,11 +565,11 @@ export function AccountEdit({ id }: { id: string }) {
         <label className="col gap6"><span className="field-label">Institución</span><input className="input" value={acc.institution || ''} onChange={(e) => set('institution', e.target.value)} placeholder="Ej. BAC, Banco Nacional, Hapi" /></label>
         <label className="col gap6"><span className="field-label">Tipo</span>
           <select className="input" value={acc.kind} onChange={(e) => { set('kind', e.target.value); set('emoji', KIND_EMOJI[e.target.value]); }}>
-            {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{KIND_EMOJI[k]} {l}</option>)}
+            {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </label>
         {acc.kind === 'credit_card' ? (
-          <span className="hint">💳 Las tarjetas aceptan cargos en colones y en dólares. Se muestran por separado.</span>
+          <span className="hint">Las tarjetas aceptan cargos en colones y en dólares. Se muestran por separado.</span>
         ) : (
           <div className="grid2">
             {(['CRC', 'USD'] as const).map((c) => (
@@ -629,7 +629,7 @@ export function GoalEdit({ id }: { id: string }) {
     await db.remove('goal_accounts', { goal_id: goalId });
     if (linked.length) await db.insert('goal_accounts', linked.map((account_id) => ({ goal_id: goalId, account_id })));
     bump();
-    toast('✅ Meta guardada');
+    toast('Meta guardada');
     history.back();
   }
   async function remove() {
@@ -646,7 +646,6 @@ export function GoalEdit({ id }: { id: string }) {
       <div className="page-body">
       <div className="card pad col gap14">
         <label className="col gap6"><span className="field-label">Nombre</span><input className="input" value={g.name || ''} onChange={(e) => setG({ ...g, name: e.target.value })} placeholder="Ej. Casa" /></label>
-        <label className="col gap6"><span className="field-label">Emoji</span><input className="input" value={g.emoji || ''} onChange={(e) => setG({ ...g, emoji: e.target.value })} maxLength={8} /></label>
         <div className="grid2">
           {(['CRC', 'USD'] as const).map((c) => (
             <button key={c} className={g.currency === c ? 'opt on' : 'opt'} onClick={() => setG({ ...g, currency: c })}>{c === 'CRC' ? '¢ Colones' : '$ Dólares'}</button>
@@ -665,7 +664,7 @@ export function GoalEdit({ id }: { id: string }) {
         {assets.map((a) => (
           <label key={a.id} className="check">
             <input type="checkbox" checked={linked.includes(a.id)} onChange={(e) => setLinked(e.target.checked ? [...linked, a.id] : linked.filter((x) => x !== a.id))} />
-            <span>{a.emoji} {a.name} {a.institution ? `· ${a.institution}` : ''}</span>
+            <span>{a.name} {a.institution ? `· ${a.institution}` : ''}</span>
           </label>
         ))}
       </div>

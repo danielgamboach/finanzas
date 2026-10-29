@@ -8,7 +8,7 @@ import { Emo, Icon, Sheet } from './index';
 
 interface Item {
   key: string;
-  emoji: string;
+  icon: string;
   title: string;
   sub: string;
   done: boolean;
@@ -50,15 +50,15 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
   const support = pushSupport();
 
   const items: Item[] = [
-    { key: 'tx', emoji: '✍️', title: 'Anotá tu primer gasto', sub: 'Tocá + arriba y listo, toma segundos.', done: st.tx, run: () => go('/agregar') },
-    { key: 'acc', emoji: '💳', title: 'Agregá una cuenta', sub: 'La tarjeta o el efectivo con que pagás.', done: st.acc, run: () => go('/cuenta/nueva') },
-    { key: 'rec', emoji: '🔁', title: 'Agregá tus pagos fijos', sub: 'Alquiler, servicios, suscripciones. Te avisamos antes.', done: st.rec, run: () => go('/recurrentes') },
-    { key: 'lim', emoji: '🎯', title: 'Ponele un límite a una categoría', sub: 'Así sabés cuánto te queda en el mes.', done: st.lim, run: () => go('/categorias') },
+    { key: 'tx', icon: 'pencil', title: 'Anotá tu primer gasto', sub: 'Tocá + arriba y listo, toma segundos.', done: st.tx, run: () => go('/agregar') },
+    { key: 'acc', icon: 'cards', title: 'Agregá una cuenta', sub: 'La tarjeta o el efectivo con que pagás.', done: st.acc, run: () => go('/cuenta/nueva') },
+    { key: 'rec', icon: 'repeat', title: 'Agregá tus pagos fijos', sub: 'Alquiler, servicios, suscripciones. Te avisamos antes.', done: st.rec, run: () => go('/recurrentes') },
+    { key: 'lim', icon: 'target', title: 'Ponele un límite a una categoría', sub: 'Así sabés cuánto te queda en el mes.', done: st.lim, run: () => go('/categorias') },
   ];
   if (ownShared) {
     items.push({
       key: 'inv',
-      emoji: '💌',
+      icon: 'envelope',
       title: `Invitá a alguien a ${ownShared.name}`,
       sub: 'Le mandamos un enlace para unirse.',
       done: sharedCount > 1,
@@ -71,7 +71,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
   if (support !== 'unsupported') {
     items.push({
       key: 'push',
-      emoji: '🔔',
+      icon: 'bell',
       title: 'Activá las notificaciones',
       sub: support === 'ios-install' ? 'En iPhone, primero agregá la app a tu pantalla de inicio.' : 'Solo para límites y el pago de la tarjeta.',
       done: perm === 'granted',
@@ -79,7 +79,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
         if (support === 'ios-install') return go('/ajustes');
         const p = await enablePush();
         setPerm(p);
-        if (p === 'granted') toast('🔔 Notificaciones activadas');
+        if (p === 'granted') toast('Notificaciones activadas');
         else if (p === 'denied') toast('Quedaron bloqueadas. Podés activarlas en los ajustes del teléfono.');
       },
     });
@@ -113,7 +113,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
   const row = (i: Item, go: () => void = () => run(i)) => (
     <ListRow
       key={i.key}
-      leading={i.done ? <span className="gs-check on" aria-hidden="true"><Icon name="check" size={14} stroke={3} /></span> : <Emo e={i.emoji} color="gray" size={40} />}
+      leading={i.done ? <span className="gs-check on" aria-hidden="true"><Icon name="check" size={14} stroke={3} /></span> : <Emo icon={i.icon} color="gray" size={40} />}
       title={<>{i.title}{i.done && <span className="sr"> (listo)</span>}</>}
       detail={i.done ? 'Listo' : i.sub}
       detailTone={i.done ? 'success' : 'muted'}
@@ -126,7 +126,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
   return (
     <ListGroup
       className={variant === 'card' ? 'gs gs-card' : 'gs'}
-      title={all ? '¡Terminaste los primeros pasos! 🎉' : `Primeros pasos · ${doneCount} de ${total}`}
+      title={all ? '¡Terminaste los primeros pasos!' : `Primeros pasos · ${doneCount} de ${total}`}
       action={all ? <Button variant="primary" size="xs" onClick={hide}>Cerrar</Button> : <Button variant="ghost" size="xs" onClick={hide}>Ocultar</Button>}
       footer={!all && variant === 'sheet' && total > 1 ? <Button variant="ghost" size="xs" onClick={() => setShowAll(true)}>Ver los {total} pasos</Button> : undefined}
     >

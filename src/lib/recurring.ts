@@ -14,7 +14,7 @@ export const FREQ_LABEL: Record<Frequency, string> = {
   yearly: 'Anual',
 };
 
-export const METHOD_LABEL: Record<PayMethod, string> = { card: '💳 Tarjeta', transfer: '🏦 Transferencia', cash: '💵 Efectivo' };
+export const METHOD_LABEL: Record<PayMethod, string> = { card: 'Tarjeta', transfer: 'Transferencia', cash: 'Efectivo' };
 
 /** How many times per month this happens, to show a monthly total. */
 export const PER_MONTH: Record<Frequency, number> = {

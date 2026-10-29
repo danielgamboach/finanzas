@@ -114,7 +114,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
     setBulkBusy(true);
     try {
       await db.updateIds('transactions', ids, { category_id: catId, status: 'posted', category_source: 'manual', suggested_category_id: null });
-      toast(`${c?.emoji || '✅'} ${ids.length === 1 ? '1 movimiento' : `${ids.length} movimientos`} → ${c?.name || 'categoría'}`, () => restoreCategories(before));
+      toast(`${ids.length === 1 ? '1 movimiento' : `${ids.length} movimientos`} → ${c?.name || 'categoría'}`, () => restoreCategories(before));
       setSel(null);
       bump();
     } catch {
@@ -134,7 +134,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       if (!r.ok) toast(r.reason === 'quota' ? 'Llegaste al límite de consultas a la IA por hoy' : r.reason?.includes('API_KEY') ? 'Falta configurar la clave de Claude' : 'No se pudo consultar la IA');
       else {
         const applied = (r.results || []).filter((x) => x.applied).length;
-        toast(`✨ ${applied} categorizados · ${(r.processed || 0) - applied} con sugerencia`);
+        toast(`${applied} categorizados · ${(r.processed || 0) - applied} con sugerencia`);
       }
       bump();
     } catch {
@@ -151,7 +151,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       const byCat = new Map<string, string[]>();
       withSuggestion.forEach((t) => byCat.set(t.suggested_category_id!, [...(byCat.get(t.suggested_category_id!) || []), t.id]));
       for (const [cat, ids] of byCat) await db.updateIds('transactions', ids, { category_id: cat, status: 'posted', category_source: 'ai', suggested_category_id: null });
-      toast(`✅ ${withSuggestion.length} sugerencias aceptadas`, () => restoreCategories(before));
+      toast(`${withSuggestion.length} sugerencias aceptadas`, () => restoreCategories(before));
     } catch {
       toast('No se pudieron aceptar todas');
     }
@@ -173,7 +173,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
 
   const inflow = f.kind === 'ingresos';
   const total = inflow ? sumKind(filtered, 'income') + sumKind(filtered, 'contribution') : sumSpend(filtered);
-  const empty = review.length === 0 && f.review ? '🎉 Nada por revisar.' : 'Nada con estos filtros.';
+  const empty = review.length === 0 && f.review ? 'Nada por revisar.' : 'Nada con estos filtros.';
 
   return (
     <div className={table ? 'mb mb-table' : 'mb'}>
@@ -203,7 +203,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       {f.review && (withSuggestion.length > 0 || unchecked.length > 0) && (
         <div className="ai-bar">
           <span className="ai-bar-text">
-            <strong>✨ Categorías con IA</strong>
+            <strong><span className="inline-icon"><Icon name="wand" size={14} /></span> Categorías con IA</strong>
             <span>{withSuggestion.length > 0 ? `${withSuggestion.length} con sugerencia lista` : `${unchecked.length} sin analizar`}</span>
           </span>
           {withSuggestion.length > 0 ? (
@@ -219,7 +219,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       {loading && all.length === 0 ? (
         table ? <Loader><GroupSkeleton rows={8} title={false} /></Loader> : <Loader><TxListSkeleton days={home ? 2 : 3} rows={4} density={home ? 'sheet' : 'list'} /></Loader>
       ) : filtered.length === 0 && home && !sheetOpen ? (
-        <EmptyState icon="🧾" title="Todavía no hay movimientos este mes">Tocá + arriba para agregar uno.</EmptyState>
+        <EmptyState icon={<Icon name="receipt" size={24} />} title="Todavía no hay movimientos este mes">Tocá + arriba para agregar uno.</EmptyState>
       ) : filtered.length === 0 ? (
         <div className="mb-empty">
           <span>{empty}</span>

@@ -32,7 +32,7 @@ export function Ajustes() {
   async function saveProfile() {
     await db.upsert('profiles', [{ id: userId, name: name.trim() || null, emoji: emoji || '🙂' }], 'id');
     await reloadMeta();
-    toast('✅ Perfil guardado');
+    toast('Perfil guardado');
   }
   async function makeInvite() {
     if (!space) return;
@@ -43,7 +43,7 @@ export function Ajustes() {
       const sid = await db.rpc<string>('accept_invite', { p_code: joinCode });
       await reloadMeta();
       setSpaceId(sid);
-      toast('🎉 Te uniste al espacio');
+      toast('Te uniste al espacio');
       go('/');
     } catch {
       toast('Código no válido o vencido');
@@ -55,7 +55,7 @@ export function Ajustes() {
     await reloadMeta();
     setSpaceId(sid);
     setNewSpace('');
-    toast('✅ Espacio creado');
+    toast('Espacio creado');
   }
   async function makeToken() {
     setToken(await db.rpc<string>('create_ingest_token', { p_label: 'Google Apps Script' }));
@@ -185,7 +185,7 @@ function NotifSettings() {
     try {
       const p = await enablePush();
       setPerm(p);
-      if (p === 'granted') toast('🔔 Notificaciones activadas');
+      if (p === 'granted') toast('Notificaciones activadas');
       else if (p === 'denied') toast('Quedaron bloqueadas en este dispositivo');
     } catch {
       toast('No se pudieron activar en este dispositivo');
@@ -197,7 +197,7 @@ function NotifSettings() {
     setBusy(true);
     try {
       const r = await sendTestPush();
-      toast(r.sent ? '📨 Notificación de prueba enviada' : 'Este dispositivo no está registrado todavía');
+      toast(r.sent ? 'Notificación de prueba enviada' : 'Este dispositivo no está registrado todavía');
     } catch {
       toast('No se pudo enviar la prueba');
     } finally {

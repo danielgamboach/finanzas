@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import React, { useState } from 'react';
 import { OptionCard } from './OptionCard';
+import { Icon } from '../../atoms/Icon/Icon';
 
 const meta: Meta = { title: 'Moléculas/OptionCard' };
 export default meta;
@@ -9,8 +10,8 @@ export const Option: StoryObj = {
     const [v, setV] = useState('dos');
     return (
       <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 358 }}>
-        <OptionCard icon="🦥" title="Solo yo" description="Mis gastos, a mi manera." selected={v === 'uno'} onClick={() => setV('uno')} />
-        <OptionCard icon="👫" title="Con alguien más" description="Compartimos gastos y cuentas." selected={v === 'dos'} onClick={() => setV('dos')} />
+        <OptionCard icon={<Icon name="user" size={24} />} title="Solo yo" description="Mis gastos, a mi manera." selected={v === 'uno'} onClick={() => setV('uno')} />
+        <OptionCard icon={<Icon name="users" size={24} />} title="Con alguien más" description="Compartimos gastos y cuentas." selected={v === 'dos'} onClick={() => setV('dos')} />
       </div>
     );
   },
@@ -22,7 +23,7 @@ export const TileYPill: StoryObj = {
     const [p, setP] = useState('q');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div role="radiogroup" className="ds-doc-row">{[['c', '💳', 'Crédito'], ['d', '🏦', 'Débito'], ['e', '💵', 'Efectivo']].map(([k, i, l]) => <OptionCard key={k} type="tile" icon={i} title={l} selected={t === k} onClick={() => setT(k)} />)}</div>
+        <div role="radiogroup" className="ds-doc-row">{[['c', 'cards', 'Crédito'], ['d', 'bank', 'Débito'], ['e', 'money', 'Efectivo']].map(([k, i, l]) => <OptionCard key={k} type="tile" icon={<Icon name={i} size={24} solid />} title={l} selected={t === k} onClick={() => setT(k)} />)}</div>
         <div role="radiogroup" className="ds-doc-row">{[['s', 'Semanal'], ['q', 'Quincenal'], ['m', 'Mensual']].map(([k, l]) => <OptionCard key={k} type="pill" title={l} selected={p === k} onClick={() => setP(k)} />)}</div>
       </div>
     );

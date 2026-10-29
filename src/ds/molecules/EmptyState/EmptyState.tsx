@@ -1,7 +1,7 @@
 import React from 'react';
 import './EmptyState.css';
 
-/** What shows when a list is empty: what's missing and, if possible, the action that fills it. */
+/** What shows when a list is empty: what's missing and, if possible, the action that fills it. `icon`: an <Icon size={24} /> (or a category's emoji), shown in a muted tile. */
 export function EmptyState({ icon, title, children, action, className }: { icon?: React.ReactNode; title?: React.ReactNode; children?: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
     <div className={['ds-empty', className].filter(Boolean).join(' ')}>

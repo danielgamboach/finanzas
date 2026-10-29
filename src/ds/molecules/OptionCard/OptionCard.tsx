@@ -4,7 +4,7 @@ import './OptionCard.css';
 
 /**
  * Picking one option with more weight than a radio. option: card with title, description and radio.
- * tile: square with an emoji (account type). pill: short option (frequency).
+ * tile: square with an icon (account type). pill: short option (frequency).
  */
 export function OptionCard({ type = 'option', selected, icon, title, description, onClick, className }: { type?: 'option' | 'tile' | 'pill'; selected?: boolean; icon?: React.ReactNode; title: React.ReactNode; description?: React.ReactNode; onClick?: () => void; className?: string }) {
   return (

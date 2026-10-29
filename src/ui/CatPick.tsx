@@ -24,7 +24,7 @@ export function CatPick({ t }: { t: Tx }) {
       const r = await setMerchantCategory(t.id, id);
       const c = categories.find((x) => x.id === id);
       const more = r.total > 1 ? ` · ${r.total} movimientos` : '';
-      toast(`${c?.emoji || '✅'} ${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}${more}`, r.undo);
+      toast(`${t.merchant || 'Movimiento'} → ${c?.name || 'categorizado'}${more}`, r.undo);
       bump();
     } catch {
       toast('No se pudo guardar la categoría');
@@ -39,7 +39,7 @@ export function CatPick({ t }: { t: Tx }) {
       <Icon name="chevDown" size={14} stroke={2.4} />
       <select value="" disabled={busy} onChange={(e) => void pick(e.target.value)}>
         <option value="" disabled>Elegir categoría</option>
-        {suggested && <option value={suggested.id}>✨ {suggested.emoji} {suggested.name} (sugerida)</option>}
+        {suggested && <option value={suggested.id}>{suggested.emoji} {suggested.name} (sugerida)</option>}
         {options.map((c) => (
           <option key={c.id} value={c.id}>{c.parent_id ? '    ' : ''}{c.emoji} {c.name}</option>
         ))}

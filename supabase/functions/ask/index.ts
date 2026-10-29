@@ -173,6 +173,7 @@ const SYSTEM = [
   '- "Gasto hormiga" son compras chicas y frecuentes que suman mucho; usá gastos_hormiga_90_dias.',
   '- Si preguntan por algo fuera de las finanzas de este espacio, respondé amablemente que solo podés ayudar con estas finanzas.',
   '- Sin markdown: nada de asteriscos, negritas ni encabezados. No uses guiones largos ni rayas (—, –).',
+  '- Sin emojis.',
 ].join('\n');
 
 async function askClaude(question: string, ctx: ReturnType<typeof context>) {

@@ -52,7 +52,7 @@ export function SinLogo() {
       <PageHeader title="Comercios sin logo" onBack={navigateBack} />
       <div className="page-body">
       {left === 0 ? (
-        <EmptyState icon="🎉" title="Todos tienen logo">Cuando aparezca un comercio nuevo sin foto, va a salir acá.</EmptyState>
+        <EmptyState icon={<Icon name="checkCircle" size={24} />} title="Todos tienen logo">Cuando aparezca un comercio nuevo sin foto, va a salir acá.</EmptyState>
       ) : (
         <>
           <SearchField size="md" value={q} onChange={setQ} placeholder="Buscar comercio" aria-label="Buscar comercio" />

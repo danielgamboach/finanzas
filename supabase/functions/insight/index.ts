@@ -148,7 +148,8 @@ async function ask(f: ReturnType<typeof facts>, prev: string | null) {
     '- Humor ligero, cálido y tico sin exagerar. Nunca regañes, no culpes a nadie, no seas condescendiente.',
     '- No menciones el total gastado del mes: ya se ve arriba en la pantalla.',
     '- No uses guiones largos ni rayas (—, –). Usá comas o puntos.',
-    '- Respondé solo con JSON: {"emoji": "un emoji", "text": "el mensaje", "tone": "good|neutral|warn|bad"}.',
+    '- Sin emojis, salvo el de una categoría cuando la nombrés tal como viene en el resumen.',
+    '- Respondé solo con JSON: {"text": "el mensaje", "tone": "good|neutral|warn|bad"}.',
   ].join('\n');
   const user =
     `Resumen de hoy:\n${JSON.stringify(f, null, 1)}` +
@@ -165,7 +166,7 @@ async function ask(f: ReturnType<typeof facts>, prev: string | null) {
   const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as { emoji?: string; text?: string; tone?: string };
   const clean = String(out.text || '').replace(/\s*[—–]\s*/g, ', ').trim();
   const tone = ['good', 'neutral', 'warn', 'bad'].includes(String(out.tone)) ? out.tone : 'neutral';
-  return { emoji: String(out.emoji || '✨').slice(0, 8), text: clean, tone };
+  return { emoji: '', text: clean, tone };
 }
 
 Deno.serve(async (req) => {
