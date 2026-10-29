@@ -1106,8 +1106,8 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .merchant-field input::placeholder { color: var(--input); }
 .merchant-suggest { animation: fade-in .12s ease-out; }
 
-/* Kai floats at the bottom left of Inicio; it steps aside while the movements sheet is open */
-.home-kai.ds-kai--fab { position: absolute; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6; transition: opacity .2s ease, transform .2s ease; }
+/* Kai floats at the bottom right of Inicio; it steps aside while the movements sheet is open */
+.home-kai.ds-kai--fab { position: absolute; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6; transition: opacity .2s ease, transform .2s ease; }
 .home-kai.is-hidden { opacity: 0; transform: scale(.85); pointer-events: none; }
 /* "Descartar" closes the form; at the very bottom, under the save bar, not pinned */
 .form-discard { margin-top: -12px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
