@@ -6,6 +6,7 @@ import { canPay, canReceiveIncome, canSendMoney } from '../lib/transfers';
 import type { Recurring } from '../lib/types';
 import { useApp } from '../store';
 import { Icon, Sheet } from '.';
+import { CardPaySheet } from './CardPay';
 
 const tomorrow = () => new Date(Date.now() - 6 * 3600000 + 86400000).toISOString().slice(0, 10);
 
@@ -13,7 +14,15 @@ const tomorrow = () => new Date(Date.now() - 6 * 3600000 + 86400000).toISOString
  * Paying a manual recurrent (REC-06): from which account, how much and when, with the recurrent's own as defaults.
  * Below, the other ways out (REC-07): ignore this one, postpone it, or stop the recurrent.
  */
-export function PaySheet({ r, onClose, onPaid }: { r: Recurring; onClose: () => void; onPaid: (txId: string | null) => void }) {
+export function PaySheet(props: { r: Recurring; onClose: () => void; onPaid: (txId: string | null) => void }) {
+  const { accounts } = useApp();
+  const to = accounts.find((a) => a.id === props.r.to_account_id);
+  // paying a credit card (an early payment, TAR-05): how much was paid, in which currency, with what's owed in view
+  if (props.r.kind === 'transfer' && to?.kind === 'credit_card') return <CardPaySheet cardId={to.parent_account_id || to.id} r={props.r} onClose={props.onClose} onPaid={props.onPaid} />;
+  return <PlainPaySheet {...props} />;
+}
+
+function PlainPaySheet({ r, onClose, onPaid }: { r: Recurring; onClose: () => void; onPaid: (txId: string | null) => void }) {
   const { accounts, fx, userId, toast, bump } = useApp();
   const usable = accounts.filter((a) => !a.archived && (r.kind === 'income' ? canReceiveIncome(a) : r.kind === 'transfer' ? canSendMoney(a) && a.id !== r.to_account_id : canPay(a)));
   const cash = accounts.find((a) => a.system === 'cash');

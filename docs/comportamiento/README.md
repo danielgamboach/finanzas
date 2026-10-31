@@ -10,7 +10,7 @@ Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar
 |---|---|---|---|---|
 | [principios.md](principios.md) | Público general, manual primero, historial, borrar es borrar | 1 | 1 | 2 |
 | [espacios.md](espacios.md) | Personal y compartidos, abandonar | 6 | | |
-| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Tipos de cuenta, saldos, efectivo, préstamos, CDP, inversiones, tarjetas, patrimonio, metas | 26 | 2 | 6 |
+| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Tipos de cuenta, saldos, efectivo, préstamos, CDP, inversiones, tarjetas (corte, pago, adicionales, pagos anticipados), patrimonio, metas | 30 | 2 | 6 |
 | [movimientos.md](movimientos.md) | Tipos, cuenta y categoría obligatorias, mover entre espacios | 6 | | |
 | [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, posponer, ignorar | 9 | | 1 |
 | [categorias.md](categorias.md) | Subcategorías, límites, fijas | 3 | 1 | |

@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, Switch, TxListSkeleton, ActionBar } from '../ds';
 import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
-import { accountBalanceAt, cardOutstanding, cardPaidThrough, snapshotMoment } from '../lib/calc';
+import { accountBalanceAt, snapshotMoment } from '../lib/calc';
+import { cardStatus, hasOwed, isAdditional, owedCrc, type CardStatus, type Owed } from '../lib/cards';
+import { CardCycle, CardPaySheet, owedText } from '../ui/CardPay';
 import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
-import type { Account, Goal, Snapshot, Tx } from '../lib/types';
+import type { Account, Goal, Recurring, Snapshot, Tx } from '../lib/types';
 import { go, navigate, navigateBack, useApp } from '../store';
 import { Emo, Icon, Loading, tint } from '../ui';
 import { ACCOUNT_COLORS, accountColor, BRANDS, byKind } from '../lib/accounts';
@@ -33,7 +35,9 @@ export interface WorthData {
   balance: Record<string, number | undefined>;
   snaps: Snapshot[];
   cardDebt: Record<string, number>;
-  cardSplit: Record<string, { CRC: number; USD: number }>;
+  cardSplit: Record<string, Owed>;
+  /** Main cards: statement, due date, what's left to pay (TAR). */
+  cardInfo: Record<string, CardStatus>;
   cards: number;
   assets: number;
   savings: number;
@@ -48,18 +52,6 @@ export interface WorthData {
 }
 
 const toCrc = (v: number, a: Account, fx: number) => (a.currency === 'USD' ? v * fx : v);
-
-/** What's been charged to a card since it was last paid, split by the currency of each charge. */
-function cardByCurrency(card: Account, txs: Tx[], spaceCards: Set<string>) {
-  const since = cardPaidThrough(card, txs, spaceCards);
-  const out = { CRC: 0, USD: 0 };
-  for (const t of txs) {
-    if (t.account_id !== card.id || t.occurred_at < since) continue;
-    const sign = t.kind === 'expense' && !t.hold ? 1 : t.kind === 'refund' ? -1 : 0;
-    out[t.currency === 'USD' ? 'USD' : 'CRC'] += sign * Number(t.amount);
-  }
-  return out;
-}
 
 export function useNetWorth(spaceId: string | null): WorthData {
   const { fx, version } = useApp();
@@ -85,7 +77,8 @@ export function useNetWorth(spaceId: string | null): WorthData {
       for (const x of s) if (!newest[x.account_id]) newest[x.account_id] = x;
       const bases = Object.values(newest).map(snapshotMoment).sort();
       const hasCards = accs.some((a) => a.kind === 'credit_card');
-      const from = [hasCards ? new Date(Date.now() - 60 * 86400000).toISOString() : null, bases[0] || null].filter(Boolean).sort()[0] as string | undefined;
+      // cards: enough for the last two statements
+      const from = [hasCards ? new Date(Date.now() - 75 * 86400000).toISOString() : null, bases[0] || null].filter(Boolean).sort()[0] as string | undefined;
       const [ct, rates] = from
         ? await Promise.all([
             db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').or(`space_id.eq.${spaceId}`, `to_space_id.eq.${spaceId}`).gte('occurred_at', from).limit(5000).then((r) => r.filter((t) => t.hold !== 'void')),
@@ -117,14 +110,18 @@ export function useNetWorth(spaceId: string | null): WorthData {
   const balance: Record<string, number | undefined> = {};
   let savings = 0, investments = 0, debts = 0, stale = 0, cards = 0;
   const cardDebt: Record<string, number> = {};
-  const cardSplit: Record<string, { CRC: number; USD: number }> = {};
+  const cardSplit: Record<string, Owed> = {};
+  const cardInfo: Record<string, CardStatus> = {};
   const now = Date.now();
-  const spaceCards = new Set(accounts.filter((a) => a.kind === 'credit_card').map((a) => a.id));
   for (const a of accounts) {
     if (a.kind === 'credit_card') {
-      const owed = cardOutstanding(a, cardTx, spaceCards);
+      // an additional card's charges are owed on its main card (TAR-07)
+      if (isAdditional(a)) continue;
+      const st = cardStatus(a, accounts, snaps, cardTx, nowIso);
+      const owed = Math.max(0, owedCrc(st.owed, fx));
+      cardInfo[a.id] = st;
       cardDebt[a.id] = owed;
-      cardSplit[a.id] = cardByCurrency(a, cardTx, spaceCards);
+      cardSplit[a.id] = st.owed;
       debts += owed;
       cards += owed;
       continue;
@@ -156,15 +153,14 @@ export function useNetWorth(spaceId: string | null): WorthData {
   });
   const tracked = accounts.filter((a) => a.kind !== 'credit_card' && a.track_balance !== false).length;
   return {
-    accounts, latest, balance, snaps, cardDebt, cardSplit, cards, assets: savings + investments, savings, investments, debts,
+    accounts, latest, balance, snaps, cardDebt, cardSplit, cardInfo, cards, assets: savings + investments, savings, investments, debts,
     net: savings + investments - debts, count: tracked, stale, history, loading, reload: () => setTick((x) => x + 1),
   };
 }
 
-function cardLine(x?: { CRC: number; USD: number }) {
-  if (!x || (Math.abs(x.CRC) < 1 && Math.abs(x.USD) < 0.01)) return 'Al día desde el último pago';
-  const parts = [Math.abs(x.CRC) >= 1 ? moneyRaw(x.CRC, 'CRC') : '', Math.abs(x.USD) >= 0.01 ? moneyRaw(x.USD, 'USD') : ''].filter(Boolean);
-  return `Por pagar: ${parts.join(' + ')}`;
+function cardLine(x?: Owed) {
+  if (!x || !hasOwed(x)) return 'Al día desde el último pago';
+  return `Por pagar: ${owedText(x)}`;
 }
 
 const GROUPS: { title: string; kinds: string[] }[] = [
@@ -192,7 +188,11 @@ export function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
   const color = (a.color || 'graphite') === 'graphite' ? c.fg : c.bg;
   const details = [a.kind === 'credit_card' ? 'USD/CRC' : a.currency, KIND_SHORT[a.kind] || '', a.last4 ? `**${a.last4}` : ''];
   let amt: string, muted = false, delta: { text: string; tone: 'positive' | 'negative' } | undefined;
-  if (a.kind === 'credit_card') {
+  if (a.kind === 'credit_card' && a.parent_account_id) {
+    // an additional card: what it charges is owed on its main card
+    amt = 'Adicional';
+    muted = true;
+  } else if (a.kind === 'credit_card') {
     // one figure in the display currency; the split by currency lives in the card's own view
     amt = `${amount(w.cardDebt[a.id] || 0, cur, fx)} ${unitOf(cur)}`;
   } else if (a.track_balance === false) {
@@ -354,36 +354,15 @@ export function Cuentas() {
   );
 }
 
-/** "Ya la pagué": records a payment to the card so what's owed goes back to zero (with undo). */
-function CardPaid({ a, owed, onDone }: { a: Account; owed: number; onDone: () => void }) {
-  const { space, accounts, toast, bump } = useApp();
-  const [busy, setBusy] = useState(false);
-  if (owed <= 0) return null;
-  async function paid() {
-    if (!space) return;
-    setBusy(true);
-    try {
-      // the payment goes out in colones: from a colones debit account if there is one (it now moves that balance)
-      const debits = accounts.filter((x) => x.kind === 'debit' && !x.archived && x.space_id === a.space_id);
-      const debit = debits.find((x) => x.currency === 'CRC') || debits[0];
-      const [tx] = await db.insert<Tx>('transactions', {
-        space_id: a.space_id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
-        merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: a.id, source: 'system',
-      });
-      toast(`${a.name}: pagada`, async () => {
-        if (tx?.id) await db.remove('transactions', { id: tx.id });
-        onDone();
-        bump();
-      });
-      onDone();
-      bump();
-    } catch {
-      toast('No se pudo registrar el pago');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return <Button variant="primary" size="xs" leading={<Icon name="check" size={16} />} disabled={busy} onClick={paid}>Ya la pagué</Button>;
+/** Pagar: opens the card's payment sheet (TAR-04). */
+function CardPayButton({ a }: { a: Account }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="primary" size="xs" leading={<Icon name="check" size={16} />} onClick={() => setOpen(true)}>Pagar</Button>
+      {open && <CardPaySheet cardId={a.id} onClose={() => setOpen(false)} />}
+    </>
+  );
 }
 
 /** One account: the key number, the action that updates it, and its movements with filters. */
@@ -397,18 +376,33 @@ export function AccountView({ id }: { id: string }) {
   const s = w.latest[a.id];
   const details = [KIND_LABEL[a.kind], a.institution, a.last4 ? `**${a.last4}` : ''].filter(Boolean).join(' · ');
   let hero: React.ReactNode;
-  if (isCard) {
-    const split = w.cardSplit[a.id];
-    const both = split && Math.abs(split.CRC) >= 1 && Math.abs(split.USD) >= 0.01;
+  let extra: React.ReactNode = null;
+  if (isCard && a.parent_account_id) {
+    // an additional card: its charges are owed (and paid) on the main card
+    const main = w.accounts.find((x) => x.id === a.parent_account_id) || accounts.find((x) => x.id === a.parent_account_id);
     hero = (
       <BalanceSummary
-        label={(w.cardDebt[a.id] || 0) > 0 ? 'Por pagar' : 'Al día'}
-        value={amount(w.cardDebt[a.id] || 0, cur, fx)}
+        label="Tarjeta adicional"
+        value={amount(w.cardDebt[a.parent_account_id] || 0, cur, fx)}
         unit={unitOf(cur)}
-        meta={both ? `${moneyRaw(split.CRC, 'CRC')} + ${moneyRaw(split.USD, 'USD')} · ${details}` : details}
-        action={<CardPaid a={a} owed={w.cardDebt[a.id] || 0} onDone={w.reload} />}
+        meta={[`Lo que cargás aquí se debe y se paga en ${main?.name || 'la tarjeta principal'}`, details].join(' · ')}
+        action={<Button variant="primary" size="xs" href={`#/cuenta/${a.parent_account_id}`}>Ver {main?.name || 'principal'}</Button>}
       />
     );
+  } else if (isCard) {
+    const split = w.cardSplit[a.id];
+    const both = split && Math.abs(split.CRC) >= 1 && Math.abs(split.USD) >= 0.01;
+    const owed = w.cardDebt[a.id] || 0;
+    hero = (
+      <BalanceSummary
+        label={owed > 0 ? 'Debés' : 'Al día'}
+        value={amount(owed, cur, fx)}
+        unit={unitOf(cur)}
+        meta={both ? `${owedText(split)} · ${details}` : details}
+        action={<CardPayButton a={a} />}
+      />
+    );
+    extra = w.loading ? null : <CardCycle card={a} info={w.cardInfo[a.id]} />;
   } else if (a.track_balance === false) {
     hero = (
       <BalanceSummary
@@ -446,7 +440,7 @@ export function AccountView({ id }: { id: string }) {
           <Button variant="secondary" size="sm" leading={<Icon name="pencil" size={16} />} href={`#/cuenta/${a.id}/editar`}>Editar cuenta</Button>
         </header>
         <div className="dgrid account-grid">
-          <div className="dcol dsticky">{hero}</div>
+          <div className="dcol dsticky gap24">{hero}{extra}</div>
           <section className="dmov">
             <h2 className="group-head">Movimientos</h2>
             <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} table />
@@ -460,6 +454,7 @@ export function AccountView({ id }: { id: string }) {
       <PageHeader title={a.name} onBack={navigateBack} actions={edit} />
       <div className="page-hero">{hero}</div>
       <div className="page-body">
+        {extra}
         <h2 className="group-head">Movimientos</h2>
         <MovementsBrowser accountId={a.id} screen={`acc:${a.id}`} />
       </div>
@@ -530,7 +525,14 @@ export function AccountEdit({ id }: { id: string }) {
   const [acc, setAcc] = useState<Partial<Account>>({ kind: 'savings', currency: 'CRC', emoji: '🐷', name: '', institution: '', color: 'graphite', brand: null });
   const [spaceId, setSpaceId] = useState(space?.id || '');
   const [balance, setBalance] = useState('');
+  // credit cards: what's owed today in each currency, and the early payments plan (TAR-05)
+  const [owedCrcIn, setOwedCrcIn] = useState('');
+  const [owedUsdIn, setOwedUsdIn] = useState('');
+  const [limitIn, setLimitIn] = useState('');
+  const [early, setEarly] = useState<Recurring | null>(null);
+  const [plan, setPlan] = useState<{ freq: 'none' | 'weekly' | 'biweekly' | 'monthly'; day: number; from: string }>({ freq: 'none', day: 5, from: '' });
   const [busy, setBusy] = useState(false);
+  const { accounts: allAccs } = useApp();
 
   useEffect(() => {
     if (isNew) return;
@@ -538,8 +540,17 @@ export function AccountEdit({ id }: { id: string }) {
       if (r[0]) {
         setAcc(r[0]);
         setSpaceId(r[0].space_id);
+        if (r[0].credit_limit != null) setLimitIn(String(Number(r[0].credit_limit)).replace('.', ','));
       }
     });
+    db.from<Recurring>('recurring').eq('to_account_id', id).eq('purpose', 'card_early').eq('active', true).limit(1).then((r) => {
+      const x = r[0];
+      if (!x) return;
+      setEarly(x);
+      const d = new Date(`${x.next_due}T00:00:00Z`);
+      const freq = x.frequency === 'weekly' || x.frequency === 'biweekly' || x.frequency === 'monthly' ? x.frequency : 'weekly';
+      setPlan({ freq, day: freq === 'monthly' ? d.getUTCDate() : d.getUTCDay(), from: x.account_id || '' });
+    }, () => undefined);
   }, [id, isNew]);
 
   // debit and savings accounts can have a debit card; credit cards always do (CTA-15)
@@ -558,6 +569,10 @@ export function AccountEdit({ id }: { id: string }) {
       color: acc.color || 'graphite',
       brand: hasCard ? acc.brand || null : null,
       track_balance: acc.track_balance !== false,
+      ...(acc.kind === 'credit_card'
+        ? { statement_day: acc.parent_account_id ? null : acc.statement_day || null, due_day: acc.parent_account_id ? null : acc.due_day || null,
+            credit_limit: acc.parent_account_id || !limitIn.trim() ? null : parseAmount(limitIn), parent_account_id: acc.parent_account_id || null }
+        : { statement_day: null, due_day: null, credit_limit: null, parent_account_id: null }),
     };
     try {
       let accountId = id;
@@ -565,7 +580,14 @@ export function AccountEdit({ id }: { id: string }) {
         const [c] = await db.insert<Account>('accounts', row);
         accountId = c.id;
       } else await db.update('accounts', { id }, row);
-      if (balance.trim()) {
+      const isMainCard = acc.kind === 'credit_card' && !acc.parent_account_id;
+      if (isMainCard && (owedCrcIn.trim() || owedUsdIn.trim())) {
+        // what the card owes today, as the bank says: the new starting point (TAR-02)
+        await db.upsert('balance_snapshots', [{ account_id: accountId, balance: parseAmount(owedCrcIn || '0'), balance_usd: parseAmount(owedUsdIn || '0'), taken_on: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10), created_at: new Date().toISOString() }], 'account_id,taken_on');
+      }
+      if (isMainCard) await saveEarlyPlan(accountId);
+      else if (early) await db.update('recurring', { id: early.id }, { active: false });
+      if (acc.kind !== 'credit_card' && balance.trim()) {
         await db.upsert('balance_snapshots', [{ account_id: accountId, balance: parseAmount(balance), taken_on: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10), created_at: new Date().toISOString() }], 'account_id,taken_on');
       }
       await reloadMeta();
@@ -577,6 +599,35 @@ export function AccountEdit({ id }: { id: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Early payments: a manual recurring "Mover dinero" to the card, every week, two weeks or month (TAR-05). */
+  async function saveEarlyPlan(cardId: string) {
+    if (plan.freq === 'none') {
+      if (early) await db.update('recurring', { id: early.id }, { active: false });
+      return;
+    }
+    const today = new Date(Date.now() - 6 * 3600000);
+    let next: string;
+    if (plan.freq === 'monthly') {
+      const y = today.getUTCFullYear(), m = today.getUTCMonth();
+      const day = (mm: number) => Math.min(plan.day, new Date(Date.UTC(y, mm + 1, 0)).getUTCDate());
+      const thisMonth = new Date(Date.UTC(y, m, day(m)));
+      next = (thisMonth.getTime() >= Date.UTC(y, m, today.getUTCDate()) ? thisMonth : new Date(Date.UTC(y, m + 1, day(m + 1)))).toISOString().slice(0, 10);
+    } else {
+      const back = (plan.day - today.getUTCDay() + 7) % 7;
+      next = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + back)).toISOString().slice(0, 10);
+    }
+    // keep the schedule if nothing about it changed (it may be pending right now)
+    const same = early && early.frequency === plan.freq && (plan.freq === 'monthly' ? new Date(`${early.next_due}T00:00:00Z`).getUTCDate() === plan.day : new Date(`${early.next_due}T00:00:00Z`).getUTCDay() === plan.day);
+    const row = {
+      space_id: spaceId, kind: 'transfer', currency: 'CRC', account_id: plan.from || null, to_account_id: cardId, merchant: 'Pago anticipado',
+      frequency: plan.freq, method: 'transfer', auto: false, variable: true, purpose: 'card_early', active: true,
+      day_of_month: Math.min(plan.freq === 'monthly' ? plan.day : 1, 28),
+      ...(same ? {} : { next_due: next, snooze_until: null }),
+    };
+    if (early) await db.update('recurring', { id: early.id }, row);
+    else await db.insert('recurring', { ...row, amount: 1, next_due: next });
   }
 
   async function archive() {
@@ -647,6 +698,81 @@ export function AccountEdit({ id }: { id: string }) {
         {hasCard && (
           <label className="col gap6"><span className="field-label">{acc.kind === 'credit_card' ? 'Últimos 4 dígitos' : 'Últimos 4 de la tarjeta de débito (opcional)'}</span><input className="input" inputMode="numeric" maxLength={4} value={acc.last4 || ''} onChange={(e) => set('last4', e.target.value.replace(/\D/g, ''))} placeholder="7731" /><span className="hint">Con esto los vouchers del correo caen en esta cuenta y este espacio.</span></label>
         )}
+        {acc.kind === 'credit_card' && (() => {
+          const mains = allAccs.filter((x) => x.kind === 'credit_card' && !x.parent_account_id && !x.archived && x.id !== id && x.space_id === spaceId);
+          const days = Array.from({ length: 31 }, (_, i) => i + 1);
+          const senders = allAccs.filter((x) => !x.archived && x.space_id === spaceId && x.kind !== 'credit_card' && x.kind !== 'loan' && x.kind !== 'cdp' && x.kind !== 'investment');
+          return (
+            <>
+              <label className="col gap6"><span className="field-label">Tarjeta adicional de</span>
+                <select className="input" value={acc.parent_account_id || ''} onChange={(e) => set('parent_account_id', e.target.value || null)}>
+                  <option value="">Ninguna: es una tarjeta principal</option>
+                  {mains.map((x) => <option key={x.id} value={x.id}>{x.name}{x.last4 ? ` ••${x.last4}` : ''}</option>)}
+                </select>
+                <span className="hint">Una adicional (extensión) comparte el saldo, el corte y el límite de la principal: lo que se carga en ella se paga en la principal.</span>
+              </label>
+              {!acc.parent_account_id && (
+                <>
+                  <div className="grid2">
+                    <label className="col gap6"><span className="field-label">Día de corte</span>
+                      <select className="input" value={acc.statement_day || ''} onChange={(e) => set('statement_day', e.target.value ? Number(e.target.value) : null)}>
+                        <option value="">Sin definir</option>
+                        {days.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </label>
+                    <label className="col gap6"><span className="field-label">Fecha máxima de pago</span>
+                      <select className="input" value={acc.due_day || ''} onChange={(e) => set('due_day', e.target.value ? Number(e.target.value) : null)}>
+                        <option value="">Sin definir</option>
+                        {days.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <span className="hint">Están en el estado de cuenta. Si el pago cae antes del día de corte, es el del mes siguiente.</span>
+                  <label className="col gap6"><span className="field-label">Límite de crédito (opcional)</span>
+                    <input className="input" inputMode="decimal" value={limitIn} onChange={(e) => setLimitIn(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" />
+                  </label>
+                  <div className="grid2">
+                    {(['CRC', 'USD'] as const).map((c) => (
+                      <button key={c} className={acc.currency === c ? 'opt on' : 'opt'} aria-pressed={acc.currency === c} onClick={() => set('currency', c)}>{c === 'CRC' ? 'Límite en colones' : 'Límite en dólares'}</button>
+                    ))}
+                  </div>
+                  <span className="field-label">Lo que debés hoy (opcional)</span>
+                  <div className="grid2">
+                    <input className="input" inputMode="decimal" aria-label="Lo que debés en colones" value={owedCrcIn} onChange={(e) => setOwedCrcIn(e.target.value.replace(/[^0-9.,-]/g, ''))} placeholder="¢ colones" />
+                    <input className="input" inputMode="decimal" aria-label="Lo que debés en dólares" value={owedUsdIn} onChange={(e) => setOwedUsdIn(e.target.value.replace(/[^0-9.,-]/g, ''))} placeholder="$ dólares" />
+                  </div>
+                  <span className="hint">Lo que dice el banco hoy. Desde aquí, los cargos suman y los pagos restan.</span>
+                  <label className="col gap6"><span className="field-label">Pagos anticipados</span>
+                    <select className="input" value={plan.freq} onChange={(e) => setPlan((p) => ({ ...p, freq: e.target.value as typeof p.freq, day: e.target.value === 'monthly' ? 15 : p.freq === 'monthly' ? 5 : p.day }))}>
+                      <option value="none">No</option>
+                      <option value="weekly">Cada semana</option>
+                      <option value="biweekly">Cada dos semanas</option>
+                      <option value="monthly">Cada mes</option>
+                    </select>
+                    <span className="hint">Pagar antes del corte lo que se va cargando. Te recuerda el día y vos registrás cuánto pagaste.</span>
+                  </label>
+                  {plan.freq !== 'none' && (
+                    <div className="grid2">
+                      <label className="col gap6"><span className="field-label">{plan.freq === 'monthly' ? 'El día' : 'Los'}</span>
+                        <select className="input" value={plan.day} onChange={(e) => setPlan((p) => ({ ...p, day: Number(e.target.value) }))}>
+                          {plan.freq === 'monthly'
+                            ? days.map((d) => <option key={d} value={d}>{d}</option>)
+                            : ['Domingos', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábados'].map((l, i) => <option key={i} value={i}>{l}</option>)}
+                        </select>
+                      </label>
+                      <label className="col gap6"><span className="field-label">Desde</span>
+                        <select className="input" value={plan.from} onChange={(e) => setPlan((p) => ({ ...p, from: e.target.value }))}>
+                          <option value="">Elegir al pagar</option>
+                          {senders.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          );
+        })()}
         <label className="col gap6"><span className="field-label">Emoji</span><input className="input" value={acc.emoji || ''} onChange={(e) => set('emoji', e.target.value)} maxLength={8} /></label>
         {!isCash && (
           <label className="col gap6"><span className="field-label">Espacio</span>

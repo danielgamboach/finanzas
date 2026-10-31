@@ -66,52 +66,6 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
   );
 }
 
-/** What the shared card owes for last week, or null when there's nothing to pay (or it's already paid). */
-export function useCardPayment() {
-  const { space, accounts, profiles, userId, toast, bump } = useApp();
-  const ws = space?.week_start ?? 5;
-  const prevWeek = weekRange(ws, -1);
-  // The range must be stable between renders: useTxs refetches whenever from/to change, so an end like
-  // `Date.now() + 1 day` produced a new key on every render and an endless fetch loop (Supabase egress).
-  // The end of the current week covers last week's charges and this week's "Pago de tarjeta".
-  const thisWeekEnd = weekRange(ws, 0).to;
-  const range = useMemo(() => (space?.card_weekly ? { from: prevWeek.from, to: thisWeekEnd } : null), [space?.card_weekly, prevWeek.from, thisWeekEnd]);
-  const { txs } = useTxs(range);
-  const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
-  const cardIds = new Set(cards.map((c) => c.id));
-  const owed = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
-  const key = `card-week:${prevWeek.startKey}`;
-  if (!space || !space.card_weekly || !cards.length || owed <= 0 || txs.some((x) => x.external_id === key)) return null;
-  // the payment goes out in colones: from a colones debit account if there is one
-  const debits = accounts.filter((a) => a.kind === 'debit' && !a.archived);
-  const debit = debits.find((a) => a.currency === 'CRC') || debits[0];
-  const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
-  async function paid() {
-    if (!space) return;
-    await db.insert('transactions', {
-      space_id: space.id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
-      merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: cards[0].id, source: 'system', external_id: key,
-    });
-    toast('Pago registrado');
-    bump();
-  }
-  return { owed, others, paid };
-}
-
-/** Spaces with the weekly card payment on pay last week's card charges from the debit account. */
-export function CardPayment({ card }: { card: NonNullable<ReturnType<typeof useCardPayment>> }) {
-  const { cur, fx } = useApp();
-  const [busy, setBusy] = useState(false);
-  return (
-    <ListRow
-      leading={<Emo icon="cards" color="pink" size={40} />}
-      title="Pago de tarjeta"
-      detail={<><span className="ds-pp__when is-due">Cargos de la semana pasada</span> · {amount(card.owed, cur, fx)} {unitOf(cur)}</>}
-      actions={<Button variant="primary" size="xs" disabled={busy} onClick={async () => { setBusy(true); try { await card.paid(); } finally { setBusy(false); } }} aria-label="Ya pagué la tarjeta">Pagué</Button>}
-    />
-  );
-}
-
 export function Recurrentes() {
   const { space, cur, fx, categories, accounts, toast, bump } = useApp();
   const { items, loading } = useRecurring(space?.id);
@@ -203,7 +157,6 @@ export function Recurrentes() {
     setSugs((x) => x.filter((y) => y.merchant_key !== s.merchant_key));
   }
 
-  const card = useCardPayment();
   const count = current === 'todos' ? active.length : shown.length;
   return (
     <div className="page no-nav">
@@ -235,7 +188,6 @@ export function Recurrentes() {
           <ListGroup>{shown.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>
         ) : (
           <>
-            {card && <ListGroup title="Pago semanal de tarjetas"><CardPayment card={card} /></ListGroup>}
 
             {sugs.length > 0 && (
               <ListGroup title="¿Son suscripciones?" note="Cobros que se repiten cada mes. Agregalos para verlos venir.">

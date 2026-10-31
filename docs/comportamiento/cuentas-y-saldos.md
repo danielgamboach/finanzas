@@ -367,103 +367,145 @@ El valor de una inversión cambia con el mercado, así que su número es el últ
 
 ## Tarjetas de crédito
 
-Las tarjetas no tienen saldo escrito. Lo que se debe sale solo de los movimientos.
+Una tarjeta lleva lo que se debe en colones y en dólares por separado, como el estado de cuenta del banco. Los cargos suman, las devoluciones y los pagos restan, cada uno en su moneda. Con la fecha de corte y la fecha máxima de pago, el app sabe cuánto falta del pago de contado y hasta cuándo.
 
-### TAR-01 · Lo que se debe son los cargos desde el último pago
+**Tarjeta de los ejemplos:** Visa, corte el día 15, fecha máxima de pago el día 2, límite ¢1.500.000, dólar a ¢500.
+
+### TAR-01 · Lo que se debe: saldo escrito más cargos, menos pagos
 
 **Estado:** Hecho
 
-Gastos menos devoluciones, desde el último pago registrado. Las preautorizaciones por confirmar no cuentan. Nunca es negativo.
+Lo que se debe es lo último que se escribió como deuda de la tarjeta (TAR-02), más los cargos, menos las devoluciones y los pagos registrados después. Se lleva por moneda. Las preautorizaciones por confirmar no cuentan.
 
-- **Dado** que la Visa se pagó el 15 oct
-- **Y** después tuvo un gasto de ¢23.450 el 20 oct, uno de ¢10.000 el 25 oct y una devolución de ¢3.450 el 26 oct
-- **Y** tiene una preautorización de Uber de ¢4.500 por confirmar
-- **Entonces** la Visa debe 30.000 CRC
-- **Y** el patrimonio neto resta ¢30.000 por la Visa
+- **Dado** que el 1 oct escribí que la Visa debía ¢180.000 y $15
+- **Y** después hubo cargos por ¢215.000 y $15,49, una devolución de ¢3.450 y un pago de ¢100.000
+- **Entonces** la Visa debe ¢291.550 + $30,49
+- **Y** su vista muestra 306.795 CRC (los dólares a ¢500) y debajo "¢291.550 + $30,49"
+- **Y** el patrimonio neto resta 306.795 CRC por la Visa
 
 | Variante | Resultado esperado |
 |---|---|
-| Un gasto del 10 oct (antes del pago) | No cuenta |
-| La devolución es mayor que los cargos | La Visa debe 0, no un número negativo |
+| Nunca escribí lo que se debe, y la tarjeta tiene fecha de corte | Cuenta desde el último corte, como si el estado anterior se hubiera pagado completo |
+| Nunca escribí lo que se debe, y no tiene fecha de corte | Cuenta desde el inicio del mes |
+| Pago más de lo que debo en colones | Ese saldo queda a favor (negativo) |
 
-<sub>Dónde vive: `cardPaidThrough` y `cardOutstanding` en `src/lib/calc.ts`.</sub>
+<sub>Dónde vive: `cardOwedAt` y `cardStatus` en `src/lib/cards.ts`; la misma regla en la base, `card_owed`.</sub>
 
-### TAR-02 · Sin pagos registrados, cuenta solo el mes actual
-
-**Estado:** Hecho
-
-- **Dado** que la Visa nunca tuvo un pago registrado
-- **Y** tuvo gastos el 28 sep por ¢50.000 y el 3 oct por ¢20.000
-- **Cuando** abro Cuentas el 31 oct
-- **Entonces** la Visa debe 20.000 CRC
-
-### TAR-03 · Pagar la tarjeta la deja en cero
+### TAR-02 · Lo que debés hoy se puede escribir
 
 **Estado:** Hecho
 
-Cualquier movimiento de "Mover" hacia la tarjeta cuenta como pago y la deja en cero hasta ese momento, sin importar el monto. Los cargos posteriores al pago vuelven a sumar.
+En Editar tarjeta, "Lo que debés hoy" tiene un campo en colones y otro en dólares. Es lo que dice el banco; desde ese momento, los cargos suman y los pagos restan. Sirve para empezar y para corregir lo que el app no vio (intereses, comisiones, un cargo que no se registró).
 
-- **Dado** que la Visa debe ¢30.000
-- **Cuando** muevo ¢30.000 de Débito BAC a la Visa el 31 oct a las 10:00
-- **Entonces** la Visa debe 0 CRC y su vista dice "Al día"
-- **Y** Débito BAC baja ¢30.000
-- **Y** un gasto con la Visa a las 11:00 la pone en deuda otra vez
+<sub>Dónde vive: `balance_snapshots` de la tarjeta, con `balance` (colones) y `balance_usd`.</sub>
 
-> Ver la pregunta abierta 1: un pago parcial también la deja en cero.
-
-### TAR-04 · "Ya la pagué"
+### TAR-03 · Un pago resta lo que pagaste
 
 **Estado:** Hecho
 
-En la vista de una tarjeta que debe algo, el botón "Ya la pagué" registra el pago por lo que se debe.
+Pagar la tarjeta es un Mover dinero hacia ella. Resta exactamente el monto, de la moneda que se eligió. Un pago parcial deja el resto pendiente.
 
-- **Dado** que la Visa debe ¢30.000 y el espacio tiene Débito BAC en colones
-- **Cuando** toco "Ya la pagué"
-- **Entonces** se crea un movimiento "Pago de tarjeta" de ¢30.000 de Débito BAC a la Visa
-- **Y** la Visa debe 0 CRC
-- **Y** Débito BAC baja ¢30.000
-- **Y** aparece el aviso "Visa: pagada" con Deshacer
+- **Dado** que la Visa debe ¢291.550 + $30,49
+- **Cuando** registro un pago de ¢100.000 desde Débito BAC
+- **Entonces** la Visa debe ¢191.550 + $30,49
+- **Y** Débito BAC baja ¢100.000
 
 | Variante | Resultado esperado |
 |---|---|
-| Toco Deshacer | Se borra el pago; la Visa vuelve a deber ¢30.000 y Débito BAC recupera los ¢30.000 |
-| La tarjeta debe 0 | El botón no aparece |
-| El espacio tiene una cuenta de débito en dólares y otra en colones | Sale de la de colones |
-| El espacio no tiene cuenta de débito | La tarjeta queda en cero y ninguna cuenta baja |
+| Pago $30,49 desde una cuenta en colones | La parte en dólares queda en cero; la cuenta en colones baja el equivalente con el tipo de cambio del día (CTA-09) |
+| Elimino el pago o toco Deshacer | La Visa vuelve a deber lo de antes y Débito BAC recupera el monto |
 
-<sub>Dónde vive: `CardPaid` en `src/screens/Patrimonio.tsx`.</sub>
-
-### TAR-05 · Pago semanal de las tarjetas (opcional)
+### TAR-04 · Pagar desde la tarjeta o desde Inicio
 
 **Estado:** Hecho
 
-Cualquier espacio con tarjetas puede activar en Ajustes → Espacios "Pago semanal de las tarjetas". Viene apagado; quedó encendido en los espacios compartidos que ya lo usaban. Con él activo, cada semana aparece "Pago de tarjeta" (en Inicio y en Recurrentes) con lo que se cargó a las tarjetas del espacio la semana anterior, y llega un aviso el día que empieza la semana del espacio (configurable en el mismo lugar; lunes por defecto en espacios nuevos).
+La vista de la tarjeta tiene **Pagar**, que abre una hoja con: desde qué cuenta, qué saldo se paga (colones o dólares), el monto y la fecha. Ofrece atajos con el monto ya calculado:
 
-- **Dado** que el espacio tiene activo el pago semanal y la semana pasada se cargaron ¢80.000 entre todas sus tarjetas
-- **Y** esta semana van ¢15.000
-- **Cuando** toco "Pagué"
-- **Entonces** se registra un pago de ¢80.000 desde la cuenta de débito en colones del espacio
-- **Y** todas las tarjetas del espacio quedan pagadas hasta el final de la semana pasada
-- **Y** las tarjetas deben solo los ¢15.000 de esta semana
-- **Y** el aviso de pago no vuelve a aparecer hasta la semana siguiente
-
-| Variante | Resultado esperado |
+| Atajo | Monto |
 |---|---|
-| La semana pasada no hubo cargos | No aparece el aviso |
-| El pago semanal está apagado | No aparece el aviso; cada tarjeta se paga con "Ya la pagué" o con Mover dinero |
+| Desde el último pago | Lo que se cargó desde el último pago (un pago anticipado) |
+| Pago de contado | Lo que falta del último estado de cuenta (TAR-08) |
+| Todo lo que debo | Todo |
 
-<sub>Dónde vive: `spaces.card_weekly`, `useCardPayment` en `src/screens/Recurrentes.tsx`, `card_payment_reminders` en la base; el pago lleva `external_id = card-week:<inicio de semana>`.</sub>
+El monto arranca con el primer atajo que tenga algo y se puede cambiar.
 
-### TAR-06 · Cargos en dólares
+Inicio muestra en Pagos pendientes "Pago de Visa" desde tres días antes de la fecha máxima de pago, con lo que falta del pago de contado y el botón Pagar. Desaparece cuando el pago de contado queda cubierto. Si la fecha pasa sin cubrirlo, dice "Venció el 2 nov" hasta el siguiente corte.
+
+<sub>Dónde vive: `CardPaySheet` en `src/ui/CardPay.tsx`; `CardDueRow` en `src/ui/PendingPayments.tsx`.</sub>
+
+### TAR-05 · Pagos anticipados
 
 **Estado:** Hecho
 
-Lo que se debe se muestra como un solo número en la moneda de visualización. Si hay cargos en las dos monedas, la vista de la tarjeta además los separa debajo.
+En Editar tarjeta, "Pagos anticipados" se programa cada semana, cada dos semanas o cada mes, el día que se elija y desde una cuenta. Es un recurrente manual de Mover dinero hacia la tarjeta: el día que toca aparece en Pagos pendientes (y llega una notificación), y al tocar Pagar se abre la hoja de la tarjeta con "Desde el último pago" ya puesto. Cada pago resta lo que se reporta (TAR-03), así que también baja el saldo al corte y el pago de contado.
 
-- **Dado** que desde el último pago la Visa tiene ¢30.000 en cargos en colones y $20 en cargos en dólares, con el dólar a ¢500
-- **Entonces** la vista de la Visa dice "Por pagar" 40.000 CRC
-- **Y** debajo dice "¢30.000 + $20,00"
-- **Y** la lista de Cuentas muestra 40.000 CRC
+- **Dado** que la Visa tiene pagos anticipados cada viernes desde Débito BAC
+- **Y** desde el pago del viernes pasado se cargaron ¢75.110
+- **Cuando** el viernes toco Pagar y confirmo ¢75.110
+- **Entonces** la Visa debe ¢75.110 menos
+- **Y** el próximo pago anticipado es el viernes siguiente
+
+Se puede posponer, ignorar ese pago o dejar de repetir, como cualquier recurrente (REC-07).
+
+**Antes** existía "Pago semanal de las tarjetas" como ajuste del espacio, que dejaba todas las tarjetas en cero sin importar el monto. Se reemplazó por esto. En Simbiosis quedó programado cada viernes desde su cuenta de débito.
+
+<sub>Dónde vive: `recurring.purpose = 'card_early'`; `saveEarlyPlan` en `AccountEdit`; `card_payment_reminders` en la base.</sub>
+
+### TAR-06 · Fecha de corte y fecha máxima de pago
+
+**Estado:** Hecho
+
+Se ponen en Editar tarjeta (están en el estado de cuenta). Si la fecha de pago es un día menor que el de corte, es del mes siguiente: corte el 15, pago el 2 del mes siguiente. En meses más cortos, un día que no existe pasa al último día del mes (corte el 31 → 30 nov).
+
+El corte cierra al final de su día: un cargo del día de corte entra en ese estado de cuenta.
+
+### TAR-07 · Tarjetas adicionales
+
+**Estado:** Hecho
+
+Una tarjeta puede ser adicional (extensión) de otra del mismo espacio. Comparte el saldo, el corte, la fecha de pago y el límite de la principal: lo que se carga en la adicional se debe y se paga en la principal. En Cuentas la adicional dice "Adicional", y su vista lleva a la principal.
+
+- **Dado** que la tarjeta ••7731 es adicional de la Visa
+- **Cuando** cargo ¢10.000 con la ••7731
+- **Entonces** la Visa debe ¢10.000 más
+- **Y** el patrimonio cuenta esa deuda una sola vez
+
+En Simbiosis, la Tarjeta compartida (••7731) quedó como adicional de la Tarjeta Kimmy (••8665), porque se pagaban juntas.
+
+<sub>Dónde vive: `accounts.parent_account_id` (la base valida mismo espacio y un solo nivel).</sub>
+
+### TAR-08 · Este ciclo
+
+**Estado:** Hecho
+
+Con fecha de corte y de pago, la vista de la tarjeta muestra:
+
+| Fila | Qué es |
+|---|---|
+| Pago de contado | Lo que falta del último estado de cuenta, y hasta cuándo. "Cubierto" si ya se pagó |
+| Saldo al corte | Lo que se debía al cerrar el último corte |
+| Pagado desde el corte | Los pagos registrados después del corte |
+| Cargos nuevos | Lo cargado desde el corte, que entra en el próximo estado de cuenta |
+
+- **Dado** que el corte del 15 oct cerró en ¢221.200 + $15
+- **Y** el 26 oct pagué ¢100.000
+- **Entonces** el pago de contado es ¢121.200 + $15 antes del 2 nov
+
+Los pagos anticipados hechos antes del corte bajan el saldo al corte.
+
+Sin fechas, en su lugar aparece "Agregá la fecha de corte y la de pago".
+
+### TAR-09 · Límite de crédito
+
+**Estado:** Hecho
+
+Opcional, en colones o en dólares. La vista muestra "Disponible" (límite menos lo que se debe, convertido a la moneda del límite) con una barra que se pone en advertencia desde el 80% y en rojo al llegar al límite.
+
+### TAR-10 · Recordatorios
+
+**Estado:** Hecho
+
+Con las notificaciones de "Pago de la tarjeta" activas, llega un aviso el día de cada pago anticipado y otro dos días antes y el mismo día de la fecha máxima de pago, mientras el pago de contado no esté cubierto ("Vence el pago de Visa: ¢121.200 + $15,00 para el pago de contado, antes del 2").
 
 ---
 
@@ -537,7 +579,7 @@ Lo ahorrado es el saldo actual de las cuentas ligadas a la meta, en colones. El 
 
 Cosas que el app hace hoy y que hay que confirmar si son a propósito. Al contestar, la respuesta se vuelve regla (o se arregla el app).
 
-**1. Un pago parcial deja la tarjeta en cero.** Si la Visa debe ¢30.000 y muevo ¢10.000 a la Visa, el app la muestra al día, aunque faltan ¢20.000. ¿Debería restar solo lo pagado?
+**1. ~~Un pago parcial deja la tarjeta en cero.~~** Resuelta: un pago resta lo que se pagó (TAR-03).
 
 **2. Un voucher que llega tarde no cuenta.** Compro algo a las 10:00, escribo el saldo de Débito BAC a las 10:30 (el banco ya lo había descontado) y el correo del BAC llega a las 10:45 con hora 10:00. Hoy no cuenta, lo cual es correcto si el banco ya lo había descontado. Pero si escribo el saldo y la compra todavía no aparecía en el banco, el saldo queda alto. ¿Lo dejamos así? Es raro, y se corrige escribiendo el saldo otra vez.
 
@@ -556,3 +598,11 @@ Cosas que el app hace hoy y que hay que confirmar si son a propósito. Al contes
 **9. Tasas variables.** Muchos préstamos en Costa Rica tienen tasa variable. Propuesta: la tasa se puede editar con fecha de vigencia, y aplica desde la siguiente cuota.
 
 **10. ¿Qué pasa con el desembolso del préstamo?** Cuando se crea un préstamo nuevo, el dinero normalmente entra a una cuenta (o directo al vendedor del carro). Propuesta: al crear el préstamo, preguntar opcionalmente "¿A qué cuenta entró el dinero?" y registrar ese ingreso.
+
+**11. Compras a cuotas (tasa cero).** Una compra de ¢600.000 a 6 meses sin intereses: el banco carga ¢100.000 por mes, pero el app hoy la registraría completa el día de la compra. Propuesta: marcar un gasto como "a cuotas" con el número de meses; cuenta completo en el gasto del mes (la decisión se tomó ese día), pero la deuda de la tarjeta y el pago de contado solo suman la cuota de cada mes.
+
+**12. Pago mínimo e intereses.** El estado de cuenta trae un pago mínimo, y si no se paga el contado, el banco cobra intereses sobre lo que quedó. Propuesta: no calcular intereses (cada banco lo hace distinto); avisar cuando la fecha máxima pasa sin cubrir el contado ("El banco probablemente cobre intereses") y que los intereses entren como gasto (categoría Intereses) al escribir lo que se debe o al importar el estado de cuenta.
+
+**13. Adelantos de efectivo.** Sacar efectivo con la tarjeta hoy no se puede registrar (una tarjeta no manda dinero). Propuesta: permitir Mover dinero de una tarjeta hacia el Efectivo como "Adelanto de efectivo", que suma a la deuda.
+
+**14. Cashback y reembolsos.** Hoy solo las devoluciones y los pagos bajan la deuda (pregunta 6). Si el banco abona cashback a la tarjeta, se registraría como devolución. ¿Hace falta un tipo aparte?

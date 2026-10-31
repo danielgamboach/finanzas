@@ -36,7 +36,9 @@ const categories = [
 
 const acc = (id, name, kind, color, extra = {}) => ({ id, space_id: SPACE, name, institution: 'BAC', kind, currency: 'CRC', last4: '1234', emoji: '💳', archived: false, color, brand: 'visa', ...extra });
 const accounts = [
-  acc('a-visa', 'Visa compartida', 'credit_card', 'violet'),
+  // statement 16 days ago, due in two days: the pago de contado shows on Inicio
+  acc('a-visa', 'Visa compartida', 'credit_card', 'violet', { statement_day: Number(day(-16).slice(8)), due_day: Number(day(2).slice(8)), credit_limit: 1500000 }),
+  acc('a-visa2', 'Visa de Kimmy', 'credit_card', 'pink', { last4: '7731', parent_account_id: 'a-visa' }),
   acc('a-amex', 'Amex', 'credit_card', 'cyan', { brand: 'amex', last4: '4005' }),
   acc('a-deb', 'Débito BAC', 'debit', 'graphite', { brand: null }),
   acc('a-ahorro', 'Ahorro casa', 'savings', 'emerald', { brand: null, emoji: '🏡' }),
@@ -70,6 +72,7 @@ const transactions = [
   tx(13, 'Pizza Antonino', 'c-comida', 15800),
   tx(15, 'Alquiler', 'c-casa', 350000, { account_id: 'a-deb', source: 'recurring' }),
   // moved from Dani's personal account to the shared one (it shows in both spaces)
+  tx(5, 'Pago anticipado', null, 100000, { kind: 'transfer', account_id: 'a-deb', to_account_id: 'a-visa', source: 'manual', raw_merchant: null }),
   tx(2, 'Parte del mes', null, 300000, { kind: 'transfer', space_id: PERSONAL, account_id: 'a-pdeb', to_account_id: 'a-deb', to_space_id: SPACE, contributor_id: DANI, source: 'manual', raw_merchant: null }),
   // an automatic charge registered without its voucher
   tx(1, 'Spotify', 'c-ocio', 5900, { source: 'recurring', auto_flag: 'no_voucher', recurring_id: 'r-spot', raw_merchant: null }),
@@ -81,6 +84,7 @@ const transactions = [
 ];
 
 const recurring = [
+  { id: 'r-early', space_id: SPACE, kind: 'transfer', amount: 95000, currency: 'CRC', category_id: null, account_id: 'a-deb', to_account_id: 'a-visa', merchant: 'Pago anticipado', frequency: 'weekly', next_due: day(0), method: 'transfer', auto: false, variable: true, purpose: 'card_early', match_pattern: null, last_paid_on: day(-7), notes: null, active: true },
   { id: 'r-alq', space_id: SPACE, kind: 'expense', amount: 350000, currency: 'CRC', category_id: 'c-casa', account_id: 'a-deb', merchant: 'Alquiler', frequency: 'monthly', next_due: day(1), method: 'transfer', auto: false, match_pattern: null, last_paid_on: day(-30), notes: null, active: true },
   { id: 'r-agua', space_id: SPACE, kind: 'expense', amount: 18400, currency: 'CRC', category_id: 'c-serv', account_id: null, merchant: 'Agua AyA', frequency: 'monthly', next_due: day(-2), method: 'transfer', auto: false, match_pattern: null, last_paid_on: day(-32), notes: null, active: true, variable: true },
   { id: 'r-netflix', space_id: SPACE, kind: 'expense', amount: 7900, currency: 'CRC', category_id: 'c-ocio', account_id: 'a-visa', merchant: 'Netflix', frequency: 'monthly', next_due: day(9), method: 'card', auto: true, match_pattern: 'NETFLIX', last_paid_on: day(-21), notes: null, active: true },
@@ -119,8 +123,7 @@ export const tables = {
   balance_snapshots: [
     { id: 's1', account_id: 'a-ahorro', balance: 6400000, taken_on: day(-3) },
     { id: 's2', account_id: 'a-deb', balance: 812000, taken_on: day(-2) },
-    { id: 's3', account_id: 'a-visa', balance: -318500, taken_on: day(-1) },
-    { id: 's4', account_id: 'a-amex', balance: -42000, taken_on: day(-2) },
+    { id: 's3', account_id: 'a-visa', balance: 180000, balance_usd: 15, taken_on: day(-25) },
   ],
   budget_months: [{ space_id: SPACE, month: `${day(0).slice(0, 7)}-01`, income: 1200000, closed_at: null, carried: null }],
   budget_savings: [

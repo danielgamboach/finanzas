@@ -14,7 +14,7 @@ Lo que estaba pensado para Dani y Kimmy y cómo quedó:
 
 | Qué | Cómo quedó |
 |---|---|
-| Pago semanal de las tarjetas en todo espacio compartido (TAR-05) | Ajuste de cada espacio, apagado por defecto |
+| Pago semanal de las tarjetas en todo espacio compartido | Pagos anticipados de cada tarjeta, con la frecuencia y el día que cada quien elija (TAR-05) |
 | La semana empezaba el viernes | Lunes por defecto en espacios nuevos, configurable en Ajustes → Espacios |
 | El espacio compartido abría primero | El espacio personal es el principal y el que abre por defecto (ESP-01) |
 | "Pago de tarjeta: Kimmy transfiere" | "Cargos de la semana pasada" |

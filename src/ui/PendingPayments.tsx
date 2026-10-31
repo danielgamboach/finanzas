@@ -6,7 +6,11 @@ import { namePhoto } from '../lib/merchants';
 import type { Recurring } from '../lib/types';
 import { go, useApp } from '../store';
 import { PendingPaymentRow, PendingPayments as PendingPaymentsView } from '../ds';
-import { CardPayment, recFace, useCardPayment } from '../screens/Recurrentes';
+import { recFace } from '../screens/Recurrentes';
+import { useNetWorth } from '../screens/Patrimonio';
+import { hasOwed, owedCrc } from '../lib/cards';
+import { CardPaySheet, owedText } from './CardPay';
+import type { Account } from '../lib/types';
 import { Holds } from './Holds';
 import { SubAsk } from './SubAsk';
 
@@ -35,11 +39,18 @@ function ManualPayments(_: { variant: 'sheet' | 'card' }) {
   const done = items.filter((r) => justPaid(r, accounts) && isManual(r));
   // automatic charges of today: only said, they register on their own (REC-08)
   const auto = items.filter(chargesToday);
-  const card = useCardPayment();
-  if (!pending.length && !done.length && !auto.length && !card) return null;
+  // credit cards whose statement is due within three days (or overdue) and isn't covered yet (TAR-04)
+  const hasCards = accounts.some((a) => a.kind === 'credit_card' && !a.parent_account_id && a.statement_day && a.due_day);
+  const w = useNetWorth(hasCards ? space?.id || null : null);
+  const dueCards = accounts.filter((a) => {
+    const c = w.cardInfo[a.id]?.cycle;
+    return a.kind === 'credit_card' && !a.archived && c && hasOwed(c.left) && c.daysToDue <= 3;
+  });
+  if (!pending.length && !done.length && !auto.length && !dueCards.length) return null;
 
   const body = (
     <>
+      {dueCards.map((a) => <CardDueRow key={a.id} a={a} left={w.cardInfo[a.id].cycle!.left} due={w.cardInfo[a.id].cycle!.due} days={w.cardInfo[a.id].cycle!.daysToDue} />)}
       {auto.map((r) => <AutoRow key={r.id} r={r} />)}
       {pending.map((r) => (
         <PendingRow key={r.id} r={r} onPaid={(txId) => txId && setUndo((u) => ({ ...u, [r.id]: { before: r, txId } }))} />
@@ -53,8 +64,29 @@ function ManualPayments(_: { variant: 'sheet' | 'card' }) {
     </>
   );
 
-  const list = pending.length > 0 || done.length > 0 || auto.length > 0;
-  return <PendingPaymentsView count={pending.length + (card ? 1 : 0)} top={card ? <CardPayment card={card} /> : null}>{list ? body : null}</PendingPaymentsView>;
+  return <PendingPaymentsView count={pending.length + dueCards.length}>{body}</PendingPaymentsView>;
+}
+
+/** A card's statement to pay: until when and how much is left, and Pagar (how much, from which account). */
+function CardDueRow({ a, left, due, days }: { a: Account; left: { CRC: number; USD: number }; due: string; days: number }) {
+  const { cur, fx } = useApp();
+  const [paying, setPaying] = useState(false);
+  const when = days < 0 ? `Venció el ${shortDay(due)}` : days === 0 ? 'Vence hoy' : days === 1 ? 'Vence mañana' : `Vence el ${shortDay(due)}`;
+  return (
+    <>
+      <PendingPaymentRow
+        state={days < 0 ? 'overdue' : 'due'}
+        face={{ icon: 'cards', color: 'pink' }}
+        name={`Pago de ${a.name}`}
+        detail={`${when} · contado ${owedText(left)}`}
+        amount={<>{amount(owedCrc(left, fx), cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}
+        onOpen={() => go(`/cuenta/${a.id}`)}
+        onPay={() => setPaying(true)}
+        payLabel={`Pagar ${a.name}`}
+      />
+      {paying && <CardPaySheet cardId={a.id} onClose={() => setPaying(false)} />}
+    </>
+  );
 }
 
 function amountOf(r: Recurring, cur: 'CRC' | 'USD', fx: number) {

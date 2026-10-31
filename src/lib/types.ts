@@ -20,8 +20,6 @@ export interface Space {
   kind: 'personal' | 'shared';
   week_start: number;
   created_by: string | null;
-  /** Pays the cards' charges of the previous week every week (the "Pago de tarjeta" reminder). */
-  card_weekly?: boolean;
 }
 
 export interface Member {
@@ -63,6 +61,12 @@ export interface Account {
   track_balance?: boolean;
   /** 'cash': the space's Efectivo, which always exists and can't be deleted or archived. */
   system?: 'cash' | null;
+  /** Credit cards: statement day (1-31), last day to pay the statement, credit limit in `currency`. */
+  statement_day?: number | null;
+  due_day?: number | null;
+  credit_limit?: number | null;
+  /** An additional card: its charges go to the main card's balance (TAR-07). */
+  parent_account_id?: string | null;
 }
 
 export interface Tx {
@@ -139,6 +143,8 @@ export interface Recurring {
   active: boolean;
   /** Electricity, water, internet: matched whatever the amount; amount is the average of the last 3 payments. */
   variable?: boolean;
+  /** 'card_early': early payments of the credit card in `to_account_id` (TAR-05). */
+  purpose?: 'card_early' | null;
 }
 
 export interface RecurringSuggestion {
@@ -172,6 +178,8 @@ export interface Snapshot {
   taken_on: string;
   /** When it was typed in: movements after this moment move the balance. */
   created_at?: string;
+  /** Credit cards: what's owed in dollars (`balance` is the colones part). */
+  balance_usd?: number | null;
 }
 
 export interface Tag {

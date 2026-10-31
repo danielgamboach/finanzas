@@ -162,13 +162,6 @@ export function Ajustes() {
               }
             />
           )}
-          {space && isOwner && accounts.some((a) => a.kind === 'credit_card' && !a.archived) && (
-            <ListRow
-              title="Pago semanal de las tarjetas"
-              detail="Cada semana, un aviso para pagar lo que se cargó a las tarjetas la semana anterior"
-              actions={<Switch checked={!!space.card_weekly} label="Pago semanal de las tarjetas" onChange={(v) => setSpace({ card_weekly: v }, v ? 'Pago semanal activado' : 'Pago semanal desactivado')} />}
-            />
-          )}
           {space?.kind === 'shared' && (
             <ListRow
               title={<span className="danger-text">Abandonar {space.name}</span>}
@@ -320,7 +313,7 @@ function NotifSettings() {
         />
       )}
       <ListRow title="Límites de categorías" detail="Al llegar al 80% y al 100%" actions={<Switch checked={profile?.notify_limits ?? true} label="Avisos de límites" onChange={() => toggle('notify_limits')} />} />
-      <ListRow title="Pago de la tarjeta" detail="El día de pago, con el monto de la semana" actions={<Switch checked={profile?.notify_card ?? true} label="Aviso de pago de tarjeta" onChange={() => toggle('notify_card')} />} />
+      <ListRow title="Pago de la tarjeta" detail="Los días de pago anticipado y antes de la fecha máxima de pago" actions={<Switch checked={profile?.notify_card ?? true} label="Aviso de pago de tarjeta" onChange={() => toggle('notify_card')} />} />
     </ListGroup>
   );
 }

@@ -110,32 +110,7 @@ export function categoryStats(cats: Category[], txs: Tx[], month: Range, week: R
     .sort((a, b) => a.cat.sort - b.cat.sort);
 }
 
-/**
- * Since when a credit card is unpaid. Paying a card brings it back to zero, whatever the amount:
- * - the weekly "Pago de tarjeta" of a shared space (external_id `card-week:<start>`) covers that whole week
- *   on every card of the space, so it's paid through the end of that week;
- * - any other payment to the card (a transfer to it) covers everything up to the payment.
- * With no payment recorded yet, only the current month counts.
- */
-export function cardPaidThrough(card: Account, txs: Tx[], spaceCards: Set<string>) {
-  const t = todayCR();
-  let through = crIso(t.y, t.m, 1);
-  for (const x of txs) {
-    if (x.kind !== 'transfer' || !x.to_account_id || !spaceCards.has(x.to_account_id)) continue;
-    const week = x.external_id?.match(/^card-week:(\d{4})-(\d{2})-(\d{2})$/);
-    let end: string | null = null;
-    if (week) end = crIso(Number(week[1]), Number(week[2]) - 1, Number(week[3]) + 7);
-    else if (x.to_account_id === card.id) end = x.occurred_at;
-    if (end && end > through) through = end;
-  }
-  return through;
-}
-
-/** Money owed on a credit card: what was charged to it since it was last paid. */
-export function cardOutstanding(card: Account, txs: Tx[], spaceCards: Set<string> = new Set([card.id])) {
-  const since = cardPaidThrough(card, txs, spaceCards);
-  return Math.max(0, txs.filter((t) => t.account_id === card.id && t.occurred_at >= since).reduce((a, t) => a + spend(t), 0));
-}
+/** Credit cards: what they owe lives in src/lib/cards.ts (TAR). */
 
 export function tagsOf(t: Tx): string[] {
   return (t.transaction_tags || []).map((x) => x.tags?.name).filter(Boolean) as string[];
