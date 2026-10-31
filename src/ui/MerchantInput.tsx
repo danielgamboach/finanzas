@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ListGroup, ListRow } from '../ds';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, ListGroup, ListRow } from '../ds';
 import { db } from '../lib/api';
 import { photoUrl } from '../lib/merchants';
 import type { Category } from '../lib/types';
 import { useApp } from '../store';
-import { Emo } from '.';
+import { Emo, Icon } from '.';
 
 type Known = { name: string; n: number; categoryId: string | null; merchantId: string | null };
 
@@ -48,10 +48,12 @@ function useKnownMerchants(spaceId: string) {
  * the merchants already used in this space (and the shared catalog); picking one fills the name, its logo and, if
  * none is chosen yet, the category it usually goes to. `after` sits right after the text (the logo and category faces).
  */
-export function MerchantInput({ value, onChange, onPick, onDone, spaceId, cats, placeholder, suggest = true, countWord = ['compra', 'compras'], after }: {
+export function MerchantInput({ value, onChange, onPick, onClear, onDone, spaceId, cats, placeholder, suggest = true, countWord = ['compra', 'compras'], after }: {
   value: string;
   onChange: (v: string) => void;
   onPick: (name: string, categoryId: string | null, merchantId: string | null) => void;
+  /** The x: empties the field (and whatever the picked merchant brought). */
+  onClear?: () => void;
   /** Enter on the keyboard: the merchant step is done. */
   onDone?: () => void;
   spaceId: string;
@@ -64,6 +66,7 @@ export function MerchantInput({ value, onChange, onPick, onDone, spaceId, cats, 
   const { merchants } = useApp();
   const known = useKnownMerchants(spaceId);
   const [focus, setFocus] = useState(false);
+  const field = useRef<HTMLTextAreaElement>(null);
   const q = norm(value);
 
   const matches = useMemo(() => {
@@ -80,7 +83,8 @@ export function MerchantInput({ value, onChange, onPick, onDone, spaceId, cats, 
       out.push({ ...k, score: (word ? 2 : 1) * 1000 + Math.min(k.n, 999) });
     };
     known.forEach(add);
-    merchants.forEach((m) => add({ name: m.name, n: 0, categoryId: null, merchantId: m.id }));
+    // catalog merchants bring the category this space last gave any of their names
+    merchants.forEach((m) => add({ name: m.name, n: 0, categoryId: known.find((k) => k.merchantId === m.id && k.categoryId)?.categoryId ?? null, merchantId: m.id }));
     return out.sort((a, b) => b.score - a.score).slice(0, 3);
   }, [q, known, merchants, suggest]);
 
@@ -88,11 +92,15 @@ export function MerchantInput({ value, onChange, onPick, onDone, spaceId, cats, 
   return (
     <div className="merchant-input">
       <div className="merchant-line">
-        <label className="merchant-field" data-value={value || placeholder}>
+        {/* a textarea so long names wrap to a second line; the hidden copy (::after) sizes it, and out of focus that
+            copy is what shows, cut at two lines with an ellipsis */}
+        <label className={['merchant-field', !value && 'is-empty'].filter(Boolean).join(' ')} data-value={value || placeholder}>
           <span className="sr">Comercio o detalle</span>
-          <input
+          <textarea
+            ref={field}
+            rows={1}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, ' '))}
             onFocus={() => setFocus(true)}
             // a beat, so a tap on a suggestion lands before the list goes away
             onBlur={() => window.setTimeout(() => setFocus(false), 150)}
@@ -103,16 +111,33 @@ export function MerchantInput({ value, onChange, onPick, onDone, spaceId, cats, 
               }
             }}
             placeholder={placeholder}
-            // as narrow as it gets: the hidden copy of the text (::after) sets the width, so the faces follow the text
-            size={1}
             autoComplete="off"
             autoCorrect="off"
+            spellCheck={false}
             enterKeyHint="done"
             aria-autocomplete="list"
             aria-expanded={open}
           />
         </label>
         {!focus && after}
+        {focus && value && (
+          <Button
+            variant="secondary"
+            size="xs"
+            iconOnly
+            className="merchant-clear"
+            aria-label="Borrar"
+            // keep the keyboard up: the tap doesn't take the focus from the field
+            onPointerDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onClear ? onClear() : onChange('');
+              field.current?.focus();
+            }}
+          >
+            <Icon name="close" size={12} stroke={2.4} />
+          </Button>
+        )}
       </div>
       {open && (
         <ListGroup className="merchant-suggest" title="Sugerencias">

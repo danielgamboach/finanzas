@@ -1122,22 +1122,31 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .txf-ai { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--ai-subtle-foreground); }
 .txf-check { font-size: var(--text-xs); }
 .txf-body { display: flex; flex-direction: column; gap: 16px; padding: 20px 0 16px; }
-.txf-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 8px 8px 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); }
-.txf-toggle small { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-normal); color: var(--muted-foreground); }
+.txf-toggle { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 8px 8px 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); }
 .txf-more .ds-btn__label { text-decoration: none; }
 .txf-more { align-self: flex-start; color: var(--muted-foreground); padding-left: 4px; padding-right: 4px; }
 .txf-more-body { display: flex; flex-direction: column; gap: 16px; animation: fade-in .16s ease-out; }
 .tx-form > .ds-action-bar { padding: 32px 16px calc(16px + env(safe-area-inset-bottom)); margin: auto -24px 0; }
 .kb-open .tx-form > .ds-action-bar { padding-top: 16px; padding-bottom: 10px; }
+/* "Descartar" closes the form; at the very bottom, under the save bar, not pinned (it carries the safe area) */
+.tx-form:has(> .form-discard) > .ds-action-bar { padding-bottom: 8px; }
+.form-discard { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.form-discard .ds-btn { color: var(--muted-foreground); }
+.txf-missing { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 0 4px; font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); color: var(--destructive); animation: fade-in .16s ease-out; }
 
-/* the merchant: as big as the amount's little sibling, the field as wide as its text so the faces follow it */
+/* the merchant: as big as the amount's little sibling. A textarea that wraps to a second line; the hidden copy of
+   its text (::after, same cell) sizes it to the text, so the faces follow it. Out of focus that copy is what shows,
+   cut at two lines with an ellipsis, and the textarea underneath goes transparent. */
 .merchant-input { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.merchant-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.merchant-field { display: inline-grid; grid-template-columns: minmax(1ch, auto); min-width: 0; max-width: 100%; font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
-.merchant-field::after { content: attr(data-value); padding-right: 2px; grid-area: 1 / 1; visibility: hidden; white-space: pre; overflow: hidden; font: inherit; letter-spacing: inherit; }
-.merchant-field input { grid-area: 1 / 1; box-shadow: none; width: 100%; min-width: 0; border: none; outline: none; background: transparent; color: var(--foreground); font: inherit; letter-spacing: inherit; line-height: inherit; padding: 0; text-overflow: ellipsis; }
-.merchant-field input::placeholder { color: var(--input); }
-.txf-faces { flex: none; display: inline-flex; align-items: center; padding: 4px 0 0 4px; }
+.merchant-line { display: flex; align-items: flex-end; gap: 4px; min-width: 0; }
+.merchant-field { display: grid; grid-template-columns: minmax(1ch, auto); flex: 0 1 auto; min-width: 0; font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); cursor: text; }
+.merchant-field::after { content: attr(data-value); grid-area: 1 / 1; visibility: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; padding-right: 2px; font: inherit; letter-spacing: inherit; color: var(--foreground); }
+.merchant-field textarea { grid-area: 1 / 1; display: block; width: 100%; height: 100%; min-width: 0; resize: none; overflow: hidden; border: none; outline: none; box-shadow: none; background: transparent; color: var(--foreground); font: inherit; letter-spacing: inherit; line-height: inherit; padding: 0; margin: 0; white-space: pre-wrap; overflow-wrap: break-word; }
+.merchant-field textarea::placeholder { color: var(--input); }
+.merchant-field:not(.is-empty):not(:focus-within)::after { visibility: visible; }
+.merchant-field:not(.is-empty):not(:focus-within) textarea { color: transparent; }
+.merchant-clear { flex: none; align-self: center; margin-left: auto; border-radius: var(--radius-full); }
+.txf-faces { flex: none; display: inline-flex; align-items: center; height: var(--text-4xl--line-height); padding-left: 4px; }
 .txf-face { box-shadow: 0 0 0 2px var(--background); }
 .txf-face--logo { transform: rotate(-15deg); }
 .txf-face--cat { transform: rotate(15deg); }

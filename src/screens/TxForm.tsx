@@ -63,8 +63,10 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [cur, setCur] = useState<Currency>(app.cur || 'CRC');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  // a category chosen by hand isn't replaced when a suggested merchant brings its own
-  const [catTouched, setCatTouched] = useState(Boolean(id));
+  // who set the category: a suggested merchant brings its own and the next one replaces it; one chosen by hand stays
+  const [catFrom, setCatFrom] = useState<'merchant' | 'user' | null>(null);
+  // after a tap on the save (or Continuar) while something is missing, the bar says what
+  const [askMissing, setAskMissing] = useState(false);
   // the catalog merchant picked from the suggestions (for its logo); typing again forgets it
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [more, setMore] = useState(false);
@@ -99,7 +101,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   // keep the field focused (and the keyboard up) while the bottom button is pressed
   const keep = (e: React.PointerEvent | React.MouseEvent) => e.preventDefault();
   const merchantRef = useRef<HTMLDivElement>(null);
-  const toMerchant = () => merchantRef.current?.querySelector<HTMLInputElement>('.merchant-field input')?.focus();
+  const toMerchant = () => merchantRef.current?.querySelector<HTMLTextAreaElement>('.merchant-field textarea')?.focus();
   const doneTyping = () => (document.activeElement as HTMLElement | null)?.blur?.();
   // "Continuar" on the amount: on to the merchant, or done if it's already there
   const next = () => (merchant.trim() ? doneTyping() : toMerchant());
@@ -162,7 +164,18 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const canApplyAll = Boolean(categoryChanged && sameSpaceAndKind && siblings > 0 && merchant === orig?.merchant);
   const merchantName = (orig && txMerchant(app.merchants, orig)?.name) || orig?.merchant || 'este comercio';
 
-  const canSave = num > 0 && spaceId && (type !== 'transferir' || (accountId || toAccountId));
+  const canSave = Boolean(num > 0 && spaceId && (type !== 'transferir' || (accountId || toAccountId)));
+  const missing = !(num > 0) ? 'amount' : type === 'transferir' && !accountId && !toAccountId ? 'accounts' : !spaceId ? 'space' : null;
+  const MISSING_TEXT = { amount: 'Falta el monto', accounts: 'Elegí de qué cuenta sale o a cuál entra', space: 'Elegí un espacio arriba a la derecha' } as const;
+  const shownMissing = missing ? MISSING_TEXT[missing] : null;
+  // a tap on the dimmed button: say what's missing and take you there
+  const flagMissing = () => {
+    setAskMissing(true);
+    if (missing === 'amount') document.querySelector<HTMLInputElement>('.txf-amount input')?.focus();
+  };
+  useEffect(() => {
+    if (!missing) setAskMissing(false);
+  }, [missing]);
 
   async function save() {
     if (!canSave || !space) return;
@@ -449,7 +462,18 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               onPick={(name, cat, mid) => {
                 setMerchant(name);
                 setPickedId(mid);
-                if (cat && isSpend && (!categoryId || !catTouched)) setCategoryId(cat);
+                if (isSpend && catFrom !== 'user' && (cat || catFrom === 'merchant')) {
+                  setCategoryId(cat);
+                  setCatFrom(cat ? 'merchant' : null);
+                }
+              }}
+              onClear={() => {
+                setMerchant('');
+                setPickedId(null);
+                if (catFrom === 'merchant') {
+                  setCategoryId(null);
+                  setCatFrom(null);
+                }
               }}
               onDone={doneTyping}
               spaceId={spaceId}
@@ -473,7 +497,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                   value={categoryId || ''}
                   onChange={(v) => {
                     setCategoryId(v || null);
-                    setCatTouched(true);
+                    setCatFrom(v ? 'user' : null);
                   }}
                   ariaLabel="Categoría"
                 >
@@ -503,12 +527,10 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
             <div className="txf-body">
               {!id && (
-                <div className="txf-toggle">
-                  <span className="col">
-                    <span>Recurrente</span>
-                    {repeat && <small>Cada mes, queda en Recurrentes</small>}
-                  </span>
-                  <Switch checked={repeat} label="Recurrente" onChange={() => setRepeat((r) => !r)} />
+                // the whole box toggles it; the switch inside handles its own tap (and the keyboard)
+                <div className="txf-toggle" onClick={(e) => !(e.target as Element).closest('.ds-switch') && setRepeat((r) => !r)}>
+                  <span>Recurrente</span>
+                  <Switch checked={repeat} label="Recurrente" onChange={setRepeat} />
                 </div>
               )}
               {type === 'transferir' && <span className="hint">Mover no cuenta como gasto ni ingreso, así el balance no se duplica.</span>}
@@ -557,16 +579,22 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         )}
 
         <ActionBar>
+          {askMissing && shownMissing && <p className="txf-missing" role="alert"><Icon name="warning" size={14} /> {shownMissing}</p>}
           {phone && field === 'amount' ? (
-            <Button variant="primary" size="xl" block disabled={num <= 0} onPointerDown={keep} onMouseDown={keep} onClick={next}>Continuar</Button>
+            <Button variant="primary" size="xl" block aria-disabled={num <= 0} onPointerDown={keep} onMouseDown={keep} onClick={() => (num <= 0 ? flagMissing() : next())}>Continuar</Button>
           ) : phone && field ? (
             <Button variant="primary" size="xl" block onPointerDown={keep} onMouseDown={keep} onClick={doneTyping}>Continuar</Button>
           ) : (
-            <Button variant="primary" size="xl" block disabled={!canSave || busy} onClick={save}>
+            <Button variant="primary" size="xl" block aria-disabled={!canSave} disabled={busy} onClick={() => (canSave ? save() : flagMissing())}>
               {busy ? 'Guardando…' : id ? 'Guardar cambios' : meta.save}
             </Button>
           )}
         </ActionBar>
+        {phone && (
+          <div className="form-discard">
+            <Button variant="ghost" size="md" block onClick={() => closeModal()}>Descartar</Button>
+          </div>
+        )}
       </div>
     </div>
   );

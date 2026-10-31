@@ -46,3 +46,6 @@
 .ds-btn--xs.ds-btn--icon, .ds-btn--sm.ds-btn--icon { position: relative; }
 .ds-btn--xs.ds-btn--icon::after { content: ''; position: absolute; inset: -8px; }
 .ds-btn--sm.ds-btn--icon::after { content: ''; position: absolute; inset: -4px; }
+
+/* looks disabled but still takes the tap (aria-disabled), so the screen can say what's missing */
+.ds-btn[aria-disabled="true"] { opacity: .45; cursor: default; filter: none; }
