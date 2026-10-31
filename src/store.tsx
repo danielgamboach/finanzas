@@ -87,8 +87,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (rate[0]) setFx(Number(rate[0].crc_per_usd));
     setSpaceIdState((prev) => {
       if (prev && sp.some((s) => s.id === prev)) return prev;
-      const shared = sp.find((s) => s.kind === 'shared');
-      return (shared || sp[0])?.id || null;
+      // the personal space is everyone's main one (ESP-01)
+      const mine = sp.find((s) => s.kind === 'personal' && mem.some((m) => m.space_id === s.id && m.user_id === userId));
+      return (mine || sp[0])?.id || null;
     });
     setReady(true);
     // the catalog and the admin flag are optional: never block the app if they fail to load
@@ -192,8 +193,9 @@ export function useTxs(range: Range | null, spaceId?: string | null) {
     if (!range || !sid) return;
     let alive = true;
     setLoading(true);
+    // the space's movements, and transfers that came in from another space
     db.from<Tx>('transactions', TX_SELECT)
-      .eq('space_id', sid)
+      .or(`space_id.eq.${sid}`, `to_space_id.eq.${sid}`)
       .gte('occurred_at', range.from)
       .lt('occurred_at', range.to)
       .order('occurred_at', false)

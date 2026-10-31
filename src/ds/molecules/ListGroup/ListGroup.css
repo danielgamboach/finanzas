@@ -43,3 +43,4 @@
 .ds-pp__when.is-overdue { color: var(--destructive); }
 .ds-pp__when.is-done { color: var(--success); }
 .ds-pp__when.is-due { color: var(--foreground); }
+.ds-pp__when.is-info { color: var(--muted-foreground); }

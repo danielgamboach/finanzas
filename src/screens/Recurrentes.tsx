@@ -7,9 +7,11 @@ import { namePhoto } from '../lib/merchants';
 import { db } from '../lib/api';
 import { amount, money, moneyRaw, parseAmount, unitOf } from '../lib/format';
 import {
-  addPeriod, daysUntil, dueLabel, isManual, paidRecently, FREQ_LABEL, METHOD_LABEL, needsConfirm, patternFrom, payRecurring, PER_MONTH, recState, shortDay, skipRecurring, useRecurring,
+  daysUntil, dueDay, dueLabel, isManual, paidRecently, FREQ_LABEL, freqLabel, needsConfirm, patternFrom, perMonth as perMonthOf, recState, shortDay, useRecurring,
 } from '../lib/recurring';
-import type { Category, Currency, Frequency, PayMethod, Recurring, RecurringSuggestion } from '../lib/types';
+import type { Account, Category, Currency, EveryUnit, Frequency, Recurring, RecurringSuggestion } from '../lib/types';
+import { PaySheet } from '../ui/PaySheet';
+import { canPay, canReceiveIncome, canSendMoney } from '../lib/transfers';
 import { go, navigateBack, useApp } from '../store';
 import { Emo, Icon, Loading, Segmented } from '../ui';
 import { inRange, sumSpend, weekRange } from '../lib/calc';
@@ -23,61 +25,44 @@ export function cleanName(n: string) {
 /** The face of a recurring payment: its category's emoji, or an icon (card or repeat) when it has none. */
 export function recFace(r: Recurring, categories: Category[]): { emoji?: string; icon?: string } {
   const e = categories.find((c) => c.id === r.category_id)?.emoji;
-  return e ? { emoji: e } : { icon: r.method === 'card' ? 'cards' : 'repeat' };
+  return e ? { emoji: e } : { icon: r.kind === 'transfer' ? 'exchange' : !isManual(r) ? 'cards' : 'repeat' };
 }
 
-/** One recurring payment as a row; transfers/cash that are due get "ya pagué / todavía no". */
+/** One recurring payment as a row; a manual one that's due gets "Pagar" (from which account, or postpone or ignore it). */
 export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean }) {
-  const { categories, accounts, cur, fx, userId, bump, toast, merchants } = useApp();
+  const { categories, accounts, cur, fx, merchants } = useApp();
   const photo = namePhoto(merchants, r.merchant, r.match_pattern);
-  const [busy, setBusy] = useState(false);
+  const [paying, setPaying] = useState(false);
   const cat = categories.find((c) => c.id === r.category_id);
-  const state = recState(r);
+  const state = recState({ ...r, next_due: dueDay(r) });
   const ask = needsConfirm(r, accounts);
   const crc = r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount);
 
-  async function paid() {
-    setBusy(true);
-    try {
-      await payRecurring(r, fx, userId);
-      toast(`${r.merchant} pagado`);
-      bump();
-    } catch {
-      toast('No se pudo registrar');
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function skip() {
-    setBusy(true);
-    await skipRecurring(r);
-    toast(`Saltado · próximo ${shortDay(addPeriod(r.next_due, r.frequency))}`);
-    bump();
-    setBusy(false);
-  }
-
   const amountNode = <>{r.variable ? '≈ ' : ''}{r.currency === 'USD' && cur === 'CRC' ? <>{amount(Number(r.amount), 'USD', 1)}<span className="amt-unit"> USD</span></> : <>{amount(crc, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}</>;
-  const when = !r.active ? 'Pausado' : paidRecently(r) ? `Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(r.next_due);
-  const how = compact ? METHOD_LABEL[r.method] : `${FREQ_LABEL[r.frequency]} · ${METHOD_LABEL[r.method]}`;
+  const when = !r.active ? 'Pausado' : paidRecently(r) ? `Pagado ${shortDay(r.last_paid_on!)}` : dueLabel(dueDay(r));
+  const mode = isManual(r) ? 'Manual' : 'Automático';
+  const how = compact ? mode : `${freqLabel(r)} · ${mode}`;
   return (
-    <ListRow
-      leading={<Emo e={recFace(r, categories).emoji} icon={recFace(r, categories).icon} color={!r.active ? 'gray' : cat?.color || 'gray'} img={photo} size={40} />}
-      title={r.merchant}
-      detail={`${how}${r.variable ? ' · Varía' : ''}`}
-      value={amountNode}
-      valueDetail={when}
-      valueDetailTone={state === 'overdue' ? 'destructive' : paidRecently(r) ? 'success' : state === 'due' ? 'default' : 'muted'}
-      quiet={!r.active}
-      href={`#/recurrente/${r.id}`}
-      label={`${r.merchant}, ${when}`}
-      below={ask ? (
-        <div className="rec-ask">
-          <span>¿Ya se pagó?</span>
-          <Button variant="ghost" size="xs" onClick={skip} disabled={busy}>Saltar</Button>
-          <Button variant="primary" size="xs" onClick={paid} disabled={busy}>Pagué</Button>
-        </div>
-      ) : undefined}
-    />
+    <>
+      <ListRow
+        leading={<Emo e={recFace(r, categories).emoji} icon={recFace(r, categories).icon} color={!r.active ? 'gray' : cat?.color || 'gray'} img={photo} size={40} />}
+        title={r.merchant}
+        detail={`${how}${r.variable ? ' · Varía' : ''}`}
+        value={amountNode}
+        valueDetail={when}
+        valueDetailTone={state === 'overdue' ? 'destructive' : paidRecently(r) ? 'success' : state === 'due' ? 'default' : 'muted'}
+        quiet={!r.active}
+        href={`#/recurrente/${r.id}`}
+        label={`${r.merchant}, ${when}`}
+        below={ask ? (
+          <div className="rec-ask">
+            <span>{r.kind === 'income' ? '¿Ya entró?' : '¿Ya se pagó?'}</span>
+            <Button variant="primary" size="xs" onClick={() => setPaying(true)}>{r.kind === 'income' ? 'Cobré' : 'Pagar'}</Button>
+          </div>
+        ) : undefined}
+      />
+      {paying && <PaySheet r={r} onClose={() => setPaying(false)} onPaid={() => undefined} />}
+    </>
   );
 }
 
@@ -90,14 +75,16 @@ export function useCardPayment() {
   // `Date.now() + 1 day` produced a new key on every render and an endless fetch loop (Supabase egress).
   // The end of the current week covers last week's charges and this week's "Pago de tarjeta".
   const thisWeekEnd = weekRange(ws, 0).to;
-  const range = useMemo(() => (space?.kind === 'shared' ? { from: prevWeek.from, to: thisWeekEnd } : null), [space?.kind, prevWeek.from, thisWeekEnd]);
+  const range = useMemo(() => (space?.card_weekly ? { from: prevWeek.from, to: thisWeekEnd } : null), [space?.card_weekly, prevWeek.from, thisWeekEnd]);
   const { txs } = useTxs(range);
   const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
   const cardIds = new Set(cards.map((c) => c.id));
   const owed = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
   const key = `card-week:${prevWeek.startKey}`;
-  if (!space || space.kind !== 'shared' || !cards.length || owed <= 0 || txs.some((x) => x.external_id === key)) return null;
-  const debit = accounts.find((a) => a.kind === 'debit' && !a.archived);
+  if (!space || !space.card_weekly || !cards.length || owed <= 0 || txs.some((x) => x.external_id === key)) return null;
+  // the payment goes out in colones: from a colones debit account if there is one
+  const debits = accounts.filter((a) => a.kind === 'debit' && !a.archived);
+  const debit = debits.find((a) => a.currency === 'CRC') || debits[0];
   const others = Object.values(profiles).filter((p) => p.id !== userId).map((p) => p.name).filter(Boolean);
   async function paid() {
     if (!space) return;
@@ -111,7 +98,7 @@ export function useCardPayment() {
   return { owed, others, paid };
 }
 
-/** Shared spaces pay last week's card charges every Friday from the debit account. */
+/** Spaces with the weekly card payment on pay last week's card charges from the debit account. */
 export function CardPayment({ card }: { card: NonNullable<ReturnType<typeof useCardPayment>> }) {
   const { cur, fx } = useApp();
   const [busy, setBusy] = useState(false);
@@ -119,7 +106,7 @@ export function CardPayment({ card }: { card: NonNullable<ReturnType<typeof useC
     <ListRow
       leading={<Emo icon="cards" color="pink" size={40} />}
       title="Pago de tarjeta"
-      detail={<><span className="ds-pp__when is-due">{card.others.length ? `${card.others.join(', ')} transfiere` : 'Semana pasada'}</span> · {amount(card.owed, cur, fx)} {unitOf(cur)}</>}
+      detail={<><span className="ds-pp__when is-due">Cargos de la semana pasada</span> · {amount(card.owed, cur, fx)} {unitOf(cur)}</>}
       actions={<Button variant="primary" size="xs" disabled={busy} onClick={async () => { setBusy(true); try { await card.paid(); } finally { setBusy(false); } }} aria-label="Ya pagué la tarjeta">Pagué</Button>}
     />
   );
@@ -155,7 +142,7 @@ export function Recurrentes() {
   if (!space) return <PageSkeleton title="Recurrentes" back={!menu} nav={false}><GroupSkeleton rows={2} action value={false} /><GroupSkeleton rows={3} /></PageSkeleton>;
   const active = items.filter((r) => r.active);
   const paused = items.filter((r) => !r.active);
-  const monthly = active.reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency], 0);
+  const monthly = active.filter((r) => r.kind !== 'income' && r.kind !== 'transfer').reduce((a, r) => a + (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * perMonthOf(r), 0);
   const toConfirm = active.filter((r) => needsConfirm(r, accounts));
   const rest = active.filter((r) => !needsConfirm(r, accounts));
 
@@ -171,6 +158,7 @@ export function Recurrentes() {
     quarterly: (r) => r.active && r.frequency === 'quarterly',
     semiannual: (r) => r.active && r.frequency === 'semiannual',
     yearly: (r) => r.active && r.frequency === 'yearly',
+    custom: (r) => r.active && r.frequency === 'custom',
     tarjeta: (r) => r.active && !isManual(r),
     manual: (r) => r.active && isManual(r),
     pausados: (r) => !r.active,
@@ -180,7 +168,7 @@ export function Recurrentes() {
     .filter(([k, n]) => k === 'todos' || n > 0);
   const current = chips.some(([k]) => k === filter) ? filter : 'todos';
   const shown = items.filter(tests[current]).sort((a, b) => Number(b.active) - Number(a.active) || a.next_due.localeCompare(b.next_due));
-  const perMonth = (r: Recurring) => (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * PER_MONTH[r.frequency];
+  const perMonth = (r: Recurring) => (r.currency === 'USD' ? Number(r.amount) * fx : Number(r.amount)) * perMonthOf(r);
   const yearlyOnly = current === 'yearly';
   // due-soon filters add up what's actually coming; the rest compare as a monthly (or yearly) cost
   const dueSum = current === 'proximos' || current === 'pendientes';
@@ -201,6 +189,7 @@ export function Recurrentes() {
       frequency: 'monthly',
       next_due: s.next_guess,
       method: 'card',
+      auto: true,
       // an Apple subscription comes without bank name: its key ("YOUTUBE") is the pattern
       match_pattern: s.raw_merchant ? patternFrom(s.raw_merchant) : s.merchant_key,
       last_paid_on: s.last_date,
@@ -246,7 +235,7 @@ export function Recurrentes() {
           <ListGroup>{shown.map((r) => <RecRow key={r.id} r={r} />)}</ListGroup>
         ) : (
           <>
-            {card && <ListGroup title="Tarjeta compartida"><CardPayment card={card} /></ListGroup>}
+            {card && <ListGroup title="Pago semanal de tarjetas"><CardPayment card={card} /></ListGroup>}
 
             {sugs.length > 0 && (
               <ListGroup title="¿Son suscripciones?" note="Cobros que se repiten cada mes. Agregalos para verlos venir.">
@@ -306,7 +295,8 @@ const FILTER_LABEL: Record<RecFilter, string> = {
   quarterly: 'Trimestrales',
   semiannual: 'Semestrales',
   yearly: 'Anuales',
-  tarjeta: 'Con tarjeta',
+  custom: 'Personalizados',
+  tarjeta: 'Automáticos',
   manual: 'Pago manual',
   pausados: 'Pausados',
 };
@@ -318,15 +308,30 @@ function fmtInput(v: string) {
   return d !== undefined ? `${int},${d.slice(0, 2)}` : int;
 }
 
-const FREQS: Frequency[] = ['weekly', 'biweekly', 'monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly'];
+const FREQS: Frequency[] = ['weekly', 'biweekly', 'monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly', 'custom'];
+const UNITS: [EveryUnit, string][] = [['day', 'días'], ['week', 'semanas'], ['month', 'meses']];
+const KIND_OPTS: [Recurring['kind'], string][] = [['expense', 'Gasto'], ['income', 'Ingreso'], ['transfer', 'Mover dinero']];
+
+/** Accounts grouped by space, this space first. */
+function groupBySpace(accs: Account[], first: string): [string, Account[]][] {
+  const m = new Map<string, Account[]>();
+  for (const a of accs) m.set(a.space_id, [...(m.get(a.space_id) || []), a]);
+  return [...m.entries()].sort(([a], [b]) => Number(b === first) - Number(a === first));
+}
 
 export function RecurringEdit({ id }: { id: string }) {
-  const { space, categories, accounts, toast, bump } = useApp();
+  const { space, spaces, categories, accounts, toast, bump } = useApp();
+  const spacesById = Object.fromEntries(spaces.map((s) => [s.id, s]));
   const isNew = id === 'nueva';
   const [r, setR] = useState<Partial<Recurring>>({
-    merchant: '', currency: 'CRC', frequency: 'monthly', method: 'card', active: true, kind: 'expense',
+    merchant: '', currency: 'CRC', frequency: 'monthly', method: 'card', auto: true, active: true, kind: 'expense',
     next_due: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10),
   });
+  // every account the person can reach: a recurring transfer can go to a shared space's account
+  const [allAccs, setAllAccs] = useState<Account[]>([]);
+  useEffect(() => {
+    db.from<Account>('accounts').eq('archived', false).order('created_at').then(setAllAccs, () => setAllAccs([]));
+  }, []);
   const [amount, setAmount] = useState('');
   const [pattern, setPattern] = useState('');
   const [patternTouched, setPatternTouched] = useState(false);
@@ -336,7 +341,7 @@ export function RecurringEdit({ id }: { id: string }) {
     if (isNew) return;
     db.from<Recurring>('recurring').eq('id', id).then(([x]) => {
       if (!x) return;
-      setR(x);
+      setR({ ...x, auto: x.auto ?? x.method === 'card' });
       setAmount(fmtInput(String(Number(x.amount)).replace('.', ',')));
       setPattern(x.match_pattern || '');
       setPatternTouched(true);
@@ -345,24 +350,36 @@ export function RecurringEdit({ id }: { id: string }) {
 
   if (!space) return <FormPageSkeleton title="Recurrente" />;
   const set = <K extends keyof Recurring>(k: K, v: Recurring[K]) => setR((x) => ({ ...x, [k]: v }));
-  const expenseCats = pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived));
-  const spaceAccounts = accounts.filter((a) => !a.archived && (r.method === 'card' ? a.kind === 'credit_card' || a.kind === 'debit' : a.kind !== 'credit_card'));
+  const kind = (r.kind === 'contribution' ? 'transfer' : r.kind) || 'expense';
+  const kindCats = pickerOrder(categories.filter((c) => c.kind === (kind === 'income' ? 'income' : 'expense') && !c.archived));
+  const spaceAccounts = accounts.filter((a) => !a.archived && (kind === 'income' ? canReceiveIncome(a) : kind === 'transfer' ? canSendMoney(a) : canPay(a)));
+  const cash = accounts.find((a) => a.system === 'cash');
+  const fromId = r.account_id || cash?.id || '';
+  const destinations = allAccs.filter((a) => a.id !== fromId);
   const effectivePattern = patternTouched ? pattern : patternFrom(r.merchant);
+  const custom = r.frequency === 'custom';
+  const ready = !!r.merchant?.trim() && !!parseAmount(amount) && !!r.next_due && (kind !== 'transfer' || !!r.to_account_id) && (!custom || (Number(r.every_n) > 0 && !!r.every_unit));
 
   async function save() {
-    if (!space || !r.merchant?.trim() || !parseAmount(amount) || !r.next_due) return;
+    if (!space || !ready || !r.merchant || !r.next_due) return;
     setBusy(true);
+    const acc = accounts.find((a) => a.id === fromId);
     const row = {
       space_id: space.id,
-      kind: 'expense',
+      kind,
       merchant: r.merchant.trim(),
       amount: parseAmount(amount),
       currency: r.currency,
-      category_id: r.category_id || null,
-      account_id: r.account_id || null,
+      category_id: kind === 'transfer' ? null : r.category_id || null,
+      account_id: fromId || null,
+      to_account_id: kind === 'transfer' ? r.to_account_id || null : null,
       frequency: r.frequency,
+      every_n: custom ? Number(r.every_n) : null,
+      every_unit: custom ? r.every_unit : null,
       next_due: r.next_due,
-      method: r.method,
+      auto: !!r.auto,
+      // how it's paid, for the voucher matching: automatic on a card is a card charge
+      method: r.auto && (acc?.kind === 'credit_card' || acc?.kind === 'debit' || acc?.kind === 'savings') ? 'card' : acc?.kind === 'cash' ? 'cash' : 'transfer',
       match_pattern: effectivePattern.trim().toUpperCase() || null,
       active: r.active,
       notes: r.notes || null,
@@ -415,51 +432,78 @@ export function RecurringEdit({ id }: { id: string }) {
           <Switch checked={!!r.variable} label="Monto variable" onChange={() => set('variable', !r.variable)} />
         </div>
         <label className="col gap6"><span className="field-label">Cada cuánto</span>
-          <select className="input" value={r.frequency} onChange={(e) => set('frequency', e.target.value as Frequency)}>
+          <select className="input" value={r.frequency} onChange={(e) => {
+            const f = e.target.value as Frequency;
+            setR((x) => ({ ...x, frequency: f, every_n: f === 'custom' ? x.every_n || 10 : x.every_n, every_unit: f === 'custom' ? x.every_unit || 'day' : x.every_unit }));
+          }}>
             {FREQS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
           </select>
         </label>
+        {custom && (
+          <div className="row gap8 rec-every">
+            <span className="field-label">Cada</span>
+            <input className="input" inputMode="numeric" value={r.every_n ?? ''} onChange={(e) => set('every_n', Number(e.target.value.replace(/\D/g, '').slice(0, 3)) || null)} aria-label="Cada cuántos" />
+            <select className="input" value={r.every_unit || 'day'} onChange={(e) => set('every_unit', e.target.value as EveryUnit)} aria-label="Unidad">
+              {UNITS.map(([u, l]) => <option key={u} value={u}>{l}</option>)}
+            </select>
+          </div>
+        )}
         <label className="col gap6"><span className="field-label">Próximo pago</span>
           <input className="input" type="date" value={r.next_due || ''} onChange={(e) => set('next_due', e.target.value)} />
         </label>
       </div>
 
       <div className="card pad col gap14">
+        <span className="field-label">Qué es</span>
+        <Segmented value={kind} options={KIND_OPTS} onChange={(v) => setR((x) => ({ ...x, kind: v, category_id: null, to_account_id: v === 'transfer' ? x.to_account_id : null }))} dark={false} />
         <span className="field-label">Cómo se paga</span>
-        <Segmented value={(r.method || 'card') as PayMethod} options={[['card', 'Tarjeta'], ['transfer', 'Transferencia'], ['cash', 'Efectivo']]} onChange={(v) => set('method', v)} dark={false} />
+        <Segmented value={r.auto ? 'auto' : 'manual'} options={[['auto', 'Cargo automático'], ['manual', 'Pago manual']]} onChange={(v) => set('auto', v === 'auto')} dark={false} />
         <span className="hint">
-          {r.method === 'card'
-            ? 'Cobro automático: se marca como pagado solo cuando llega el voucher de la tarjeta (crédito o débito).'
-            : 'Pago manual: aparece en Pagos pendientes en el inicio desde el día antes, y se queda ahí hasta que confirmés que lo pagaste.'}
+          {r.auto
+            ? 'El banco lo cobra solo. Ese día se registra en la cuenta sin que hagas nada. Si la cuenta recibe vouchers del banco, espera el voucher hasta el día siguiente.'
+            : 'Lo pagás vos. Aparece en Inicio desde el día antes, con un botón para registrar desde qué cuenta lo pagaste.'}
         </span>
-        {r.method === 'card' && (
-          <label className="col gap6"><span className="field-label">Cómo aparece en el voucher</span>
-            <input className="input" value={effectivePattern} onChange={(e) => { setPattern(e.target.value.toUpperCase()); setPatternTouched(true); }} placeholder="NETFLIX" />
-            <span className="hint">Basta con una palabra que siempre aparezca, por ejemplo NETFLIX o SPOTIFY.</span>
-          </label>
-        )}
-        <label className="col gap6"><span className="field-label">{r.method === 'card' ? 'Tarjeta' : 'Desde qué cuenta'}</span>
-          <select className="input" value={r.account_id || ''} onChange={(e) => set('account_id', e.target.value || null)}>
-            <option value="">Sin especificar</option>
+        <label className="col gap6"><span className="field-label">{kind === 'income' ? 'Entra a' : 'Sale de'}</span>
+          <select className="input" value={fromId} onChange={(e) => set('account_id', e.target.value || null)}>
             {spaceAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>)}
           </select>
         </label>
+        {kind === 'transfer' && (
+          <label className="col gap6"><span className="field-label">Hacia</span>
+            <select className="input" value={r.to_account_id || ''} onChange={(e) => set('to_account_id', e.target.value || null)}>
+              <option value="" disabled>Elegir cuenta</option>
+              {groupBySpace(destinations, space.id).map(([sp, list]) => (
+                <optgroup key={sp} label={sp === space.id ? space.name : `${spacesById[sp]?.name || 'Otro espacio'}`}>
+                  {list.map((a) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        )}
+        {r.auto && kind === 'expense' && (
+          <label className="col gap6"><span className="field-label">Cómo aparece en el voucher (opcional)</span>
+            <input className="input" value={effectivePattern} onChange={(e) => { setPattern(e.target.value.toUpperCase()); setPatternTouched(true); }} placeholder="NETFLIX" />
+            <span className="hint">Solo si recibís vouchers del banco: una palabra que siempre aparezca, por ejemplo NETFLIX.</span>
+          </label>
+        )}
       </div>
 
-      <div className="card pad col gap10">
-        <span className="field-label">Categoría</span>
-        <div className="cat-grid">
-          {expenseCats.map((c) => (
-            <button key={c.id} className={r.category_id === c.id ? 'cat-tile on' : 'cat-tile'} aria-pressed={r.category_id === c.id} onClick={() => set('category_id', r.category_id === c.id ? null : c.id)}>
-              <span className="cat-emoji">{c.emoji}</span>
-              <span>
-                {c.name}
-                {c.parent_id && <span className="cat-parent">{categories.find((p) => p.id === c.parent_id)?.name}</span>}
-              </span>
-            </button>
-          ))}
+      {kind !== 'transfer' && (
+        <div className="card pad col gap10">
+          <span className="field-label">Categoría</span>
+          <div className="cat-grid">
+            {kindCats.map((c) => (
+              <button key={c.id} className={r.category_id === c.id ? 'cat-tile on' : 'cat-tile'} aria-pressed={r.category_id === c.id} onClick={() => set('category_id', r.category_id === c.id ? null : c.id)}>
+                <span className="cat-emoji">{c.emoji}</span>
+                <span>
+                  {c.name}
+                  {c.parent_id && <span className="cat-parent">{categories.find((p) => p.id === c.parent_id)?.name}</span>}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {!isNew && (
         <div className="field-row card pad">
@@ -476,7 +520,7 @@ export function RecurringEdit({ id }: { id: string }) {
         </div>
       )}
       <ActionBar>
-        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !r.merchant?.trim() || !parseAmount(amount)}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+        <Button variant="primary" size="lg" block onClick={save} disabled={busy || !ready}>{busy ? 'Guardando…' : 'Guardar'}</Button>
       </ActionBar>
     </div>
   );

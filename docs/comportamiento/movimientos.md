@@ -4,7 +4,7 @@ Un movimiento es cualquier cosa que mueve dinero: un gasto, un ingreso o dinero 
 
 ### MOV-01 · Hay tres tipos de movimiento
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 | Tipo | Qué es | Ejemplo |
 |---|---|---|
@@ -14,11 +14,11 @@ Un movimiento es cualquier cosa que mueve dinero: un gasto, un ingreso o dinero 
 
 Las devoluciones son gastos al revés: suman a la cuenta y restan del gasto del mes. Llegan por vouchers e importación.
 
-**Hoy** existe un cuarto tipo, **Aporte**, que se elimina: lo que hacía pasa a ser Mover dinero (MOV-03). Los 36 aportes que ya existen se convierten en movimientos entre cuentas.
+El tipo **Aporte** ya no existe: lo que hacía es Mover dinero (MOV-03). Los 36 aportes que había se convirtieron: los de Dani y Kimmy salen del Efectivo de su espacio personal; los 7 de origen desconocido ("Aporte (cuenta 948199328)") salen del Efectivo del espacio compartido. Una copia de los originales quedó en la tabla `_contributions_backup`.
 
 ### MOV-02 · Todo movimiento tiene una cuenta
 
-**Estado:** Falta
+**Estado:** Hecho
 
 No hay movimientos sin cuenta. Un gasto sale de una cuenta, un ingreso entra a una cuenta y Mover dinero tiene origen y destino. Si la persona no elige, la cuenta por defecto es Efectivo (CTA-13), que existe siempre.
 
@@ -26,11 +26,13 @@ No hay movimientos sin cuenta. Un gasto sale de una cuenta, un ingreso entra a u
 - **Entonces** la frase dice "Gasto en Efectivo"
 - **Y** al guardar, el gasto queda en la cuenta Efectivo del espacio
 
-**Hoy:** "Efectivo" en el formulario significa "sin cuenta" (no existe como cuenta). Hay 39 movimientos sin cuenta: 36 aportes y 3 gastos. Al crear las cuentas de Efectivo, los gastos se pasan ahí.
+La base lo garantiza: un movimiento que llega sin cuenta (por ejemplo, un voucher de una tarjeta desconocida) queda en el Efectivo del espacio.
+
+<sub>Dónde vive: `check_tx_refs` en la base; la cuenta por defecto en `src/screens/TxForm.tsx`.</sub>
 
 ### MOV-03 · Mover dinero tiene origen y destino
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Origen y destino son obligatorios y distintos. Qué cuentas pueden ser origen o destino depende del tipo (CTA-12): por ejemplo, un préstamo solo puede ser destino.
 
@@ -42,28 +44,45 @@ Mover dinero puede ir de una cuenta de un espacio a una cuenta de otro espacio d
 - **Y** Casa BAC sube ¢300.000 en "Casa"
 - **Y** el movimiento aparece en los dos espacios
 - **Y** no cuenta como gasto en ninguno
+- **Y** en la vista de Débito BAC aparece como "−300.000 CRC · A un espacio compartido"; en la de Casa BAC, como "+300.000 CRC"
+- **Y** Mis finanzas del espacio personal muestra aparte "Puesto en espacios compartidos: Casa 300.000 CRC", que no suma al gasto del mes
+- **Y** en "Casa", Kimmy lo ve como "+300.000 CRC · De Dani", con origen "Dani (cuenta personal)": no ve el nombre ni el saldo de la cuenta personal de Dani
 
-**Hoy:** Mover dinero acepta guardar con solo una de las dos cuentas, y solo entre cuentas del mismo espacio.
+Solo quien está en el espacio de origen puede editar o eliminar el movimiento. En el espacio que lo recibe se ve sin el botón Editar.
 
-> Ver las preguntas abiertas 1 y 2.
+En cualquier vista de una cuenta, Mover dinero se muestra con signo según esa cuenta: − si el dinero salió de ella, + si entró.
+
+<sub>Dónde vive: `transactions.to_space_id` (lo llena `check_tx_refs`) y la política `transactions_select_incoming`; `src/lib/transfers.ts`; el signo con `TxAccountScope` en `src/ui/TxRow.tsx`; el grupo en `Analysis` de `src/screens/Presupuesto.tsx`.</sub>
 
 ### MOV-04 · Todo gasto e ingreso tiene categoría
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Un gasto o ingreso registrado a mano no se puede guardar sin categoría. Los que llegan solos (vouchers, importación) reciben siempre la mejor categoría que el app pueda adivinar (reglas, historial del comercio o IA); si la adivinó la IA, quedan "Por revisar" hasta que la persona la confirme o la cambie, pero nunca quedan sin categoría.
 
-**Hoy:** se puede guardar un gasto sin categoría (queda "Por revisar"), y los que la IA no logra categorizar quedan sin categoría. Hay 45 gastos e ingresos sin categoría.
+Si la IA no tiene una sugerencia, el movimiento queda en "Otros" (o "Otro ingreso"), también "Por revisar". Los 45 que estaban sin categoría se resolvieron así.
 
-> Ver la pregunta abierta 3: la categoría de Mover dinero.
+Mover dinero no lleva categoría del espacio: el app le pone una según a dónde va el dinero, que no cuenta en el presupuesto y no se puede cambiar:
+
+| Destino | Categoría |
+|---|---|
+| Una tarjeta de crédito | Pago de tarjeta |
+| Un préstamo | Abono a préstamo |
+| Ahorro, CDP o inversión | Ahorro |
+| Una cuenta de otro espacio | A un espacio compartido |
+| Cualquier otra | Movimiento entre cuentas |
+
+Igual queda registrado y actualiza el saldo de las dos cuentas (CTA-07).
+
+<sub>Dónde vive: `ai_category_fallback` y `fallback_category` en la base; `transferLabel` en `src/lib/transfers.ts`.</sub>
 
 ### MOV-05 · Cualquier movimiento puede ser recurrente
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Al crear un gasto, ingreso o movimiento entre cuentas se puede marcar "Recurrente" y elegir la frecuencia (REC-01) y si es cargo automático o pago manual (REC-02). Eso crea el recurrente con ese movimiento como su primer pago.
 
-**Hoy:** la casilla "Recurrente" solo crea recurrentes mensuales, y el tipo (automático o manual) sale de si la cuenta es tarjeta.
+Si es Mover dinero, el recurrente guarda también la cuenta de destino (por ejemplo, la parte de cada mes para la casa).
 
 ### MOV-06 · Editar, eliminar y deshacer
 
@@ -73,10 +92,10 @@ Todo se puede editar después de guardado: tipo, monto, moneda, cuenta, categor�
 
 ---
 
-## Preguntas abiertas
+## Preguntas contestadas
 
-**1. Mover dinero entre espacios: ¿cuenta como gasto en el personal?** Desde el espacio personal de Dani, los ¢300.000 que pone para la casa son plata que ya no tiene para él. Propuesta: no cuenta como gasto (para no contarlo dos veces, porque los gastos reales de la casa se registran en "Casa"), pero Mis finanzas del espacio personal muestra aparte "Puesto en espacios compartidos".
+**1. Mover dinero entre espacios no cuenta como gasto en el personal**, pero sí se registra y baja la cuenta de origen (decisión de Dani, 31 oct).
 
-**2. ¿Quién ve qué en un movimiento entre espacios?** Kimmy ve en "Casa" que entraron ¢300.000 de Dani, pero no debería ver el nombre ni el saldo de la cuenta personal de Dani. Propuesta: en "Casa" el origen se muestra como "Dani (cuenta personal)".
+**2. En el espacio que recibe, el origen se muestra como "Dani (cuenta personal)"**, sin el nombre ni el saldo de esa cuenta.
 
-**3. ¿Mover dinero lleva categoría?** Propuesta: no se elige; el app le pone una categoría fija del sistema según el caso ("Pago de tarjeta", "Ahorro", "Abono a préstamo", "Movimiento entre cuentas"), que no cuenta en el presupuesto. Así se cumple que todo tiene categoría sin pedirle nada a la persona.
+**3. Mover dinero lleva una categoría fija del sistema** según el destino (tabla en MOV-04), que no cuenta en el presupuesto. Igual queda registrado y actualiza los saldos (decisión de Dani, 31 oct).

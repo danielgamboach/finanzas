@@ -5,7 +5,7 @@ import { getTheme, setTheme, type ThemePref } from '../lib/theme';
 import { auth, db } from '../lib/api';
 import { enablePush, permission, pushSupport, sendTestPush } from '../lib/push';
 import { go, navigateBack, useApp } from '../store';
-import { Emo, Icon } from '../ui';
+import { Emo, Icon, Sheet } from '../ui';
 import { shareInvite } from './Onboarding';
 import { accountIcon } from './Patrimonio';
 
@@ -20,6 +20,8 @@ export function Ajustes() {
   const [newSpace, setNewSpace] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [unmatched, setUnmatched] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
 
   useEffect(() => {
     setName(profile?.name || '');
@@ -66,6 +68,35 @@ export function Ajustes() {
 
   const spaceMembers = members.filter((m) => m.space_id === space?.id);
   const isOwner = spaceMembers.some((m) => m.user_id === userId && m.role === 'owner');
+  const lastOne = spaceMembers.length <= 1;
+
+  async function setSpace(patch: Record<string, unknown>, msg: string) {
+    if (!space) return;
+    try {
+      await db.update('spaces', { id: space.id }, patch);
+      await reloadMeta();
+      bump();
+      toast(msg);
+    } catch {
+      toast('No se pudo guardar');
+    }
+  }
+  // ESP-03, ESP-04: leaving a shared space; the last one out deletes it for good
+  async function leave() {
+    if (!space) return;
+    try {
+      const r = await db.rpc<string>('leave_space', { p_space: space.id });
+      const mine = spaces.find((s) => s.kind === 'personal' && members.some((m) => m.space_id === s.id && m.user_id === userId));
+      if (mine) setSpaceId(mine.id);
+      setLeaving(false);
+      await reloadMeta();
+      bump();
+      toast(r === 'deleted' ? `${space.name} se borró` : `Saliste de ${space.name}`);
+      go('/');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo abandonar el espacio');
+    }
+  }
 
   const dirty = (name.trim() || '') !== (profile?.name || '') || (emoji || '🙂') !== (profile?.emoji || '🙂');
   const activeAccounts = accounts.filter((a) => !a.archived);
@@ -120,6 +151,32 @@ export function Ajustes() {
               ) : undefined}
             />
           )}
+          {space && isOwner && (
+            <ListRow
+              title="La semana empieza el"
+              detail={`En ${space.name}: límites semanales y el gráfico por semana`}
+              actions={
+                <select className="set-select" value={space.week_start} onChange={(e) => setSpace({ week_start: Number(e.target.value) }, 'Listo')} aria-label="Primer día de la semana">
+                  {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map((d, i) => <option key={d} value={i}>{d}</option>)}
+                </select>
+              }
+            />
+          )}
+          {space && isOwner && accounts.some((a) => a.kind === 'credit_card' && !a.archived) && (
+            <ListRow
+              title="Pago semanal de las tarjetas"
+              detail="Cada semana, un aviso para pagar lo que se cargó a las tarjetas la semana anterior"
+              actions={<Switch checked={!!space.card_weekly} label="Pago semanal de las tarjetas" onChange={(v) => setSpace({ card_weekly: v }, v ? 'Pago semanal activado' : 'Pago semanal desactivado')} />}
+            />
+          )}
+          {space?.kind === 'shared' && (
+            <ListRow
+              title={<span className="danger-text">Abandonar {space.name}</span>}
+              detail={lastOne ? 'Sos la última persona: se borra todo' : 'Los demás lo siguen teniendo'}
+              onClick={() => setLeaving(true)}
+              label={`Abandonar ${space.name}`}
+            />
+          )}
           <ListRow
             title="Unirme con código"
             detail="Si alguien te invitó a su espacio"
@@ -157,16 +214,43 @@ export function Ajustes() {
           {isAdmin && <ListRow leading={<ListRow.Icon name="camera" />} title="Comercios sin logo" detail="De todos los espacios" chevron href="#/sin-logo" />}
         </ListGroup>
 
-        <ListGroup title="Vouchers automáticos" note="El script de Google lee los correos del banco y los manda acá. Generá un token y pegalo en el script.">
-          {unmatched > 0 && <ListRow title={`${unmatched} voucher${unmatched > 1 ? 's' : ''} sin cuenta`} detail="De tarjetas que no están en ninguna cuenta" detailTone="warning" />}
+        <ListGroup title="Avanzado">
+          <ListRow title="Tipo de cambio" detail="Del BCCR" value={`¢${fx.toFixed(2)}`} />
           <ListRow
-            title="Token del script"
-            detail={token ? 'Se muestra una sola vez. Guardalo en el script.' : 'Uno nuevo por cada script'}
-            actions={token ? <Button variant="primary" size="xs" onClick={() => copy(token)}>Copiar</Button> : <Button variant="secondary" size="xs" onClick={makeToken}>Generar</Button>}
-            below={token ? <span className="code wrap">{token}</span> : undefined}
+            leading={<ListRow.Icon name="envelope" />}
+            title="Vouchers por correo"
+            detail="Para quien quiera automatizar: un script lee los avisos del banco en tu correo y registra los gastos solos"
+            chevron
+            onClick={() => setAdvanced((o) => !o)}
+            label="Vouchers por correo"
           />
-          <ListRow title="Tipo de cambio" detail="BCCR, actualizado por el script" value={`¢${fx.toFixed(2)}`} />
+          {advanced && unmatched > 0 && <ListRow title={`${unmatched} voucher${unmatched > 1 ? 's' : ''} sin cuenta`} detail="De tarjetas que no están en ninguna cuenta" detailTone="warning" />}
+          {advanced && (
+            <ListRow
+              title="Token del script"
+              detail={token ? 'Se muestra una sola vez. Guardalo en el script.' : 'Uno nuevo por cada script'}
+              actions={token ? <Button variant="primary" size="xs" onClick={() => copy(token)}>Copiar</Button> : <Button variant="secondary" size="xs" onClick={makeToken}>Generar</Button>}
+              below={token ? <span className="code wrap">{token}</span> : undefined}
+            />
+          )}
         </ListGroup>
+
+        {leaving && space && (
+          <Sheet title={`Abandonar ${space.name}`} onClose={() => setLeaving(false)}>
+            {lastOne ? (
+              <p className="page-text">
+                Sos la última persona en {space.name}. Si lo abandonás, <strong>se borra todo lo que tiene</strong>: cuentas, movimientos, categorías, recurrentes y metas. No se puede recuperar.
+              </p>
+            ) : (
+              <p className="page-text">
+                Vas a dejar de ver todo lo de {space.name}. Los demás miembros lo siguen teniendo con toda su información. Para volver, alguien te tiene que invitar de nuevo.
+              </p>
+            )}
+            <ActionBar>
+              <Button variant="destructive" size="lg" block onClick={leave}>{lastOne ? 'Abandonar y borrar todo' : 'Abandonar'}</Button>
+            </ActionBar>
+          </Sheet>
+        )}
 
         <Button variant="ghost" size="md" block className="danger" leading={<Icon name="logout" size={16} />} onClick={() => auth.signOut()}>Cerrar sesión</Button>
         <footer className="credits">

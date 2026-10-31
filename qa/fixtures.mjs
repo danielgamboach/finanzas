@@ -40,6 +40,10 @@ const accounts = [
   acc('a-amex', 'Amex', 'credit_card', 'cyan', { brand: 'amex', last4: '4005' }),
   acc('a-deb', 'Débito BAC', 'debit', 'graphite', { brand: null }),
   acc('a-ahorro', 'Ahorro casa', 'savings', 'emerald', { brand: null, emoji: '🏡' }),
+  acc('a-cash', 'Efectivo', 'cash', 'graphite', { brand: null, last4: null, institution: null, system: 'cash', track_balance: false }),
+  // Dani's personal space: where his part for the house comes from
+  acc('a-pdeb', 'Débito personal', 'debit', 'sky', { space_id: PERSONAL, brand: null }),
+  acc('a-pcash', 'Efectivo', 'cash', 'graphite', { space_id: PERSONAL, brand: null, last4: null, institution: null, system: 'cash', track_balance: false }),
 ];
 
 let n = 0;
@@ -65,6 +69,10 @@ const transactions = [
   tx(11, 'CNFL', 'c-serv', 28900),
   tx(13, 'Pizza Antonino', 'c-comida', 15800),
   tx(15, 'Alquiler', 'c-casa', 350000, { account_id: 'a-deb', source: 'recurring' }),
+  // moved from Dani's personal account to the shared one (it shows in both spaces)
+  tx(2, 'Parte del mes', null, 300000, { kind: 'transfer', space_id: PERSONAL, account_id: 'a-pdeb', to_account_id: 'a-deb', to_space_id: SPACE, contributor_id: DANI, source: 'manual', raw_merchant: null }),
+  // an automatic charge registered without its voucher
+  tx(1, 'Spotify', 'c-ocio', 5900, { source: 'recurring', auto_flag: 'no_voucher', recurring_id: 'r-spot', raw_merchant: null }),
   tx(18, 'Automercado', 'c-super', 36100),
   tx(20, 'Uber', 'c-trans', 5100),
   // last month, for the comparisons
@@ -73,16 +81,18 @@ const transactions = [
 ];
 
 const recurring = [
-  { id: 'r-alq', space_id: SPACE, kind: 'expense', amount: 350000, currency: 'CRC', category_id: 'c-casa', account_id: 'a-deb', merchant: 'Alquiler', frequency: 'monthly', next_due: day(1), method: 'transfer', match_pattern: null, last_paid_on: day(-30), notes: null, active: true },
-  { id: 'r-agua', space_id: SPACE, kind: 'expense', amount: 18400, currency: 'CRC', category_id: 'c-serv', account_id: null, merchant: 'Agua AyA', frequency: 'monthly', next_due: day(-2), method: 'transfer', match_pattern: null, last_paid_on: day(-32), notes: null, active: true, variable: true },
-  { id: 'r-netflix', space_id: SPACE, kind: 'expense', amount: 7900, currency: 'CRC', category_id: 'c-ocio', account_id: 'a-visa', merchant: 'Netflix', frequency: 'monthly', next_due: day(9), method: 'card', match_pattern: 'NETFLIX', last_paid_on: day(-21), notes: null, active: true },
+  { id: 'r-alq', space_id: SPACE, kind: 'expense', amount: 350000, currency: 'CRC', category_id: 'c-casa', account_id: 'a-deb', merchant: 'Alquiler', frequency: 'monthly', next_due: day(1), method: 'transfer', auto: false, match_pattern: null, last_paid_on: day(-30), notes: null, active: true },
+  { id: 'r-agua', space_id: SPACE, kind: 'expense', amount: 18400, currency: 'CRC', category_id: 'c-serv', account_id: null, merchant: 'Agua AyA', frequency: 'monthly', next_due: day(-2), method: 'transfer', auto: false, match_pattern: null, last_paid_on: day(-32), notes: null, active: true, variable: true },
+  { id: 'r-netflix', space_id: SPACE, kind: 'expense', amount: 7900, currency: 'CRC', category_id: 'c-ocio', account_id: 'a-visa', merchant: 'Netflix', frequency: 'monthly', next_due: day(9), method: 'card', auto: true, match_pattern: 'NETFLIX', last_paid_on: day(-21), notes: null, active: true },
+  { id: 'r-gym', space_id: SPACE, kind: 'expense', amount: 25000, currency: 'CRC', category_id: 'c-salud', account_id: 'a-deb', merchant: 'Gimnasio', frequency: 'monthly', next_due: day(0), method: 'transfer', auto: true, match_pattern: null, last_paid_on: day(-30), notes: null, active: true },
+  { id: 'r-spot', space_id: SPACE, kind: 'expense', amount: 5900, currency: 'CRC', category_id: 'c-ocio', account_id: 'a-visa', merchant: 'Spotify', frequency: 'custom', every_n: 4, every_unit: 'week', next_due: day(27), method: 'card', auto: true, match_pattern: 'SPOTIFY', last_paid_on: day(-1), notes: null, active: true },
   { id: 'r-cnfl', space_id: SPACE, kind: 'expense', amount: 28000, currency: 'CRC', category_id: 'c-serv', account_id: 'a-visa', merchant: 'CNFL', frequency: 'monthly', next_due: day(19), method: 'card', match_pattern: 'CNFL', last_paid_on: day(-11), notes: null, active: true, variable: true },
 ];
 
 export const tables = {
   spaces: [
     { id: PERSONAL, name: 'Personal', emoji: '🦥', kind: 'personal', week_start: 5, created_by: DANI },
-    { id: SPACE, name: 'Simbiosis', emoji: '👫', kind: 'shared', week_start: 5, created_by: DANI },
+    { id: SPACE, name: 'Simbiosis', emoji: '👫', kind: 'shared', week_start: 5, created_by: DANI, card_weekly: true },
   ],
   space_members: [
     { space_id: PERSONAL, user_id: DANI, role: 'owner' },
@@ -146,6 +156,7 @@ export const rpcs = {
     { merchant_id: null, name: 'Tulsi Café y Plantas', raw: 'TULSI CAFE Y PLANTAS SAN J', movements: 1, last_at: '2026-09-02T15:00:00Z' },
   ],
   recurring_suggestions: [],
+  leave_space: 'left',
   vapid_public_key: null,
 };
 
@@ -155,7 +166,7 @@ export const functions = {
 };
 
 export const localStorage = {
-  'finanzas.space': SPACE,
+  'finanzas.space': process.env.QA_SPACE === 'personal' ? PERSONAL : SPACE,
   'finanzas.cur': 'CRC',
   'finanzas.push.prompt-dismissed': '1',
 };

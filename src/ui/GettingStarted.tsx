@@ -33,7 +33,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
     const one = (q: PromiseLike<unknown[]>) => Promise.resolve(q).then((r) => r.length > 0, () => false);
     Promise.all([
       one(db.from('transactions', 'id').limit(1)),
-      one(db.from('accounts', 'id').limit(1)),
+      one(db.from('accounts', 'id').is('system', null).limit(1)),
       one(db.from('recurring', 'id').limit(1)),
       one(db.from('categories', 'id').gte('limit_amount', 0.01).limit(1)),
     ]).then(([tx, acc, rec, lim]) => alive && setSt({ tx, acc, rec, lim }));

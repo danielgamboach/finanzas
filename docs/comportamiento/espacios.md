@@ -12,7 +12,7 @@ Al registrarse se crea su espacio personal con categorías por defecto. Es su es
 - **Entonces** tiene un espacio "Personal" donde es dueña
 - **Y** no ve la opción de abandonarlo ni eliminarlo
 
-**Hoy:** la base permite que el dueño borre su espacio personal (nada lo impide); el app no ofrece la opción, pero la regla debería estar en la base.
+La base lo impide: un espacio solo se borra cuando lo abandona la última persona (ESP-04), y el personal no se puede abandonar.
 
 <sub>Dónde vive: `handle_new_user`, `seed_space_defaults`.</sub>
 
@@ -26,7 +26,7 @@ Se crean desde Ajustes → Espacios (o en la configuración inicial, si la perso
 
 ### ESP-03 · Abandonar un espacio compartido
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cualquier miembro puede abandonar un espacio compartido desde Ajustes → Espacios. Antes de hacerlo, el app advierte qué pasa.
 
@@ -44,7 +44,7 @@ Cualquier miembro puede abandonar un espacio compartido desde Ajustes → Espaci
 
 ### ESP-04 · Si todos abandonan un espacio, se borra
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cuando la última persona abandona un espacio compartido, el espacio y toda su información (cuentas, movimientos, categorías, recurrentes, metas, saldos, invitaciones) se borran definitivamente en ese momento. No queda oculto ni archivado.
 
@@ -54,15 +54,15 @@ Cuando la última persona abandona un espacio compartido, el espacio y toda su i
 - **Cuando** confirma
 - **Entonces** "Casa" y todos sus datos dejan de existir en la base
 
-### ESP-05 · Eliminar un espacio borra todo de inmediato
+### ESP-05 · Nadie elimina un espacio con otras personas adentro
 
-**Estado:** Falta
+**Estado:** Hecho
 
-Eliminar un espacio compartido borra todos sus datos definitivamente en ese momento, con la misma advertencia de ESP-04.
+No existe "eliminar espacio": solo abandonarlo. Un espacio se borra cuando sale la última persona (ESP-04). Así nadie pierde datos por la decisión de otro.
 
-> Ver la pregunta abierta 1: quién puede eliminar un espacio que todavía tiene otros miembros.
+El borrado arrastra todo lo del espacio: cuentas, movimientos, categorías, recurrentes, metas, saldos, invitaciones, reglas y respuestas de suscripciones. Los movimientos que alguien había mandado a ese espacio desde su cuenta personal se quedan en su espacio personal, sin destino. Los logos de comercios no se borran porque son del catálogo común.
 
-**Hoy:** la base permite que el dueño borre un espacio, pero no hay opción en el app, y no está verificado que el borrado arrastre todos los datos relacionados (fotos de comercios en el almacenamiento, invitaciones, respuestas de suscripciones).
+<sub>Dónde vive: `leave_space` y `protect_spaces` en la base; Ajustes → Espacios → Abandonar.</sub>
 
 ### ESP-06 · Cada espacio tiene su propia información
 
@@ -74,10 +74,12 @@ Lo que se ve en un espacio es solo de ese espacio: cuentas, movimientos, presupu
 
 ---
 
+## Preguntas contestadas
+
+**Nadie elimina un espacio con otras personas adentro**: solo se abandona, y se borra cuando sale la última (decisión de Dani, 31 oct).
+
 ## Preguntas abiertas
 
-**1. ¿Quién puede eliminar un espacio compartido con otras personas adentro?** Propuesta: nadie. Si hay más miembros, solo se puede abandonar; el espacio se borra cuando sale el último. Así nadie pierde datos por una decisión de otro.
+**1. ¿Qué pasa con las cuentas de quien se va?** Por ejemplo, si Kimmy registró su tarjeta en el espacio compartido y lo abandona, la tarjeta se queda en el espacio (es información del espacio, no de la persona). ¿Está bien así?
 
-**2. ¿Qué pasa con las cuentas de quien se va?** Por ejemplo, si Kimmy registró su tarjeta en el espacio compartido y lo abandona, la tarjeta se queda en el espacio (es información del espacio, no de la persona). ¿Está bien así?
-
-**3. Vouchers de una tarjeta en un espacio que abandoné.** Si el script de alguien manda vouchers a un espacio del que salió, hoy se perderían o fallarían. Deberían quedar sin espacio y avisarle.
+**2. Vouchers de una tarjeta en un espacio que abandoné.** Si el script de alguien manda vouchers a un espacio del que salió, hoy se perderían o fallarían. Deberían quedar sin espacio y avisarle.

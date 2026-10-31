@@ -4,15 +4,15 @@ Pagos e ingresos que se repiten: suscripciones, alquiler, servicios, salario, la
 
 ### REC-01 · Frecuencias
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Semanal, quincenal, mensual, bimestral, trimestral, semestral, anual o personalizada ("cada N días, semanas o meses").
 
-**Hoy:** existen todas menos la personalizada.
+<sub>Dónde vive: `recurring.every_n` y `every_unit`; `add_period` y `period_days` en la base, `addPeriod` en `src/lib/recurring.ts`.</sub>
 
 ### REC-02 · Cargo automático o pago manual
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Cada recurrente es de uno de dos tipos, y la persona lo elige:
 
@@ -21,7 +21,9 @@ Cada recurrente es de uno de dos tipos, y la persona lo elige:
 | Cargo automático | El banco lo cobra solo; la persona no hace nada | Netflix a la tarjeta, la luz con débito automático |
 | Pago manual | La persona tiene que pagarlo (SINPE, app del banco, efectivo) | Alquiler, la empleada, la cuota del préstamo si no está domiciliada |
 
-**Hoy:** el tipo sale del método: "tarjeta" es automático, "transferencia" y "efectivo" son manuales. Un débito automático desde una cuenta corriente no se puede marcar como automático.
+Se elige al crear el recurrente (en el editor, o con la casilla Recurrente de un movimiento). Los que existían quedaron automáticos si eran de tarjeta y manuales si no.
+
+<sub>Dónde vive: `recurring.auto`.</sub>
 
 ### REC-03 · Solo se muestra el próximo pago
 
@@ -37,17 +39,19 @@ Muestra el total al mes y los recurrentes agrupados: pagos manuales pendientes (
 
 ### REC-05 · Inicio muestra lo que toca hoy
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 En Inicio aparecen los pagos manuales de hoy y los atrasados, cada uno con la fecha ("Hoy", "Venció ayer"), el monto y el botón **Pagar**. Una vez pagado, ignorado o pospuesto, desaparece de Inicio.
 
 También aparecen los cargos automáticos de hoy (REC-08), sin botón, solo para avisar.
 
-**Hoy:** los pagos manuales aparecen desde el día antes del vencimiento, el botón dice "Pagué" y registra el pago al instante (sin preguntar cuenta, monto ni fecha), y los cargos automáticos no aparecen.
+Los pagos manuales aparecen desde el día antes ("Mañana"). Un ingreso manual dice **Cobré** en vez de Pagar.
+
+<sub>Dónde vive: `src/ui/PendingPayments.tsx`.</sub>
 
 ### REC-06 · Pagar pregunta desde qué cuenta
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Tocar **Pagar** abre una hoja con:
 
@@ -63,9 +67,11 @@ Al confirmar se crea el movimiento en esa cuenta, ligado al recurrente; el recur
 - **Y** el próximo pago del alquiler pasa al mes siguiente
 - **Y** el alquiler desaparece de Inicio
 
+<sub>Dónde vive: `src/ui/PaySheet.tsx`, también desde Recurrentes.</sub>
+
 ### REC-07 · Ignorar, posponer o cancelar
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 Cada pago pendiente, en Inicio y en Recurrentes, ofrece además:
 
@@ -75,11 +81,13 @@ Cada pago pendiente, en Inicio y en Recurrentes, ofrece además:
 | Posponer | Se elige una fecha nueva para este pago; mientras tanto sale de Inicio |
 | Cancelar recurrente | El recurrente deja de repetirse (queda en pausados, se puede reactivar) |
 
-**Hoy:** en Recurrentes existen "Saltar" (igual a ignorar) y pausar; en Inicio solo "Pagué". No existe posponer.
+Están en la misma hoja de Pagar. Posponer solo mueve este pago: los siguientes mantienen su fecha.
+
+<sub>Dónde vive: `recurring.snooze_until`; `skipRecurring`, `snoozeRecurring` y `cancelRecurring` en `src/lib/recurring.ts`.</sub>
 
 ### REC-08 · Los cargos automáticos se registran solos
 
-**Estado:** Falta
+**Estado:** Hecho
 
 El día del cargo, Inicio avisa "Hoy se cobra Netflix, 7,99 USD".
 
@@ -92,9 +100,11 @@ El día del cargo, Inicio avisa "Hoy se cobra Netflix, 7,99 USD".
 - **Y** la Visa debe 7,99 USD más
 - **Y** el próximo cargo de Netflix es el 15 dic
 
-> Ver las preguntas abiertas 1 y 2.
+Si el voucher no llega, al día siguiente el app registra el gasto con el monto esperado y una advertencia: mientras tanto Inicio dice "No llegó el voucher: se registra con el monto esperado", y después la fila del gasto dice "Sin voucher" y el detalle explica que no llegó el aviso del banco. El gasto cuenta como cualquier otro: actualiza el saldo y el gasto del mes. Si el voucher llega después, reemplaza ese gasto en vez de duplicarlo.
 
-**Hoy:** los cargos automáticos solo se registran si llega el voucher; sin vouchers nunca se registran.
+Solo cuentan los cargos de los últimos dos días: un cargo automático vencido hace más tiempo no se registra solo, para no inventar cobros viejos.
+
+<sub>Dónde vive: `run_auto_recurring` en la base (cada hora), `transactions.auto_flag = 'no_voucher'` y `match_recurring`, que borra el gasto sin voucher cuando llega el real.</sub>
 
 ### REC-09 · Recurrentes de monto variable
 
@@ -110,10 +120,12 @@ Al crear o editar un préstamo, si tiene día de pago, el app ofrece crear el re
 
 ---
 
+## Preguntas contestadas
+
+**1. Una cuenta "usa vouchers"** si recibió al menos un movimiento por voucher en los últimos 30 días.
+
+**2. Si el voucher no llega**, al día siguiente se registra igual, con una advertencia que lo dice (decisión de Dani, 31 oct).
+
 ## Preguntas abiertas
 
-**1. ¿Cómo sabe el app si una cuenta usa vouchers?** Propuesta: una cuenta "usa vouchers" si recibió al menos un movimiento por voucher en los últimos 30 días. Así nadie tiene que configurarlo.
-
-**2. ¿Y si el voucher no llega?** Propuesta: si al día siguiente del cargo el voucher no llegó, el app crea el gasto igual (como si no tuviera vouchers), y si el voucher llega después, se liga a ese gasto en vez de duplicarlo.
-
-**3. ¿Desde cuándo aparece un pago manual en Inicio?** El pedido dice "los pagos del día"; hoy aparecen desde el día antes, lo cual ayuda a no olvidar un pago que se hace temprano. Propuesta: el día antes como "Mañana", el día como "Hoy".
+**3. ¿Desde cuándo aparece un pago manual en Inicio?** El pedido dice "los pagos del día"; hoy aparecen desde el día antes, como "Mañana", lo cual ayuda a no olvidar un pago que se hace temprano. ¿Lo dejamos así?

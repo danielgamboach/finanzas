@@ -20,6 +20,8 @@ export interface Space {
   kind: 'personal' | 'shared';
   week_start: number;
   created_by: string | null;
+  /** Pays the cards' charges of the previous week every week (the "Pago de tarjeta" reminder). */
+  card_weekly?: boolean;
 }
 
 export interface Member {
@@ -57,6 +59,10 @@ export interface Account {
   archived: boolean;
   color?: string | null;
   brand?: 'amex' | 'visa' | 'mastercard' | null;
+  /** False: movements are recorded but the account shows no balance (the cash account by default). */
+  track_balance?: boolean;
+  /** 'cash': the space's Efectivo, which always exists and can't be deleted or archived. */
+  system?: 'cash' | null;
 }
 
 export interface Tx {
@@ -74,6 +80,8 @@ export interface Tx {
   category_id: string | null;
   account_id: string | null;
   to_account_id: string | null;
+  /** The space of the destination when a transfer goes to another space (it shows in both). */
+  to_space_id?: string | null;
   contributor_id: string | null;
   recurring_id: string | null;
   status: 'posted' | 'review';
@@ -95,10 +103,13 @@ export interface Tx {
   suggested_merchant_id?: string | null;
   created_by?: string | null;
   created_at?: string;
+  /** 'no_voucher': an automatic charge registered with the expected amount because the bank's voucher didn't arrive. */
+  auto_flag?: 'no_voucher' | null;
   transaction_tags?: { tags: { name: string } | null }[];
 }
 
-export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'yearly';
+export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'yearly' | 'custom';
+export type EveryUnit = 'day' | 'week' | 'month';
 export type PayMethod = 'card' | 'transfer' | 'cash';
 
 export interface Recurring {
@@ -111,7 +122,16 @@ export interface Recurring {
   account_id: string | null;
   merchant: string;
   frequency: Frequency;
+  /** frequency 'custom': every N days, weeks or months. */
+  every_n?: number | null;
+  every_unit?: EveryUnit | null;
   next_due: string; // YYYY-MM-DD
+  /** Postponed: this payment shows again from this day. */
+  snooze_until?: string | null;
+  /** Charged on its own (card, direct debit); false means the person pays it by hand. */
+  auto?: boolean;
+  /** Where the money goes, for a recurring transfer. */
+  to_account_id?: string | null;
   method: PayMethod;
   match_pattern: string | null;
   last_paid_on: string | null;

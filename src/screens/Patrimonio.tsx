@@ -1,6 +1,6 @@
 import { useMenu } from '../lib/menu';
 import { useEffect, useState } from 'react';
-import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton, ActionBar } from '../ds';
+import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, Switch, TxListSkeleton, ActionBar } from '../ds';
 import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { accountBalanceAt, cardOutstanding, cardPaidThrough, snapshotMoment } from '../lib/calc';
@@ -14,7 +14,14 @@ import { useDesktop } from '../lib/useDesktop';
 
 const ASSET_KINDS = ['savings', 'investment', 'cdp', 'cash', 'debit', 'other'];
 const KIND_LABEL: Record<string, string> = {
-  credit_card: 'Tarjeta de crédito', debit: 'Cuenta de débito', savings: 'Ahorro', investment: 'Inversión', cash: 'Efectivo', cdp: 'CDP / plazo', loan: 'Préstamo', other: 'Otra',
+  credit_card: 'Tarjeta de crédito', debit: 'Débito o corriente', savings: 'Ahorro', investment: 'Inversión', cash: 'Efectivo', cdp: 'CDP / plazo', loan: 'Préstamo', other: 'Otra',
+};
+/** What each kind of account can do (CTA-12), said once under the kind picker. */
+const KIND_HINT: Record<string, string> = {
+  credit_card: 'Paga gastos. Lo que se debe baja con un pago desde otra cuenta.',
+  cdp: 'No paga gastos. Recibe sus intereses y se le puede sacar dinero a otra cuenta.',
+  investment: 'No paga gastos. Recibe rendimientos y se puede mover dinero desde y hacia ella.',
+  loan: 'No paga gastos ni manda dinero. Solo recibe cuotas y abonos desde otras cuentas.',
 };
 export const KIND_EMOJI: Record<string, string> = { credit_card: '💳', debit: '🏦', savings: '🐷', investment: '📈', cash: '💵', cdp: '🔒', loan: '🧾', other: '🗂️' };
 
@@ -81,7 +88,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const from = [hasCards ? new Date(Date.now() - 60 * 86400000).toISOString() : null, bases[0] || null].filter(Boolean).sort()[0] as string | undefined;
       const [ct, rates] = from
         ? await Promise.all([
-            db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').eq('space_id', spaceId).gte('occurred_at', from).limit(5000).then((r) => r.filter((t) => t.hold !== 'void')),
+            db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').or(`space_id.eq.${spaceId}`, `to_space_id.eq.${spaceId}`).gte('occurred_at', from).limit(5000).then((r) => r.filter((t) => t.hold !== 'void')),
             db.from<{ rate_date: string; crc_per_usd: number }>('fx_rates', 'rate_date,crc_per_usd').gte('rate_date', new Date(new Date(from).getTime() - 10 * 86400000).toISOString().slice(0, 10)).order('rate_date', false).limit(400).then((r) => r, () => []),
           ])
         : [[], []];
@@ -122,6 +129,8 @@ export function useNetWorth(spaceId: string | null): WorthData {
       cards += owed;
       continue;
     }
+    // the cash account without a balance: its movements count as spending, but it has no balance
+    if (a.track_balance === false) continue;
     const s = latest[a.id];
     const b = accountBalanceAt(a, snaps, cardTx, nowIso, rateOn, txFrom || undefined);
     if (b !== null) balance[a.id] = b;
@@ -137,7 +146,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
     let v = 0;
     const until = new Date(`${end}T00:00:00-06:00`).getTime() > now ? nowIso : new Date(`${end}T00:00:00-06:00`).toISOString();
     for (const a of accounts) {
-      if (a.kind === 'credit_card') continue;
+      if (a.kind === 'credit_card' || a.track_balance === false) continue;
       const b = accountBalanceAt(a, snaps, cardTx, until, rateOn, txFrom || undefined);
       if (b === null) continue;
       const c = toCrc(b, a, fx);
@@ -145,7 +154,7 @@ export function useNetWorth(spaceId: string | null): WorthData {
     }
     return { m: (t.m - 5 + i + 12) % 12, v };
   });
-  const tracked = accounts.filter((a) => a.kind !== 'credit_card').length;
+  const tracked = accounts.filter((a) => a.kind !== 'credit_card' && a.track_balance !== false).length;
   return {
     accounts, latest, balance, snaps, cardDebt, cardSplit, cards, assets: savings + investments, savings, investments, debts,
     net: savings + investments - debts, count: tracked, stale, history, loading, reload: () => setTick((x) => x + 1),
@@ -186,6 +195,9 @@ export function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
   if (a.kind === 'credit_card') {
     // one figure in the display currency; the split by currency lives in the card's own view
     amt = `${amount(w.cardDebt[a.id] || 0, cur, fx)} ${unitOf(cur)}`;
+  } else if (a.track_balance === false) {
+    amt = 'Sin saldo';
+    muted = true;
   } else {
     const s = w.latest[a.id];
     if (!s) {
@@ -397,6 +409,16 @@ export function AccountView({ id }: { id: string }) {
         action={<CardPaid a={a} owed={w.cardDebt[a.id] || 0} onDone={w.reload} />}
       />
     );
+  } else if (a.track_balance === false) {
+    hero = (
+      <BalanceSummary
+        label="Sin saldo"
+        value="0"
+        unit={a.currency}
+        meta="Lo que pagás en efectivo cuenta en el mes. Para llevar el saldo, editá la cuenta."
+        action={<Button variant="primary" size="xs" leading={<Icon name="pencil" size={14} />} href={`#/cuenta/${a.id}/editar`}>Llevar saldo</Button>}
+      />
+    );
   } else {
     // the balance now; when movements moved it since the last one typed in, say where it started
     const now = w.balance[a.id] ?? Number(s?.balance || 0);
@@ -450,7 +472,7 @@ export function Saldos() {
   const w = useNetWorth(space?.id || null);
   const [vals, setVals] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const editable = w.accounts.filter((a) => a.kind !== 'credit_card');
+  const editable = w.accounts.filter((a) => a.kind !== 'credit_card' && a.track_balance !== false);
 
   async function save() {
     setBusy(true);
@@ -520,6 +542,8 @@ export function AccountEdit({ id }: { id: string }) {
     });
   }, [id, isNew]);
 
+  // debit and savings accounts can have a debit card; credit cards always do (CTA-15)
+  const hasCard = acc.kind === 'credit_card' || acc.kind === 'debit' || acc.kind === 'savings';
   async function save() {
     if (!acc.name?.trim()) return;
     setBusy(true);
@@ -529,10 +553,11 @@ export function AccountEdit({ id }: { id: string }) {
       institution: acc.institution?.trim() || null,
       kind: acc.kind,
       currency: acc.currency,
-      last4: acc.last4?.trim() || null,
+      last4: hasCard ? acc.last4?.trim() || null : null,
       emoji: acc.emoji || KIND_EMOJI[acc.kind || 'other'],
       color: acc.color || 'graphite',
-      brand: acc.kind === 'credit_card' || acc.kind === 'debit' ? acc.brand || null : null,
+      brand: hasCard ? acc.brand || null : null,
+      track_balance: acc.track_balance !== false,
     };
     try {
       let accountId = id;
@@ -563,6 +588,8 @@ export function AccountEdit({ id }: { id: string }) {
   }
 
   const set = (k: keyof Account, v: unknown) => setAcc((a) => ({ ...a, [k]: v }));
+  // the space's Efectivo always exists: it can be renamed and keep a balance or not, nothing else
+  const isCash = acc.system === 'cash';
   return (
     <div className="page no-nav">
       <PageHeader title={isNew ? 'Nueva cuenta' : 'Editar cuenta'} onBack={navigateBack} />
@@ -581,7 +608,7 @@ export function AccountEdit({ id }: { id: string }) {
             <button key={k} role="radio" aria-checked={(acc.color || 'graphite') === k} aria-label={c.label} className={(acc.color || 'graphite') === k ? 'swatch on' : 'swatch'} style={{ background: c.bg }} onClick={() => set('color', k)} />
           ))}
         </div>
-        {(acc.kind === 'credit_card' || acc.kind === 'debit') && (
+        {hasCard && (
           <>
             <span className="field-label">Marca</span>
             <div className="grid4">
@@ -595,12 +622,20 @@ export function AccountEdit({ id }: { id: string }) {
       <div className="card pad col gap14">
         <label className="col gap6"><span className="field-label">Nombre</span><input className="input" value={acc.name || ''} onChange={(e) => set('name', e.target.value)} placeholder="Ej. Ahorro colones" /></label>
         <label className="col gap6"><span className="field-label">Institución</span><input className="input" value={acc.institution || ''} onChange={(e) => set('institution', e.target.value)} placeholder="Ej. BAC, Banco Nacional, Hapi" /></label>
-        <label className="col gap6"><span className="field-label">Tipo</span>
-          <select className="input" value={acc.kind} onChange={(e) => { set('kind', e.target.value); set('emoji', KIND_EMOJI[e.target.value]); }}>
-            {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-        </label>
-        {acc.kind === 'credit_card' ? (
+        {isCash ? (
+          <div className="txf-toggle" onClick={(e) => !(e.target as Element).closest('.ds-switch') && set('track_balance', acc.track_balance === false)}>
+            <span className="col gap2"><span>Llevar saldo</span><span className="hint">Apagado, los gastos en efectivo cuentan en el mes pero la cuenta no muestra saldo ni suma al patrimonio.</span></span>
+            <Switch checked={acc.track_balance !== false} label="Llevar saldo" onChange={(v) => set('track_balance', v)} />
+          </div>
+        ) : (
+          <label className="col gap6"><span className="field-label">Tipo</span>
+            <select className="input" value={acc.kind} onChange={(e) => { set('kind', e.target.value); set('emoji', KIND_EMOJI[e.target.value]); }}>
+              {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            {KIND_HINT[acc.kind || 'other'] && <span className="hint">{KIND_HINT[acc.kind || 'other']}</span>}
+          </label>
+        )}
+        {isCash ? null : acc.kind === 'credit_card' ? (
           <span className="hint">Las tarjetas aceptan cargos en colones y en dólares. Se muestran por separado.</span>
         ) : (
           <div className="grid2">
@@ -609,21 +644,23 @@ export function AccountEdit({ id }: { id: string }) {
             ))}
           </div>
         )}
-        {(acc.kind === 'credit_card' || acc.kind === 'debit') && (
-          <label className="col gap6"><span className="field-label">Últimos 4 dígitos</span><input className="input" inputMode="numeric" maxLength={4} value={acc.last4 || ''} onChange={(e) => set('last4', e.target.value.replace(/\D/g, ''))} placeholder="7731" /><span className="hint">Con esto los vouchers del correo caen en esta cuenta y este espacio.</span></label>
+        {hasCard && (
+          <label className="col gap6"><span className="field-label">{acc.kind === 'credit_card' ? 'Últimos 4 dígitos' : 'Últimos 4 de la tarjeta de débito (opcional)'}</span><input className="input" inputMode="numeric" maxLength={4} value={acc.last4 || ''} onChange={(e) => set('last4', e.target.value.replace(/\D/g, ''))} placeholder="7731" /><span className="hint">Con esto los vouchers del correo caen en esta cuenta y este espacio.</span></label>
         )}
         <label className="col gap6"><span className="field-label">Emoji</span><input className="input" value={acc.emoji || ''} onChange={(e) => set('emoji', e.target.value)} maxLength={8} /></label>
-        <label className="col gap6"><span className="field-label">Espacio</span>
-          <select className="input" value={spaceId} onChange={(e) => setSpaceId(e.target.value)}>
-            {spaces.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
-          </select>
-        </label>
-        {acc.kind !== 'credit_card' && (
+        {!isCash && (
+          <label className="col gap6"><span className="field-label">Espacio</span>
+            <select className="input" value={spaceId} onChange={(e) => setSpaceId(e.target.value)}>
+              {spaces.map((s) => <option key={s.id} value={s.id}>{s.emoji} {s.name}</option>)}
+            </select>
+          </label>
+        )}
+        {acc.kind !== 'credit_card' && acc.track_balance !== false && (
           <label className="col gap6"><span className="field-label">Saldo de hoy (opcional)</span><input className="input" inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value.replace(/[^0-9.,-]/g, ''))} placeholder="0" /></label>
         )}
       </div>
       </div>
-      {!isNew && (
+      {!isNew && !isCash && (
         <div className="page-actions">
           <Button variant="ghost" size="md" block onClick={archive}>Archivar cuenta</Button>
         </div>

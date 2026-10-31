@@ -175,7 +175,7 @@ function CatRow({ s }: { s: CatStat }) {
 }
 
 function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [number, number] }) {
-  const { categories, cur, fx, merchants } = useApp();
+  const { categories, cur, fx, merchants, space, spaces } = useApp();
   const [topBy, setTopBy] = useState<'amt' | 'n'>(() => {
     try {
       return localStorage.getItem('finanzas.topBy') === 'n' ? 'n' : 'amt';
@@ -219,6 +219,15 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
 
   const month = monthRange(ym[0], ym[1]);
   const inMonth = txs.filter((x) => inRange(x, month));
+
+  // money put into shared spaces this month: not spending here (it's spent there), shown apart (MOV-03)
+  const shared = new Map<string, number>();
+  inMonth.forEach((x) => {
+    if (x.kind !== 'transfer' || x.hold || x.space_id !== space?.id || !x.to_space_id || x.to_space_id === space?.id) return;
+    shared.set(x.to_space_id, (shared.get(x.to_space_id) || 0) + Number(x.amount_crc));
+  });
+  const sharedRows = [...shared.entries()].sort((a, b) => b[1] - a[1]);
+  const sharedTotal = sharedRows.reduce((a, [, v]) => a + v, 0);
 
   // a catalog merchant groups all its branches ("ampm Freses", "AM PM Pavas"…)
   const shops = new Map<string, { n: number; amt: number; cat?: string; photo: string | null; badge: string | null }>();
@@ -274,6 +283,23 @@ function Analysis({ txs, ym }: { txs: ReturnType<typeof useTxs>['txs']; ym: [num
           ))
         )}
       </ListGroup>
+
+      {sharedRows.length > 0 && (
+        <ListGroup title="Puesto en espacios compartidos" note="No cuenta como gasto aquí: se gasta en el espacio que lo recibe.">
+          {sharedRows.map(([sid, v]) => {
+            const sp = spaces.find((x) => x.id === sid);
+            return (
+              <ListRow
+                key={sid}
+                leading={<Emo e={sp?.emoji || '👥'} color="mint" size={40} />}
+                title={sp?.name || 'Espacio compartido'}
+                value={<>{amount(v, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}
+              />
+            );
+          })}
+          {sharedRows.length > 1 && <ListRow title="Total" value={<>{amount(sharedTotal, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>} />}
+        </ListGroup>
+      )}
 
       <ListGroup title="Top comercios" action={<Segmented size="sm" label="Ordenar comercios" value={topBy} onChange={pickTop} options={[{ value: 'amt', label: 'Monto' }, { value: 'n', label: 'Compras' }]} />}>
         {top.length === 0 ? (

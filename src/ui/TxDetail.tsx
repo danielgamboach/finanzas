@@ -15,9 +15,10 @@ import { TxRow } from './TxRow';
 import { MergeSheet } from './Merchant';
 import { useDragToClose } from './useDragToClose';
 import { setHold, settlesIn } from '../lib/holds';
+import { incomingFrom, isIncoming, transferLabel } from '../lib/transfers';
 
-const KIND_LABEL: Record<string, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
-const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
+const KIND_LABEL: Record<string, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Mover dinero', refund: 'Devolución' };
+const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', refund: '↩️' };
 const SOURCE_LABEL: Record<string, string> = {
   email: 'Voucher del BAC (correo)',
   import: 'Estado de cuenta importado',
@@ -35,7 +36,7 @@ function close() {
 /** A movement, read-only: every detail, then the other movements of the same merchant. */
 export function TxDetail({ id }: { id: string }) {
   const desk = useDesktop();
-  const { version } = useApp();
+  const { version, members, userId } = useApp();
   const [t, setT] = useState<Tx | null>(null);
   const [missing, setMissing] = useState(false);
   const dragRef = useDragToClose<HTMLDivElement>(close, 'self');
@@ -84,7 +85,9 @@ export function TxDetail({ id }: { id: string }) {
         <div className={scrolled ? 'txd-bar scrolled' : 'txd-bar'}>
           {!desk && <div className="grabber" />}
           <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
-          <Button variant="primary" size="xs" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={14} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
+          {(!t || members.some((m) => m.space_id === t.space_id && m.user_id === userId)) && (
+            <Button variant="primary" size="xs" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={14} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
+          )}
         </div>
         {t ? <Body t={t} /> : <DetailSkeleton />}
       </div>
@@ -94,21 +97,22 @@ export function TxDetail({ id }: { id: string }) {
 }
 
 function Body({ t }: { t: Tx }) {
-  const { categories, accounts, cur, fx, profiles, merchants } = useApp();
+  const { categories, accounts, cur, fx, profiles, merchants, space, spaces } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const suggested = t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
   const acc = accounts.find((a) => a.id === t.account_id);
   const to = accounts.find((a) => a.id === t.to_account_id);
-  const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
+  const toSpace = t.to_space_id ? spaces.find((s) => s.id === t.to_space_id) : null;
+  const incoming = isIncoming(t, space?.id);
+  const review = t.kind !== 'transfer' && (t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income')));
   const merchant = txMerchant(merchants, t);
   const photo = merchant ? photoUrl(merchant) : null;
-  const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
+  const inflow = t.kind === 'income' || t.kind === 'refund' || incoming;
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
   const tags = tagsOf(t);
   const auth = t.note?.match(/^Autorizaci[oó]n\s+(\S+)$/i)?.[1] || null;
   const note = auth ? null : t.note?.trim() || null;
   const d = new Date(t.occurred_at);
-  const who = t.contributor_id ? profiles[t.contributor_id]?.name : null;
   const by = t.created_by && t.source === 'manual' ? profiles[t.created_by]?.name : null;
 
   const own = t.currency === 'USD' && cur === 'CRC';
@@ -121,10 +125,11 @@ function Body({ t }: { t: Tx }) {
       <header className="txd-hero">
         <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} size={56} />
         <h2 className="txd-name">{name}</h2>
-        <Money size="large" value={big} unit={bigUnit} tone={t.hold === 'void' || t.kind === 'transfer' ? 'muted' : inflow ? 'positive' : 'default'} strike={t.hold === 'void'} className="txd-amt" />
+        <Money size="large" value={big} unit={bigUnit} tone={t.hold === 'void' || (t.kind === 'transfer' && !incoming) ? 'muted' : inflow ? 'positive' : 'default'} strike={t.hold === 'void'} className="txd-amt" />
         {conv && <span className="txd-conv">{conv}</span>}
         <span className="chips center">
           {t.hold === 'pending' && <Tag tone="warning" size="sm">Por confirmar</Tag>}
+          {t.auto_flag === 'no_voucher' && <Tag tone="warning" size="sm"><Icon name="warning" size={12} />Sin voucher</Tag>}
               {review && !suggested && <Tag tone="warning" size="sm">Por revisar</Tag>}
           {review && suggested && <Tag tone="ai" size="sm"><Icon name="wand" size={12} />¿{suggested.emoji} {catLabel(categories, suggested)}?</Tag>}
           {t.recurring_id && <Tag size="sm"><Icon name="repeat" size={12} />Recurrente</Tag>}
@@ -133,10 +138,16 @@ function Body({ t }: { t: Tx }) {
       </header>
 
       {t.hold === 'pending' && <HoldBox t={t} />}
+      {t.auto_flag === 'no_voucher' && (
+        <p className="txd-warn" role="note">
+          <Icon name="warning" size={14} /> No llegó el voucher del banco para este cargo automático, así que lo registramos con el monto esperado. Si el voucher llega después, lo reemplaza.
+        </p>
+      )}
 
       <section className="field-card txd-fields" aria-label="Detalles">
         <Row label="Fecha">{cap(fullDate.format(d).replace(/\./g, '').replace(/,/g, ''))} · {timeFmt.format(d)}</Row>
         <Row label="Tipo">{KIND_LABEL[t.kind] || t.kind}</Row>
+        {t.kind === 'transfer' && <Row label="Categoría">{incoming ? 'Entró de otro espacio' : transferLabel(t, accounts)}</Row>}
         {(t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund') && (
           <Row label="Categoría">
             {cat ? (
@@ -153,16 +164,23 @@ function Body({ t }: { t: Tx }) {
         <Row label={t.kind === 'transfer' ? 'Desde' : 'Cuenta'}>
           {acc ? (
             <a className="txd-link" href={`#/cuenta/${acc.id}`}>{acc.name}{acc.last4 ? ` ••${acc.last4}` : ''}</a>
+          ) : incoming ? (
+            incomingFrom(t, profiles, spaces)
           ) : (
-            'Efectivo / SINPE'
+            'Otra cuenta'
           )}
         </Row>
-        {to && (
+        {t.kind === 'transfer' && (
           <Row label="Hacia">
-            <a className="txd-link" href={`#/cuenta/${to.id}`}>{to.name}{to.last4 ? ` ••${to.last4}` : ''}</a>
+            {to ? (
+              <a className="txd-link" href={`#/cuenta/${to.id}`}>{to.name}{to.last4 ? ` ••${to.last4}` : ''}</a>
+            ) : toSpace ? (
+              `Una cuenta de ${toSpace.name}`
+            ) : (
+              <span className="muted">Cuenta eliminada</span>
+            )}
           </Row>
         )}
-        {t.kind === 'contribution' && who && <Row label="Aportó">{who}</Row>}
         {t.currency === 'USD' && (
           <>
             <Row label="Monto original">{moneyRaw(Number(t.amount), 'USD', { decimals: true })}</Row>

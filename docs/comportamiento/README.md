@@ -8,17 +8,17 @@ Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar
 
 | Archivo | Qué cubre | Hecho | Parcial | Falta |
 |---|---|---|---|---|
-| [principios.md](principios.md) | Público general, manual primero, historial, borrar es borrar | | 2 | 2 |
-| [espacios.md](espacios.md) | Personal y compartidos, abandonar, eliminar | 3 | | 3 |
-| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Tipos de cuenta, saldos, efectivo, préstamos, CDP, inversiones, tarjetas, patrimonio, metas | 20 | 2 | 11 |
-| [movimientos.md](movimientos.md) | Tipos, cuenta y categoría obligatorias, mover entre espacios | 1 | 4 | 1 |
-| [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, ignorar, posponer | 3 | 4 | 3 |
+| [principios.md](principios.md) | Público general, manual primero, historial, borrar es borrar | 1 | 1 | 2 |
+| [espacios.md](espacios.md) | Personal y compartidos, abandonar | 6 | | |
+| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Tipos de cuenta, saldos, efectivo, préstamos, CDP, inversiones, tarjetas, patrimonio, metas | 26 | 2 | 6 |
+| [movimientos.md](movimientos.md) | Tipos, cuenta y categoría obligatorias, mover entre espacios | 6 | | |
+| [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, posponer, ignorar | 9 | | 1 |
 | [categorias.md](categorias.md) | Subcategorías, límites, fijas | 3 | 1 | |
 | [importar-estados.md](importar-estados.md) | Subir estados de cuenta del BAC en PDF | | | 7 |
 | presupuesto.md | Gasto del mes, "Disponible", Mis finanzas | | | Por escribir |
 | automatico.md | Vouchers, preautorizaciones, "¿Es una suscripción?", Apple | | | Por escribir |
 
-Además, en cuentas-y-saldos.md una regla se elimina (CTA-08, los aportes) y una está por revisar (TAR-05, el pago semanal de la tarjeta).
+En cuentas-y-saldos.md, CTA-08 (los aportes) quedó eliminada.
 
 ## Estado de cada regla
 
@@ -30,18 +30,16 @@ Cada regla dice debajo del título cómo está hoy el app:
 | **Parcial** | Una parte existe. La línea **Hoy:** dice qué falta o qué es distinto |
 | **Falta** | Todavía no existe |
 | **Revisar** | Existe, pero choca con un principio y hay que replantearlo |
-| **Se elimina** | Existe y va a desaparecer |
+| **Eliminada** | Existió y ya no; el ID queda reservado |
 
 ## Qué falta, en orden sugerido
 
-1. **Base de cuentas y movimientos.** Cuenta de Efectivo en cada espacio (CTA-13, CTA-14), todo movimiento con cuenta (MOV-02), qué puede hacer cada tipo de cuenta (CTA-12), los aportes pasan a Mover dinero entre espacios (MOV-01, MOV-03) y categoría siempre asignada (MOV-04). Va primero porque todo lo demás se apoya en esto, y hay que convertir los datos que ya existen.
-2. **Quitar lo que es solo de Dani y Kimmy.** El pago semanal de la tarjeta se vuelve un recurrente normal, la semana empieza el lunes y es configurable, los vouchers pasan a una sección Avanzado (PRI-01, PRI-02).
-3. **Recurrentes.** Hoja de Pagar con cuenta, monto y fecha (REC-06), ignorar, posponer y cancelar (REC-07), cargos automáticos que se registran solos (REC-08), automático o manual elegido por la persona (REC-02) y frecuencia personalizada (REC-01).
-4. **Abandonar y eliminar espacios** con borrado definitivo (ESP-03 a ESP-05).
-5. **Préstamos y CDP** con sus datos y cálculos (PRE-02 a PRE-05, CDP-01 a CDP-04).
-6. **Importar estados de cuenta del BAC** (IMP). Se puede adelantar en paralelo: hace falta un PDF de ejemplo de cada tipo, con los datos sensibles tapados.
+Hecho el 31 oct: la base de cuentas y movimientos (Efectivo, cuenta y categoría siempre, qué puede hacer cada tipo de cuenta, aportes como Mover dinero entre espacios), quitar lo que era solo de Dani y Kimmy, recurrentes (pagar, posponer, ignorar, automáticos, personalizados) y abandonar espacios.
 
-Cada archivo termina con **Preguntas abiertas**. Las de los puntos 1 y 3 conviene contestarlas antes de empezar.
+1. **Préstamos y CDP** con sus datos y cálculos (PRE-02 a PRE-04, CDP-01 a CDP-03, REC-10). Antes conviene contestar las preguntas 7 a 10 de cuentas-y-saldos.md.
+2. **Importar estados de cuenta del BAC** (IMP). Hace falta un PDF de ejemplo de cada tipo (tarjeta y cuenta), con los datos sensibles tapados.
+3. **Borrar la cuenta de usuario** (PRI-04) y el script de vouchers para cualquiera (PRI-01).
+4. **Límites en subcategorías** (CAT-03), si se decide que sí.
 
 ## Cómo leer una regla
 

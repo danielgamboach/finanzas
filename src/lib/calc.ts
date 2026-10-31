@@ -174,7 +174,7 @@ export function accountDelta(
   for (const t of txs) {
     if (t.hold || t.occurred_at <= after || t.occurred_at > until) continue;
     let sign = 0;
-    if (t.to_account_id === a.id && t.account_id !== a.id) sign = t.kind === 'transfer' || t.kind === 'contribution' ? 1 : 0;
+    if (t.to_account_id === a.id && t.account_id !== a.id) sign = t.kind === 'transfer' ? 1 : 0;
     else if (t.account_id === a.id) sign = t.kind === 'income' || t.kind === 'refund' ? 1 : t.kind === 'expense' || t.kind === 'transfer' ? -1 : 0;
     if (!sign) continue;
     const amt = Number(t.amount);

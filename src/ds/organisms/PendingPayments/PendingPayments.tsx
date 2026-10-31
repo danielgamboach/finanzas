@@ -14,21 +14,25 @@ export function PendingPayments({ title = 'Pagos pendientes', count, children, t
   );
 }
 
-/** One manual payment. due/overdue: "Pagué" confirms it. done: paid recently, with Deshacer. */
-export function PendingPaymentRow({ state = 'due', face, name, detail, amount, onOpen, onPay, onUndo, busy, payLabel, density }: {
-  state?: 'due' | 'overdue' | 'done'; face: AvatarProps; name: React.ReactNode; detail: React.ReactNode; amount: React.ReactNode;
-  onOpen?: () => void; onPay?: () => void; onUndo?: () => void; busy?: boolean; payLabel?: string; density?: 'md' | 'sm';
+/**
+ * One payment. due/overdue: the button ("Pagar" by default) pays it. done: paid recently, with Deshacer.
+ * info: an automatic charge for today, only said (no button).
+ */
+export function PendingPaymentRow({ state = 'due', face, name, detail, amount, onOpen, onPay, onUndo, busy, payLabel, payText = 'Pagar', density }: {
+  state?: 'due' | 'overdue' | 'done' | 'info'; face: AvatarProps; name: React.ReactNode; detail: React.ReactNode; amount: React.ReactNode;
+  onOpen?: () => void; onPay?: () => void; onUndo?: () => void; busy?: boolean; payLabel?: string; payText?: string; density?: 'md' | 'sm';
 }) {
   const actions = state === 'done'
     ? onUndo && <Button variant="ghost" size="xs" onClick={onUndo} disabled={busy}>Deshacer</Button>
-    : onPay && <Button variant="primary" size="xs" aria-label={payLabel} onClick={onPay} disabled={busy}>Pagué</Button>;
+    : state === 'info' ? null
+    : onPay && <Button variant="primary" size="xs" aria-label={payLabel} onClick={(e) => { e.stopPropagation(); onPay(); }} disabled={busy}>{payText}</Button>;
   return (
     <ListRow
       leading={<Avatar size="md" {...face} />}
       title={name}
       detail={<><span className={`ds-pp__when is-${state}`}>{detail}</span> · {amount}</>}
       actions={actions || undefined}
-      quiet={state === 'done'}
+      quiet={state === 'done' || state === 'info'}
       density={density}
       onClick={onOpen}
     />

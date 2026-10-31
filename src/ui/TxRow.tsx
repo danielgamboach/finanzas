@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { go, useApp } from '../store';
 import { amount, relDay, unitOf } from '../lib/format';
 import type { Tx } from '../lib/types';
@@ -5,9 +6,21 @@ import { txBadge, txPhoto } from '../lib/merchants';
 import { Emo } from '.';
 import { Checkbox, TxRow as TxRowView, type TxAmountTone } from '../ds';
 import { CatPick } from './CatPick';
+import { isIncoming, transferLabel } from '../lib/transfers';
 
-const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', contribution: '🤝', refund: '↩️' };
-const KIND_LABEL: Record<string, string> = { income: 'Ingreso', transfer: 'Transferencia', contribution: 'Aporte', refund: 'Devolución' };
+/** The account whose movements are listed (its own view): money moved out of it reads as −, into it as + (MOV-03). */
+export const TxAccountScope = createContext<string | null>(null);
+
+/** Which way a movement goes for the listed account: 'in', 'out' or null (not a transfer, or no account in view). */
+function transferWay(t: Tx, scope: string | null): 'in' | 'out' | null {
+  if (t.kind !== 'transfer' || !scope) return null;
+  if (t.to_account_id === scope) return 'in';
+  if (t.account_id === scope) return 'out';
+  return null;
+}
+
+const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', refund: '↩️' };
+const KIND_LABEL: Record<string, string> = { income: 'Ingreso', transfer: 'Movimiento entre cuentas', refund: 'Devolución' };
 
 /** One movement: who, what kind, how much. Everything else (card, tags, IA, original currency) is in the detail. */
 /** "Por revisar", or the AI's suggestion when there is one, as a hint. */
@@ -21,20 +34,24 @@ interface Pick { selected: boolean; onToggle: () => void }
 export const canCategorize = (t: Tx) => t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund';
 
 export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: boolean; pick?: Pick; /** sheet: the smaller rows of the home sheet (default when showDate). */ size?: 'sheet' | 'list' }) {
-  const { categories, cur, fx, profiles, merchants } = useApp();
+  const { categories, accounts, cur, fx, profiles, merchants, space } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
-  const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
+  const review = t.kind !== 'transfer' && (t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income')));
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
   const color = review ? 'butter' : cat?.color || 'gray';
-  const who = t.kind === 'contribution' && t.contributor_id ? profiles[t.contributor_id]?.name : null;
+  // a transfer that came in from someone's personal space counts as money in here
+  const incoming = isIncoming(t, space?.id);
+  const who = incoming ? profiles[t.contributor_id || t.created_by || '']?.name : null;
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
-  let what = review ? 'Por revisar' : t.kind === 'contribution' ? `Aporte${who ? ` de ${who}` : ''}` : cat ? cat.name : KIND_LABEL[t.kind] || '';
+  let what = review ? 'Por revisar' : t.kind === 'transfer' ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || '';
   if (what === name) what = KIND_LABEL[t.kind] || '';
   if (t.hold === 'pending') what = 'Por confirmar';
   if (t.hold === 'void') what = 'No se cobró';
-  const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
-  const neutral = t.kind === 'transfer';
-  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  if (t.auto_flag === 'no_voucher') what = `${what} · Sin voucher`;
+  const way = transferWay(t, useContext(TxAccountScope));
+  const inflow = t.kind === 'income' || t.kind === 'refund' || incoming || way === 'in';
+  const neutral = t.kind === 'transfer' && !incoming && !way;
+  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : way === 'out' ? '−' : '' });
   const unit = unitOf(cur);
   const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t) };
   const context = size ?? (showDate ? 'sheet' : 'list');
@@ -44,7 +61,7 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
     return <TxRowView context={context} face={face} name={name} detail={review ? reviewLabel(t, categories) : what} detailTone={review ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} selecting selected={pick.selected} onClick={pick.onToggle} />;
   }
   // to review: the category line is a selector; the name still opens the detail
-  if (review && t.kind !== 'transfer') {
+  if (review) {
     return (
       <TxRowView
         context={context}
@@ -59,7 +76,7 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
     );
   }
   const detail = showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what;
-  return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
+  return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold || t.auto_flag ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
 }
 
 function amtTone(t: Tx, inflow: boolean, neutral: boolean): TxAmountTone {
@@ -79,15 +96,18 @@ const dateFmt = new Intl.DateTimeFormat('es-CR', { day: 'numeric', month: 'short
 
 /** Desktop: one movement as a table row (date, merchant, category, account, amount). Details live in the side sheet. */
 export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccount?: boolean; pick?: Pick }) {
-  const { categories, accounts, cur, fx, merchants } = useApp();
+  const { categories, accounts, cur, fx, merchants, profiles, space } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
-  const acc = accounts.find((a) => a.id === t.account_id);
-  const review = t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income'));
+  const incoming = isIncoming(t, space?.id);
+  const acc = accounts.find((a) => a.id === (incoming ? t.to_account_id : t.account_id));
+  const review = t.kind !== 'transfer' && (t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income')));
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
   const color = review ? 'butter' : cat?.color || 'gray';
-  const inflow = t.kind === 'income' || t.kind === 'contribution' || t.kind === 'refund';
-  const neutral = t.kind === 'transfer';
-  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' });
+  const way = transferWay(t, useContext(TxAccountScope));
+  const inflow = t.kind === 'income' || t.kind === 'refund' || incoming || way === 'in';
+  const neutral = t.kind === 'transfer' && !incoming && !way;
+  const who = incoming ? profiles[t.contributor_id || t.created_by || '']?.name : null;
+  const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : way === 'out' ? '−' : '' });
   const photo = txPhoto(merchants, t);
   const badge = txBadge(merchants, t);
   const open = pick ? pick.onToggle : () => go(`/mov/${t.id}`);
@@ -101,9 +121,9 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>
       <span role="cell" className={review ? 'tt-cat' : 'tt-cat muted'}>
-        {review && t.kind !== 'transfer' && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'contribution' ? 'Aporte' : cat ? cat.name : KIND_LABEL[t.kind] || ''}
+        {review && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'transfer' ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || ''}
       </span>
-      {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : t.kind === 'transfer' ? '' : 'Efectivo / SINPE'}</span>}
+      {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : ''}</span>}
       <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}<span className="tt-unit">{unitOf(cur)}</span></span>
     </div>
   );

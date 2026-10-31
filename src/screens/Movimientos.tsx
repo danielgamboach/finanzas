@@ -10,7 +10,7 @@ import { TX_SELECT, useApp, useTxs } from '../store';
 import type { Tx } from '../lib/types';
 import { Icon, Loading, Segmented, Sheet } from '../ui';
 import { restoreCategories, snapCategories } from '../lib/undo';
-import { canCategorize, TxRow, TxTableRow } from '../ui/TxRow';
+import { canCategorize, TxAccountScope, TxRow, TxTableRow } from '../ui/TxRow';
 import { useLongPress } from '../lib/longPress';
 import { groupByDay } from './Home';
 
@@ -44,8 +44,11 @@ function useSearch(q: string, spaceId: string | undefined, accountId: string | u
       if (cats.size) conds.push(`category_id.in.(${[...cats].join(',')})`);
       const n = Number(clean.replace(/\./g, '').replace(',', '.'));
       if (/^[\d.,]+$/.test(clean) && Number.isFinite(n) && n > 0) conds.push(`amount.eq.${n}`);
-      let query = db.from<Tx>('transactions', TX_SELECT).eq('space_id', spaceId);
-      query = accountId ? query.and(`or(${conds.join(',')})`, `or(account_id.eq.${accountId},to_account_id.eq.${accountId})`) : query.or(...conds);
+      const inSpace = `or(space_id.eq.${spaceId},to_space_id.eq.${spaceId})`;
+      let query = db.from<Tx>('transactions', TX_SELECT);
+      query = accountId
+        ? query.and(inSpace, `or(${conds.join(',')})`, `or(account_id.eq.${accountId},to_account_id.eq.${accountId})`)
+        : query.and(inSpace, `or(${conds.join(',')})`);
       query
         .order('occurred_at', false)
         .limit(300)
@@ -117,7 +120,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
       if (x.review && t.status !== 'review') return false;
       if (x.rec && !t.recurring_id) return false;
       if (x.kind === 'gastos' && t.kind !== 'expense' && t.kind !== 'refund') return false;
-      if (x.kind === 'ingresos' && t.kind !== 'income' && t.kind !== 'contribution') return false;
+      if (x.kind === 'ingresos' && t.kind !== 'income') return false;
       if (x.tag && !tagsOf(t).includes(x.tag)) return false;
       if (x.cat === 'none' && t.category_id) return false;
       if (fam && (!t.category_id || !fam.has(t.category_id))) return false;
@@ -214,10 +217,11 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
   const count = active.length + (pk !== 'month' ? 1 : 0);
 
   const inflow = f.kind === 'ingresos';
-  const total = inflow ? sumKind(filtered, 'income') + sumKind(filtered, 'contribution') : sumSpend(filtered);
+  const total = inflow ? sumKind(filtered, 'income') : sumSpend(filtered);
   const empty = searching ? `Nada con “${q.trim()}” en tus movimientos.` : review.length === 0 && f.review ? 'Nada por revisar.' : 'Nada con estos filtros.';
 
   return (
+    <TxAccountScope.Provider value={accountId || null}>
     <div className={table ? 'mb mb-table' : 'mb'}>
       <div className={home ? `mb-reveal${sheetOpen ? ' is-open' : ''}` : 'mb-controls'} aria-hidden={home && !sheetOpen ? true : undefined} inert={home && !sheetOpen ? true : undefined}>
       <div className="mb-reveal-inner">
@@ -352,6 +356,7 @@ export function MovementsBrowser({ accountId, autoFocus = false, screen = 'mov',
         />
       )}
     </div>
+    </TxAccountScope.Provider>
   );
 }
 

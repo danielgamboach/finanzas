@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionBar, AmountInput, Avatar, Bone, Button, FormSkeleton, Loader, Menu, MenuItem, SelectPill, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
-import { addPeriod, patternFrom } from '../lib/recurring';
+import { addPeriod, FREQ_LABEL, patternFrom } from '../lib/recurring';
+import { canPay, canReceiveIncome, canSendMoney } from '../lib/transfers';
 import { useDesktop } from '../lib/useDesktop';
 import { MerchantPhotoField } from '../ui/Merchant';
 import { MerchantInput } from '../ui/MerchantInput';
@@ -10,13 +11,15 @@ import { merchantSiblings, setMerchantCategory } from '../lib/merchantCategory';
 import { namePhoto, photoUrl, txMerchant } from '../lib/merchants';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
-import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
+import type { Account, Category, Currency, EveryUnit, Frequency, Tx, TxKind } from '../lib/types';
 import { closeModal, go, TX_SELECT, useApp } from '../store';
 import { Icon } from '../ui';
 
-type FormType = 'gasto' | 'ingreso' | 'transferir' | 'aporte';
-const TYPE_TO_KIND: Record<FormType, TxKind> = { gasto: 'expense', ingreso: 'income', transferir: 'transfer', aporte: 'contribution' };
-const KIND_TO_TYPE: Record<string, FormType> = { expense: 'gasto', refund: 'gasto', income: 'ingreso', transfer: 'transferir', contribution: 'aporte' };
+// "Aporte" is gone: money for a shared space is moved from one's own account to the space's (MOV-03)
+type FormType = 'gasto' | 'ingreso' | 'transferir';
+const TYPE_TO_KIND: Record<FormType, TxKind> = { gasto: 'expense', ingreso: 'income', transferir: 'transfer' };
+const KIND_TO_TYPE: Record<string, FormType> = { expense: 'gasto', refund: 'gasto', income: 'ingreso', transfer: 'transferir', contribution: 'transferir' };
+const FREQS: Frequency[] = ['weekly', 'biweekly', 'monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly', 'custom'];
 
 // typing keeps digits and one decimal comma; the field shows thousands with dots
 function rawAmount(v: string) {
@@ -46,19 +49,18 @@ const TYPE_META: Record<FormType, { label: string; icon: string; title: string; 
   gasto: { label: 'Gasto', icon: 'arrowUpRight', title: 'Nuevo gasto', save: 'Guardar gasto' },
   ingreso: { label: 'Ingreso', icon: 'arrowDownLeft', title: 'Nuevo ingreso', save: 'Guardar ingreso' },
   transferir: { label: 'Mover', icon: 'exchange', title: 'Mover dinero', save: 'Guardar movimiento' },
-  aporte: { label: 'Aporte', icon: 'handUsd', title: 'Nuevo aporte', save: 'Guardar aporte' },
 };
 
 const spaceColor = (kind?: string) => (kind === 'shared' ? 'mint' : 'sky');
 
 export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAmount?: boolean }) {
   const app = useApp();
-  const { spaces, members, profiles, userId, fx, toast, bump } = app;
+  const { spaces, userId, fx, toast, bump } = app;
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   const [loadingTx, setLoadingTx] = useState(Boolean(id));
   const [orig, setOrig] = useState<Tx | null>(null);
 
-  const [type, setType] = useState<FormType>((params.get('tipo') as FormType) || 'gasto');
+  const [type, setType] = useState<FormType>((params.get('tipo') === 'aporte' ? 'transferir' : (params.get('tipo') as FormType)) || 'gasto');
   const [spaceId, setSpaceId] = useState<string>(app.space?.id || spaces[0]?.id || '');
   const [cur, setCur] = useState<Currency>(app.cur || 'CRC');
   const [amount, setAmount] = useState('');
@@ -73,16 +75,21 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [spaceMenu, setSpaceMenu] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
-  const [contributor, setContributor] = useState<string>(userId);
   const [merchant, setMerchant] = useState('');
   const [when, setWhen] = useState(toInputDateTime(new Date().toISOString()));
   const [note, setNote] = useState('');
   const [repeat, setRepeat] = useState(false);
+  const [freq, setFreq] = useState<Frequency>('monthly');
+  const [everyN, setEveryN] = useState(10);
+  const [everyUnit, setEveryUnit] = useState<EveryUnit>('day');
+  const [autoCharge, setAutoCharge] = useState(false);
   const [remember, setRemember] = useState(true);
   const [applyAll, setApplyAll] = useState(true);
   const [siblings, setSiblings] = useState(0);
   const [cats, setCats] = useState<Category[]>([]);
   const [accs, setAccs] = useState<Account[]>([]);
+  // every account the person can reach: money can be moved to a shared space's account
+  const [allAccs, setAllAccs] = useState<Account[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // on the phone the bottom button follows the keyboard: amount → add the merchant, any other field → close the
@@ -120,7 +127,6 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
       setCategoryId(t.category_id || t.suggested_category_id || null);
       setAccountId(t.account_id);
       setToAccountId(t.to_account_id);
-      setContributor(t.contributor_id || userId);
       setMerchant(t.merchant || '');
       setWhen(toInputDateTime(t.occurred_at));
       const tg = tagsOf(t);
@@ -130,6 +136,10 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
       merchantSiblings(t).then((r) => setSiblings(r.length), () => setSiblings(0));
     });
   }, [id, userId]);
+
+  useEffect(() => {
+    db.from<Account>('accounts').eq('archived', false).order('created_at').then(setAllAccs, () => setAllAccs([]));
+  }, []);
 
   // categories and accounts for the selected space
   useEffect(() => {
@@ -144,18 +154,22 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   }, [spaceId]);
 
   const space = spaces.find((s) => s.id === spaceId);
-  const sharedSpaces = spaces.filter((s) => s.kind === 'shared');
+  // which accounts fit this kind of movement (CTA-12)
+  const fromAccs = accs.filter((a) => (type === 'ingreso' ? canReceiveIncome(a) : type === 'transferir' ? canSendMoney(a) : canPay(a)));
+  const cashId = accs.find((a) => a.system === 'cash')?.id || null;
+  // every movement has an account (MOV-02): the space's Efectivo unless another one fits
   useEffect(() => {
-    if (type === 'aporte' && space?.kind !== 'shared' && sharedSpaces[0]) setSpaceId(sharedSpaces[0].id);
+    if (!accs.length) return;
+    if (!accountId || !fromAccs.some((a) => a.id === accountId)) setAccountId(cashId || fromAccs[0]?.id || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [accs, type]);
 
   const kind = TYPE_TO_KIND[type];
+  const toSpaceId = allAccs.find((a) => a.id === toAccountId)?.space_id || (accs.some((a) => a.id === toAccountId) ? spaceId : null);
   const catKind = type === 'ingreso' ? 'income' : 'expense';
   const visibleCats = pickerOrder(cats.filter((c) => c.kind === catKind));
   const num = parseAmount(amount);
   const eq = cur === 'USD' ? moneyRaw(num * fx, 'CRC') : moneyRaw(num / fx, 'USD');
-  const spaceMembers = members.filter((m) => m.space_id === spaceId);
   const selectedCat = cats.find((c) => c.id === categoryId);
   const fromEmail = orig && (orig.source === 'email' || orig.source === 'import') && orig.raw_merchant;
   const categoryChanged = orig && categoryId && (categoryId !== orig.category_id || orig.status === 'review');
@@ -164,9 +178,20 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const canApplyAll = Boolean(categoryChanged && sameSpaceAndKind && siblings > 0 && merchant === orig?.merchant);
   const merchantName = (orig && txMerchant(app.merchants, orig)?.name) || orig?.merchant || 'este comercio';
 
-  const canSave = Boolean(num > 0 && spaceId && (type !== 'transferir' || (accountId || toAccountId)));
-  const missing = !(num > 0) ? 'amount' : type === 'transferir' && !accountId && !toAccountId ? 'accounts' : !spaceId ? 'space' : null;
-  const MISSING_TEXT = { amount: 'Falta el monto', accounts: 'Elegí de qué cuenta sale o a cuál entra', space: 'Elegí un espacio arriba a la derecha' } as const;
+  const isSpend = type === 'gasto' || type === 'ingreso';
+  const missing = !(num > 0) ? 'amount'
+    : !spaceId ? 'space'
+    : !accountId ? 'from'
+    : type === 'transferir' && !toAccountId ? 'to'
+    : type === 'transferir' && toAccountId === accountId ? 'same'
+    : isSpend && !categoryId ? 'category'
+    : repeat && freq === 'custom' && !(everyN > 0) ? 'every'
+    : null;
+  const canSave = !missing;
+  const MISSING_TEXT = {
+    amount: 'Falta el monto', space: 'Elegí un espacio arriba a la derecha', from: type === 'ingreso' ? 'Elegí a qué cuenta entra' : 'Elegí de qué cuenta sale',
+    to: 'Elegí a qué cuenta va', same: 'La cuenta de origen y la de destino son la misma', category: 'Elegí una categoría', every: 'Decí cada cuánto se repite',
+  } as const;
   const shownMissing = missing ? MISSING_TEXT[missing] : null;
   // a tap on the dimmed button: say what's missing and take you there
   const flagMissing = () => {
@@ -193,13 +218,14 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         currency: cur,
         fx_rate: fxRate,
         occurred_at,
-        merchant: merchant.trim() || (type === 'aporte' ? `Aporte de ${profiles[contributor]?.name || 'miembro'}` : selectedCat?.name || null),
+        merchant: merchant.trim() || (type === 'transferir' ? null : selectedCat?.name || null),
         note: cleanNote,
-        category_id: type === 'gasto' || type === 'ingreso' ? categoryId : null,
+        category_id: isSpend ? categoryId : null,
         account_id: accountId,
-        to_account_id: type === 'transferir' || type === 'aporte' ? toAccountId : null,
-        contributor_id: type === 'aporte' ? contributor : null,
-        status: (type === 'gasto' || type === 'ingreso') && !categoryId ? 'review' : 'posted',
+        to_account_id: type === 'transferir' ? toAccountId : null,
+        // who put the money, when it goes to another space (the other space shows "De Dani")
+        contributor_id: type === 'transferir' && toSpaceId && toSpaceId !== spaceId ? orig?.contributor_id || userId : null,
+        status: 'posted',
       };
       if (id && orig) {
         if (categoryId && (categoryId !== orig.category_id || orig.status === 'review')) row.category_source = 'manual';
@@ -214,17 +240,22 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         if (repeat) {
           const day = new Date(new Date(occurred_at).getTime() - 6 * 3600000).toISOString().slice(0, 10);
           const acc = accs.find((a) => a.id === accountId);
+          const custom = freq === 'custom';
           const [rec] = await db.insert<{ id: string }>('recurring', {
             space_id: spaceId,
-            kind: row.kind,
+            kind: row.kind === 'refund' ? 'expense' : row.kind,
             amount: row.amount,
             currency: cur,
             category_id: row.category_id,
             account_id: accountId,
-            merchant: row.merchant || 'Recurrente',
-            frequency: 'monthly',
-            next_due: addPeriod(day, 'monthly'),
-            method: acc?.kind === 'credit_card' ? 'card' : 'transfer',
+            to_account_id: row.to_account_id,
+            merchant: row.merchant || (type === 'transferir' ? 'Mover dinero' : 'Recurrente'),
+            frequency: freq,
+            every_n: custom ? everyN : null,
+            every_unit: custom ? everyUnit : null,
+            next_due: addPeriod(day, freq, custom ? everyN : null, custom ? everyUnit : null),
+            auto: autoCharge,
+            method: autoCharge && (acc?.kind === 'credit_card' || acc?.kind === 'debit' || acc?.kind === 'savings') ? 'card' : acc?.kind === 'cash' ? 'cash' : 'transfer',
             match_pattern: patternFrom(row.merchant) || null,
             last_paid_on: day,
           });
@@ -271,11 +302,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
     closeModal(true);
   }
 
-  const typeOptions = useMemo<[FormType, string][]>(() => {
-    const base: [FormType, string][] = [['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['transferir', 'Mover']];
-    if (sharedSpaces.length) base.push(['aporte', 'Aporte']);
-    return base;
-  }, [sharedSpaces.length]);
+  const typeOptions = useMemo<[FormType, string][]>(() => [['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['transferir', 'Mover']], []);
 
   // the space menu closes with Esc before the form does
   useEffect(() => {
@@ -291,7 +318,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
   const meta = TYPE_META[type];
   const title = id ? 'Editar movimiento' : meta.title;
-  const spaceChoices = spaces.filter((s) => type !== 'aporte' || s.kind === 'shared');
+  const spaceChoices = spaces;
   const pickSpace = (sid: string) => {
     setSpaceMenu(false);
     if (sid === spaceId) return;
@@ -356,14 +383,23 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
     );
   }
 
-  const isSpend = type === 'gasto' || type === 'ingreso';
-  const accName = (aid: string | null, empty: string) => accs.find((a) => a.id === aid)?.name || empty;
-  const accOptions = (empty: string) => (
+  const accName = (aid: string | null, empty: string) => allAccs.find((a) => a.id === aid)?.name || accs.find((a) => a.id === aid)?.name || empty;
+  const opt = (a: Account) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>;
+  const fromOptions = (
     <>
-      <option value="">{empty}</option>
-      {accs.map((a) => (
-        <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
-      ))}
+      {!accountId && <option value="" disabled>Elegir cuenta</option>}
+      {fromAccs.map(opt)}
+    </>
+  );
+  // destination: this space's accounts first, then the other spaces' (moving money to a shared space)
+  const destByspace = spaces
+    .map((sp) => [sp, (sp.id === spaceId ? accs : allAccs.filter((a) => a.space_id === sp.id)).filter((a) => a.id !== accountId)] as const)
+    .filter(([, list]) => list.length)
+    .sort(([a], [b]) => Number(b.id === spaceId) - Number(a.id === spaceId));
+  const toOptions = (
+    <>
+      <option value="" disabled>Elegir cuenta</option>
+      {destByspace.map(([sp, list]) => <optgroup key={sp.id} label={sp.id === spaceId ? sp.name : `${sp.name} (otro espacio)`}>{list.map(opt)}</optgroup>)}
     </>
   );
   const typeSel = (
@@ -398,9 +434,9 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
             {typeSel}
             {isSpend && (
               <>
-                {conn('en')}
-                <SelectPill label={accName(accountId, 'Efectivo')} value={accountId || ''} onChange={(v) => setAccountId(v || null)} ariaLabel="Cuenta">
-                  {accOptions('Efectivo o SINPE')}
+                {conn(type === 'ingreso' ? 'a' : 'en')}
+                <SelectPill label={accName(accountId, 'Elegir')} value={accountId || ''} onChange={(v) => setAccountId(v || null)} ariaLabel="Cuenta">
+                  {fromOptions}
                 </SelectPill>
               </>
             )}
@@ -408,23 +444,11 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               <>
                 {conn('de')}
                 <SelectPill label={accName(accountId, 'Elegir')} value={accountId || ''} onChange={(v) => setAccountId(v || null)} ariaLabel="Desde">
-                  {accOptions('Elegir cuenta')}
+                  {fromOptions}
                 </SelectPill>
                 {conn('a')}
                 <SelectPill label={accName(toAccountId, 'Elegir')} value={toAccountId || ''} onChange={(v) => setToAccountId(v || null)} ariaLabel="Hacia">
-                  {accOptions('Elegir cuenta')}
-                </SelectPill>
-              </>
-            )}
-            {type === 'aporte' && (
-              <>
-                {conn('de')}
-                <SelectPill emoji={profiles[contributor]?.emoji} label={profiles[contributor]?.name || 'Miembro'} value={contributor} onChange={setContributor} ariaLabel="¿Quién aporta?">
-                  {spaceMembers.map((m) => <option key={m.user_id} value={m.user_id}>{profiles[m.user_id]?.name || 'Miembro'}</option>)}
-                </SelectPill>
-                {conn('a')}
-                <SelectPill label={accName(toAccountId, 'Elegir')} value={toAccountId || ''} onChange={(v) => setToAccountId(v || null)} ariaLabel="Hacia">
-                  {accOptions('Elegir cuenta')}
+                  {toOptions}
                 </SelectPill>
               </>
             )}
@@ -445,7 +469,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                 next();
               }
             }}
-            positive={type === 'ingreso' || type === 'aporte'}
+            positive={type === 'ingreso'}
             unit={cur}
             onUnit={() => setCur((c) => (c === 'CRC' ? 'USD' : 'CRC'))}
             unitLabel={cur === 'CRC' ? 'En colones. Cambiar a dólares' : 'En dólares. Cambiar a colones'}
@@ -478,9 +502,9 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
               onDone={doneTyping}
               spaceId={spaceId}
               cats={cats}
-              suggest={type !== 'aporte'}
+              suggest={type !== 'transferir'}
               countWord={type === 'gasto' ? ['compra', 'compras'] : ['vez', 'veces']}
-              placeholder={type === 'aporte' ? 'detalle (opcional)' : type === 'transferir' ? '¿para qué? (opcional)' : 'comercio o detalle'}
+              placeholder={type === 'transferir' ? '¿para qué? (opcional)' : 'comercio o detalle'}
               after={faces}
             />
           </div>
@@ -501,7 +525,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                   }}
                   ariaLabel="Categoría"
                 >
-                  <option value="">Sin categoría</option>
+                  {!categoryId && <option value="" disabled>Elegir categoría</option>}
                   {visibleCats.map((c) => (
                     <option key={c.id} value={c.id}>{c.parent_id ? '   ' : ''}{c.emoji} {c.name}</option>
                   ))}
@@ -533,7 +557,37 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                   <Switch checked={repeat} label="Recurrente" onChange={setRepeat} />
                 </div>
               )}
-              {type === 'transferir' && <span className="hint">Mover no cuenta como gasto ni ingreso, así el balance no se duplica.</span>}
+              {!id && repeat && (
+                <div className="txf-repeat field-card">
+                  <label className="field-row">
+                    <span>Cada cuánto</span>
+                    <select value={freq} onChange={(e) => setFreq(e.target.value as Frequency)}>
+                      {FREQS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
+                    </select>
+                  </label>
+                  {freq === 'custom' && (
+                    <label className="field-row">
+                      <span>Cada</span>
+                      <span className="row gap8">
+                        <input className="txf-every" inputMode="numeric" value={everyN || ''} onChange={(e) => setEveryN(Number(e.target.value.replace(/\D/g, '').slice(0, 3)))} aria-label="Cada cuántos" />
+                        <select value={everyUnit} onChange={(e) => setEveryUnit(e.target.value as EveryUnit)} aria-label="Unidad">
+                          <option value="day">días</option>
+                          <option value="week">semanas</option>
+                          <option value="month">meses</option>
+                        </select>
+                      </span>
+                    </label>
+                  )}
+                  <label className="field-row">
+                    <span>Cómo se paga</span>
+                    <select value={autoCharge ? 'auto' : 'manual'} onChange={(e) => setAutoCharge(e.target.value === 'auto')}>
+                      <option value="manual">Pago manual</option>
+                      <option value="auto">Cargo automático</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+              {type === 'transferir' && <span className="hint">Mover no cuenta como gasto ni ingreso, pero sí cambia el saldo de las dos cuentas.</span>}
 
               <Button
                 variant="link"

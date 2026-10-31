@@ -18,7 +18,7 @@ Qué puede hacer cada tipo de cuenta, cómo se calcula lo que hay en cada una, l
 
 ### CTA-12 · Qué puede hacer cada tipo de cuenta
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cada tipo de cuenta funciona distinto. El formulario de movimientos solo ofrece las cuentas que sirven para ese movimiento.
 
@@ -37,19 +37,21 @@ Cada tipo de cuenta funciona distinto. El formulario de movimientos solo ofrece 
 - **Cuando** abro "Nuevo gasto" y toco la cuenta
 - **Entonces** puedo elegir Débito BAC y Efectivo, pero no el CDP ni el Préstamo carro
 
-**Hoy:** cualquier cuenta sirve para cualquier movimiento.
+La base también lo valida: un gasto con un préstamo, por ejemplo, se rechaza aunque llegue por otro lado. La regla se aplica al crear un movimiento o al cambiarle la cuenta o el tipo; los movimientos viejos no se tocan.
+
+<sub>Dónde vive: `check_tx_refs` en la base; `canPay`, `canReceiveIncome` y `canSendMoney` en `src/lib/transfers.ts`.</sub>
 
 ### CTA-13 · Todo espacio tiene una cuenta de Efectivo
 
-**Estado:** Falta
+**Estado:** Hecho
 
-Cada espacio tiene siempre una cuenta "Efectivo" en colones, creada sola junto con el espacio. Se le puede cambiar el nombre, pero no se puede eliminar ni archivar. Es la cuenta por defecto de un movimiento cuando la persona no elige otra (MOV-02).
+Cada espacio tiene siempre una cuenta "Efectivo" en colones, creada sola junto con el espacio. Se le puede cambiar el nombre, pero no se puede eliminar, archivar ni cambiar de tipo o de espacio. Es la cuenta por defecto de un movimiento cuando la persona no elige otra (MOV-02). No cuenta como el paso "Agregá una cuenta" de Primeros pasos.
 
-**Hoy:** "Efectivo" no existe como cuenta: en el formulario significa "sin cuenta".
+<sub>Dónde vive: `accounts.system = 'cash'`, `cash_account()` y `protect_cash_account` en la base.</sub>
 
 ### CTA-14 · El efectivo puede llevar saldo o no
 
-**Estado:** Falta
+**Estado:** Hecho
 
 La cuenta Efectivo tiene un interruptor "Llevar saldo", apagado por defecto.
 
@@ -57,6 +59,8 @@ La cuenta Efectivo tiene un interruptor "Llevar saldo", apagado por defecto.
 |---|---|
 | Apagado | Los movimientos se registran (cuentan en el gasto del mes), pero la cuenta no muestra saldo, no suma al patrimonio ni cuenta como saldo sin actualizar |
 | Encendido | Funciona igual que una cuenta de débito: saldo escrito más movimientos |
+
+Se cambia en la cuenta → Editar → "Llevar saldo".
 
 ### CTA-15 · Una cuenta puede tener tarjeta de débito
 
@@ -181,7 +185,7 @@ En una tarjeta, una devolución baja lo que se debe (TAR-01).
 
 ### CTA-08 · Un aporte suma a la cuenta que lo recibe
 
-**Estado:** Se elimina. Los aportes pasan a ser Mover dinero entre espacios (MOV-03).
+**Estado:** Eliminada. Los aportes ahora son Mover dinero entre espacios (MOV-03), que sí baja la cuenta de origen.
 
 Un aporte es dinero que una persona pone en un espacio compartido (por ejemplo, la parte de cada uno para los gastos de la casa).
 
@@ -297,9 +301,11 @@ Al mover dinero a un préstamo se puede marcar "Abono extraordinario". Todo el m
 
 ### PRE-05 · Un préstamo solo recibe dinero
 
-**Estado:** Falta
+**Estado:** Parcial
 
 Un préstamo no paga gastos ni manda dinero a otras cuentas (CTA-12). Solo recibe cuotas y abonos desde otras cuentas. Si tiene día de pago, el recurrente de la cuota es un Mover dinero mensual desde la cuenta que se elija.
+
+**Hoy:** las restricciones ya se aplican; falta el día de pago con su recurrente (REC-10).
 
 ## CDP
 
@@ -343,7 +349,7 @@ El día del vencimiento, Inicio avisa que el CDP venció y ofrece: **Renovar** (
 
 ### CDP-04 · Un CDP no paga cosas
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Un CDP no paga gastos (CTA-12), pero se le puede sacar dinero con Mover dinero, por ejemplo al cancelarlo antes de tiempo.
 
@@ -351,11 +357,11 @@ Un CDP no paga gastos (CTA-12), pero se le puede sacar dinero con Mover dinero, 
 
 ### INV-01 · Una inversión vale lo que se escribe
 
-**Estado:** Parcial
+**Estado:** Hecho
 
 El valor de una inversión cambia con el mercado, así que su número es el último valor escrito a mano (Saldos) más el dinero que entra o sale con Mover dinero o ingresos (rendimientos). No paga gastos (CTA-12). Muestra el cambio contra el valor anterior (PAT-03).
 
-**Hoy:** funciona así, pero también acepta gastos.
+
 
 ---
 
@@ -427,16 +433,16 @@ En la vista de una tarjeta que debe algo, el botón "Ya la pagué" registra el p
 
 <sub>Dónde vive: `CardPaid` en `src/screens/Patrimonio.tsx`.</sub>
 
-### TAR-05 · Pago semanal de la tarjeta en el espacio compartido
+### TAR-05 · Pago semanal de las tarjetas (opcional)
 
-**Estado:** Revisar. Es el acuerdo de Dani y Kimmy aplicado a todo espacio compartido (PRI-01); debería ser un recurrente que cada espacio crea si quiere.
+**Estado:** Hecho
 
-En un espacio compartido, cada semana aparece "Pago de tarjeta" (en Inicio y en Recurrentes) con lo que se cargó a las tarjetas del espacio la semana anterior. La semana empieza el día configurado en el espacio (viernes por defecto).
+Cualquier espacio con tarjetas puede activar en Ajustes → Espacios "Pago semanal de las tarjetas". Viene apagado; quedó encendido en los espacios compartidos que ya lo usaban. Con él activo, cada semana aparece "Pago de tarjeta" (en Inicio y en Recurrentes) con lo que se cargó a las tarjetas del espacio la semana anterior, y llega un aviso el día que empieza la semana del espacio (configurable en el mismo lugar; lunes por defecto en espacios nuevos).
 
-- **Dado** que la semana pasada (viernes a jueves) se cargaron ¢80.000 entre todas las tarjetas del espacio
+- **Dado** que el espacio tiene activo el pago semanal y la semana pasada se cargaron ¢80.000 entre todas sus tarjetas
 - **Y** esta semana van ¢15.000
 - **Cuando** toco "Pagué"
-- **Entonces** se registra un pago de ¢80.000 desde la cuenta de débito del espacio
+- **Entonces** se registra un pago de ¢80.000 desde la cuenta de débito en colones del espacio
 - **Y** todas las tarjetas del espacio quedan pagadas hasta el final de la semana pasada
 - **Y** las tarjetas deben solo los ¢15.000 de esta semana
 - **Y** el aviso de pago no vuelve a aparecer hasta la semana siguiente
@@ -444,11 +450,9 @@ En un espacio compartido, cada semana aparece "Pago de tarjeta" (en Inicio y en 
 | Variante | Resultado esperado |
 |---|---|
 | La semana pasada no hubo cargos | No aparece el aviso |
-| Es un espacio personal | No aparece el aviso |
+| El pago semanal está apagado | No aparece el aviso; cada tarjeta se paga con "Ya la pagué" o con Mover dinero |
 
-> Ver la pregunta abierta 4: de qué cuenta sale.
-
-<sub>Dónde vive: `useCardPayment` en `src/screens/Recurrentes.tsx`; el pago lleva `external_id = card-week:<inicio de semana>`.</sub>
+<sub>Dónde vive: `spaces.card_weekly`, `useCardPayment` en `src/screens/Recurrentes.tsx`, `card_payment_reminders` en la base; el pago lleva `external_id = card-week:<inicio de semana>`.</sub>
 
 ### TAR-06 · Cargos en dólares
 
@@ -539,7 +543,7 @@ Cosas que el app hace hoy y que hay que confirmar si son a propósito. Al contes
 
 **3. ~~Un aporte no baja la cuenta de donde sale.~~** Resuelta: los aportes se eliminan y pasan a ser Mover dinero entre espacios, que sí baja la cuenta de origen (MOV-03).
 
-**4. El pago semanal sale de la primera cuenta de débito, sin mirar la moneda.** "Ya la pagué" prefiere la cuenta de débito en colones; el pago semanal del compartido toma la primera que encuentre, aunque sea en dólares. ¿Deberían comportarse igual?
+**4. ~~El pago semanal sale de la primera cuenta de débito, sin mirar la moneda.~~** Resuelta: los dos prefieren la cuenta de débito en colones.
 
 **5. ¿Sigue teniendo sentido "saldos sin actualizar" a los 10 días?** Antes el saldo solo cambiaba al escribirlo; ahora los movimientos lo mueven solo. Escribirlo cada tanto sigue sirviendo para corregir lo que el app no vio (comisiones, intereses), pero tal vez 10 días es muy poco y el aviso se vuelve ruido.
 
