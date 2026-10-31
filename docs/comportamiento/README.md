@@ -1,21 +1,47 @@
 # Comportamiento de Kai Finance
 
-Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar a mano. Es la fuente de verdad del *qué*: si el app hace algo distinto a lo que dice aquí, es un bug o la regla está desactualizada.
+Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar a mano. Es la fuente de verdad del *qué*: si el app hace algo distinto a lo que dice aquí, es un bug, algo por construir o la regla está desactualizada.
 
 `CLAUDE.md` explica cómo está construido el app. Estos documentos explican qué tiene que pasar, sin depender de cómo esté hecho por dentro.
 
 ## Dominios
 
-| Archivo | Qué cubre | Estado |
-|---|---|---|
-| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Saldos, tarjetas, préstamos, patrimonio neto y metas | Primer borrador |
-| movimientos.md | Crear, editar, eliminar, deshacer, tipos de movimiento | Por escribir |
-| presupuesto.md | Gasto del mes, límites por categoría, "Disponible" | Por escribir |
-| recurrentes.md | Próximos, pagos pendientes, variables, pago semanal de la tarjeta | Por escribir |
-| categorizacion.md | Reglas, historial del comercio, IA, "Por revisar" | Por escribir |
-| ingesta.md | Vouchers del BAC, preautorizaciones de Uber y Didi | Por escribir |
-| suscripciones.md | "¿Es una suscripción?" y recibos de Apple | Por escribir |
-| espacios.md | Personal y compartido, invitaciones, aportes | Por escribir |
+| Archivo | Qué cubre | Hecho | Parcial | Falta |
+|---|---|---|---|---|
+| [principios.md](principios.md) | Público general, manual primero, historial, borrar es borrar | | 2 | 2 |
+| [espacios.md](espacios.md) | Personal y compartidos, abandonar, eliminar | 3 | | 3 |
+| [cuentas-y-saldos.md](cuentas-y-saldos.md) | Tipos de cuenta, saldos, efectivo, préstamos, CDP, inversiones, tarjetas, patrimonio, metas | 20 | 2 | 11 |
+| [movimientos.md](movimientos.md) | Tipos, cuenta y categoría obligatorias, mover entre espacios | 1 | 4 | 1 |
+| [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, ignorar, posponer | 3 | 4 | 3 |
+| [categorias.md](categorias.md) | Subcategorías, límites, fijas | 3 | 1 | |
+| [importar-estados.md](importar-estados.md) | Subir estados de cuenta del BAC en PDF | | | 7 |
+| presupuesto.md | Gasto del mes, "Disponible", Mis finanzas | | | Por escribir |
+| automatico.md | Vouchers, preautorizaciones, "¿Es una suscripción?", Apple | | | Por escribir |
+
+Además, en cuentas-y-saldos.md una regla se elimina (CTA-08, los aportes) y una está por revisar (TAR-05, el pago semanal de la tarjeta).
+
+## Estado de cada regla
+
+Cada regla dice debajo del título cómo está hoy el app:
+
+| Estado | Significa |
+|---|---|
+| **Hecho** | El app ya se comporta así. Si al probarlo no coincide, es un bug |
+| **Parcial** | Una parte existe. La línea **Hoy:** dice qué falta o qué es distinto |
+| **Falta** | Todavía no existe |
+| **Revisar** | Existe, pero choca con un principio y hay que replantearlo |
+| **Se elimina** | Existe y va a desaparecer |
+
+## Qué falta, en orden sugerido
+
+1. **Base de cuentas y movimientos.** Cuenta de Efectivo en cada espacio (CTA-13, CTA-14), todo movimiento con cuenta (MOV-02), qué puede hacer cada tipo de cuenta (CTA-12), los aportes pasan a Mover dinero entre espacios (MOV-01, MOV-03) y categoría siempre asignada (MOV-04). Va primero porque todo lo demás se apoya en esto, y hay que convertir los datos que ya existen.
+2. **Quitar lo que es solo de Dani y Kimmy.** El pago semanal de la tarjeta se vuelve un recurrente normal, la semana empieza el lunes y es configurable, los vouchers pasan a una sección Avanzado (PRI-01, PRI-02).
+3. **Recurrentes.** Hoja de Pagar con cuenta, monto y fecha (REC-06), ignorar, posponer y cancelar (REC-07), cargos automáticos que se registran solos (REC-08), automático o manual elegido por la persona (REC-02) y frecuencia personalizada (REC-01).
+4. **Abandonar y eliminar espacios** con borrado definitivo (ESP-03 a ESP-05).
+5. **Préstamos y CDP** con sus datos y cálculos (PRE-02 a PRE-05, CDP-01 a CDP-04).
+6. **Importar estados de cuenta del BAC** (IMP). Se puede adelantar en paralelo: hace falta un PDF de ejemplo de cada tipo, con los datos sensibles tapados.
+
+Cada archivo termina con **Preguntas abiertas**. Las de los puntos 1 y 3 conviene contestarlas antes de empezar.
 
 ## Cómo leer una regla
 
@@ -27,7 +53,7 @@ Cuando   lo que hace la persona (o lo que llega del banco)
 Entonces lo que se debe ver después
 ```
 
-Al final de cada regla, una línea chica de **Dónde vive** dice qué parte del código la implementa. No hace falta leerla para entender la regla.
+Al final de algunas reglas, una línea chica de **Dónde vive** dice qué parte del código la implementa. No hace falta leerla para entender la regla.
 
 ## Cómo cambiar algo
 
@@ -47,18 +73,24 @@ Si algo del app no coincide con una regla y no sabés cuál de los dos está mal
 > Duda: en el app el saldo quedó en ¢1.650.000, la regla dice ¢1.700.000.
 ```
 
-## Preguntas abiertas
-
-Cada archivo termina con una sección de **Preguntas abiertas**: cosas que el app hace hoy de una forma que podría ser un bug o una decisión que nunca se tomó a propósito. Hay que contestarlas y convertirlas en regla.
+Para contestar una pregunta abierta, escribí la respuesta debajo de la pregunta. Claude la convierte en regla.
 
 ## IDs
 
 | Prefijo | Tema |
 |---|---|
-| CTA | Saldos de cuentas (no tarjetas) |
+| PRI | Principios |
+| ESP | Espacios |
+| CTA | Cuentas y saldos (no tarjetas) |
 | PRE | Préstamos |
+| CDP | Certificados de depósito |
+| INV | Inversiones |
 | TAR | Tarjetas de crédito |
 | PAT | Patrimonio neto |
 | MET | Metas |
+| MOV | Movimientos |
+| REC | Recurrentes |
+| CAT | Categorías |
+| IMP | Importar estados de cuenta |
 
 Un ID no se reutiliza: si una regla se elimina, su número queda libre para siempre. Así un test o una nota que mencione `CTA-04` nunca apunta a otra cosa.
