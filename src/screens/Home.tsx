@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
-import { buildPlan, usePlanData } from '../lib/budget';
+import { envelopesSpan, envelopeStats, toSpend, useEnvelopes } from '../lib/envelopes';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
 import { byKind } from '../lib/accounts';
@@ -67,14 +67,17 @@ export function useHomeSummary() {
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
   const { txs, loading } = useTxs(range);
-  const pd = usePlanData(space?.id);
+  const envs = useEnvelopes(space?.id);
+  // the envelopes' periods can start before this month (a week that began on the 29th)
+  const envSpan = useMemo(() => envelopesSpan(space?.week_start ?? 1), [space?.week_start]);
+  const { txs: envTxs } = useTxs(envSpan);
   if (!space) return null;
-  // PRS-07: with an income, "Disponible" is what's left after savings, payments (paid or not) and spending
-  const plan = pd ? buildPlan({ ym: [t.y, t.m], spaceId: space.id, txs, categories, accounts, fx, ...pd }) : null;
+  // SOB-07: "Para gastar" is what's left in the current period of every envelope with an amount
+  const toSpendNow = envs ? toSpend(envelopeStats({ ...envs, categories, txs: envTxs, spaceId: space.id, weekStart: space.week_start ?? 1, fx })) : null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
-  const budget = monthBudget(categories);
+  const budget = 0; // category limits moved to envelopes (SOB-09)
 
   // same day of last month; only when we really have last month's data
   const pl = crLocal(prevMonth.from);
@@ -87,10 +90,10 @@ export function useHomeSummary() {
   const shared = space.kind === 'shared';
   let label: string, value: number, negative = false;
   let delta: { text: string; good: boolean } | null = null;
-  if (plan && plan.available !== null) {
-    value = Math.abs(plan.available);
-    negative = plan.available < 0;
-    label = negative ? (shared ? 'Se pasaron del ingreso' : 'Te pasaste del ingreso') : `Disponible en ${monthName(t.m)}`;
+  if (toSpendNow) {
+    value = Math.abs(toSpendNow.left);
+    negative = toSpendNow.left < 0;
+    label = negative ? (shared ? 'Se pasaron del presupuesto' : 'Te pasaste del presupuesto') : 'Para gastar';
   } else if (budget > 0) {
     const avail = budget - spent;
     value = Math.abs(avail);
@@ -136,7 +139,7 @@ export function useHomeSummary() {
 
   const peek = accounts.filter((a) => !a.archived).sort(byKind).slice(0, 3);
   const recent = txs.filter((x) => x.occurred_at <= nowIso).slice(0, 14);
-  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, merchants, peek, recent, loading, txs };
+  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, toSpend: toSpendNow, merchants, peek, recent, loading, txs };
 }
 
 type HomeSummary = NonNullable<ReturnType<typeof useHomeSummary>>;
@@ -184,8 +187,9 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
       title: `Gastado: ${amount(s.total, cur, fx)} ${unit}. Antes, a esta altura: ${amount(s.prevTotal, cur, fx)} ${unit}`,
     };
   }
-  const avail = h.budget - h.spent;
-  const available = h.budget > 0 ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0 } : null;
+  // SOB-07: what's left in the envelopes
+  const avail = h.toSpend?.left ?? 0;
+  const available = h.toSpend ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0, label: 'Para gastar' } : null;
 
   return (
     <>

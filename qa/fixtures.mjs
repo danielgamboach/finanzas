@@ -126,13 +126,17 @@ export const tables = {
     { id: 's2', account_id: 'a-deb', balance: 812000, taken_on: day(-2) },
     { id: 's3', account_id: 'a-visa', balance: 180000, balance_usd: 15, taken_on: day(-25) },
   ],
-  budget_months: [{ space_id: SPACE, month: `${day(0).slice(0, 7)}-01`, income: 1200000, closed_at: null, carried: null }],
-  budget_savings: [
-    { id: 'bs-emerg', space_id: SPACE, name: 'Emergencias', amount: 100000, currency: 'CRC', goal_id: null, active: true, sort: 1 },
-    { id: 'bs-casa', space_id: SPACE, name: 'Casa propia', amount: 150000, currency: 'CRC', goal_id: 'g-casa', active: true, sort: 2 },
+  envelopes: [
+    { id: 'e-super', space_id: SPACE, name: 'Súper', amount: 50000, currency: 'CRC', period: 'weekly', is_rest: false, sort: 1 },
+    { id: 'e-ocio', space_id: SPACE, name: 'Suscripciones y ocio', amount: 60000, currency: 'CRC', period: 'monthly', is_rest: false, sort: 2 },
+    { id: 'e-serv', space_id: SPACE, name: 'Servicios', amount: 80000, currency: 'CRC', period: 'monthly', is_rest: false, sort: 3 },
+    { id: 'e-rest', space_id: SPACE, name: 'Todo lo demás', amount: null, currency: 'CRC', period: 'monthly', is_rest: true, sort: 1000 },
   ],
-  budget_carry: [],
-  budget_saving_marks: [],
+  envelope_categories: [
+    { category_id: 'c-super', envelope_id: 'e-super' },
+    { category_id: 'c-ocio', envelope_id: 'e-ocio' },
+    { category_id: 'c-serv', envelope_id: 'e-serv' },
+  ],
   apple_receipts: [],
   ingest_unmatched: [],
   recurring_dismissals: [],

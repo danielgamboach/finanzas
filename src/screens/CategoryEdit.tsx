@@ -28,9 +28,6 @@ export function CategoryEdit({ id }: { id: string }) {
   const [emoji, setEmoji] = useState(existing?.emoji || '✨');
   const [color, setColor] = useState(existing?.color || 'mint');
   const [kind, setKind] = useState<Category['kind']>(existing?.kind || categories.find((c) => c.id === parentId)?.kind || 'expense');
-  const [period, setPeriod] = useState<'monthly' | 'weekly' | 'none'>(existing?.limit_period || (existing?.limit_amount ? 'monthly' : isNew ? 'monthly' : 'none'));
-  const [limit, setLimit] = useState(existing?.limit_amount ? String(existing.limit_amount) : '');
-  const [fixed, setFixed] = useState(existing?.is_fixed || false);
   const [moveTo, setMoveTo] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,9 +41,6 @@ export function CategoryEdit({ id }: { id: string }) {
     setEmoji(existing.emoji || '✨');
     setColor(existing.color || 'mint');
     setKind(existing.kind);
-    setPeriod(existing.limit_period || (existing.limit_amount ? 'monthly' : 'none'));
-    setLimit(existing.limit_amount ? String(existing.limit_amount) : '');
-    setFixed(existing.is_fixed || false);
   }, [existing]);
   const t = todayCR();
   const range = useMemo(() => ({ from: crIso(t.y, t.m - 5, 1), to: crIso(t.y, t.m + 1, 1) }), [t.y, t.m]);
@@ -61,7 +55,7 @@ export function CategoryEdit({ id }: { id: string }) {
     const r = monthRange(d.getUTCFullYear(), d.getUTCMonth());
     return { m: d.getUTCMonth(), v: sumSpend(mine.filter((x) => inRange(x, r))) };
   });
-  const max = Math.max(...months.map((m) => m.v), existing?.limit_amount ? Number(existing.limit_amount) : 0, 1);
+  const max = Math.max(...months.map((m) => m.v), 1);
   const thisMonth = mine.filter((x) => inRange(x, monthRange(t.y, t.m)));
 
   async function save() {
@@ -74,10 +68,6 @@ export function CategoryEdit({ id }: { id: string }) {
       color,
       kind: parent ? parent.kind : kind,
       parent_id: parent ? parent.id : null,
-      // budgets live on the parent
-      limit_amount: parent || period === 'none' || !limit ? null : parseAmount(limit),
-      limit_period: parent || period === 'none' ? null : period,
-      is_fixed: parent ? false : fixed,
     };
     try {
       if (isNew) await db.insert('categories', { ...row, sort: categories.length + 1 });
@@ -153,7 +143,7 @@ export function CategoryEdit({ id }: { id: string }) {
           {kids.length > 0
             ? 'Tiene subcategorías, así que se queda como principal.'
             : parent
-              ? `Sus gastos suman al presupuesto de ${parent.name}. El límite se define allá.`
+              ? `Sus gastos también cuentan en ${parent.name}.`
               : 'Elegí una principal si querés que sea una subcategoría (ej. Bares dentro de Salidas).'}
         </span>
       </div>
@@ -161,31 +151,12 @@ export function CategoryEdit({ id }: { id: string }) {
       {!parent && (
       <div className="card pad col gap14">
         <Segmented value={kind} options={[['expense', 'Gasto'], ['income', 'Ingreso']]} onChange={setKind} />
-        {kind === 'expense' && (
-          <>
-            <span className="field-label">Límite</span>
-            <Segmented value={period} options={[['monthly', 'Mensual'], ['weekly', 'Semanal'], ['none', 'Sin límite']]} onChange={setPeriod} dark={false} />
-            {period !== 'none' && (
-              <label className="amount-input small">
-                <span className="amount-sym">¢</span>
-                <input inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" aria-label="Monto del límite en colones" />
-              </label>
-            )}
-            {period === 'weekly' && <span className="hint">La semana empieza el viernes, igual que el pago de la tarjeta.</span>}
-            <div className="field-row bare">
-              <span className="col">
-                <span>Gasto fijo</span>
-                <small>Alquiler, servicios… no genera alertas al llegar al 100%</small>
-              </span>
-              <Switch checked={fixed} label="Gasto fijo" onChange={() => setFixed((f) => !f)} />
-            </div>
-          </>
-        )}
+        <span className="hint">Las categorías solo clasifican. Cuánto gastar se define en los sobres de Presupuesto.</span>
       </div>
       )}
 
       {!isNew && !parent && existing && (
-        <ListGroup title="Subcategorías" action={<a href={`#/categoria/nueva?parent=${existing.id}`}>Nueva</a>} note={kids.length === 0 ? 'Sirven para detallar sin partir el presupuesto, por ejemplo Bares y Café dentro de Salidas.' : undefined}>
+        <ListGroup title="Subcategorías" action={<a href={`#/categoria/nueva?parent=${existing.id}`}>Nueva</a>} note={kids.length === 0 ? 'Sirven para detallar, por ejemplo Bares y Café dentro de Salidas.' : undefined}>
           {kids.length === 0 ? (
             <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar subcategoría" chevron href={`#/categoria/nueva?parent=${existing.id}`} />
           ) : kids.map((k) => (
@@ -282,22 +253,7 @@ export function CategoryView({ id }: { id: string }) {
   const subTotals = new Map<string, number>();
   mine.filter((x) => inRange(x, month)).forEach((x) => subTotals.set(x.category_id!, (subTotals.get(x.category_id!) || 0) + (cat.kind === 'income' ? Number(x.amount_crc) : sumSpend([x]))));
   const total = cat.kind === 'income' ? inMonth.reduce((a, x) => a + Number(x.amount_crc), 0) : sumSpend(inMonth);
-  const weekly = cat.limit_period === 'weekly';
-  const limit = cat.limit_amount ? Number(cat.limit_amount) : null;
-  const monthLike = pk === 'month' || pk === 'lastmonth' || pk.startsWith('m:');
-  const weekLike = pk === 'week' || pk === 'lastweek';
-  // the limit bar only makes sense when the period matches the limit's period
-  const showLimit = limit !== null && (weekly ? weekLike || isCurrent : monthLike);
-  const periodSpent = weekly && isCurrent ? sumSpend(mine.filter((x) => inRange(x, week))) : famTotal;
-  const pct = limit ? Math.round((periodSpent / limit) * 100) : null;
   const groups = groupByDay(inMonth);
-  // PRS-04: the pace of a monthly limit, only here (the budget row just says what's left)
-  const tc = todayCR();
-  const restDays = new Date(Date.UTC(tc.y, tc.m + 1, 0)).getUTCDate() - tc.d + 1;
-  const left = limit !== null ? limit - famTotal : 0;
-  const pace = cat.kind === 'expense' && !cat.is_fixed && !weekly && limit !== null && pk === 'month' && sub === 'all' && left > 0
-    ? ` · Quedan ${amount(left, cur, fx)} ${unitOf(cur)} para ${restDays === 1 ? 'hoy' : `${restDays} días`}${restDays > 1 ? ` (${amount(left / restDays, cur, fx)} por día)` : ''}`
-    : '';
 
   const subLabel = sub !== 'all' ? ` · ${sub === 'none' ? 'sin detalle' : kids.find((k) => k.id === sub)?.name || ''}` : '';
   return (
@@ -312,7 +268,7 @@ export function CategoryView({ id }: { id: string }) {
           label={`${cat.kind === 'income' ? 'Ingresos' : 'Gastado'}${subLabel}${parent ? ` · en ${parent.name}` : ''}`}
           value={amount(total, cur, fx)}
           unit={unitOf(cur)}
-          meta={`${inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}${pace}`}
+          meta={inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}
           action={<PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />}
         />
       </div>
@@ -333,17 +289,6 @@ export function CategoryView({ id }: { id: string }) {
       )}
 
       <div className="page-body">
-        {showLimit && limit !== null && (
-          <ListGroup title={weekly && isCurrent ? 'Límite de esta semana' : weekly ? 'Límite semanal' : 'Límite mensual'}>
-            <ListRow
-              title={`${amount(periodSpent, cur, fx)} de ${amount(limit, cur, fx)} ${unitOf(cur)}`}
-              value={`${pct || 0}%`}
-              valueTone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'}
-              below={<Progress size="sm" value={(pct || 0) / 100} tone={(pct || 0) >= 100 ? 'destructive' : (pct || 0) >= 80 ? 'warning' : 'default'} />}
-            />
-          </ListGroup>
-        )}
-
         {loading && txs.length === 0 ? (
           <Loader><TxListSkeleton /></Loader>
         ) : groups.length === 0 ? (

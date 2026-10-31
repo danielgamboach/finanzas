@@ -35,7 +35,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
       one(db.from('transactions', 'id').limit(1)),
       one(db.from('accounts', 'id').is('system', null).limit(1)),
       one(db.from('recurring', 'id').limit(1)),
-      one(db.from('categories', 'id').gte('limit_amount', 0.01).limit(1)),
+      one(db.from('envelopes', 'id').eq('is_rest', false).limit(1)),
     ]).then(([tx, acc, rec, lim]) => alive && setSt({ tx, acc, rec, lim }));
     return () => {
       alive = false;
@@ -53,7 +53,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
     { key: 'tx', icon: 'pencil', title: 'Anotá tu primer gasto', sub: 'Tocá + arriba y listo, toma segundos.', done: st.tx, run: () => go('/agregar') },
     { key: 'acc', icon: 'cards', title: 'Agregá una cuenta', sub: 'La tarjeta o el efectivo con que pagás.', done: st.acc, run: () => go('/cuenta/nueva') },
     { key: 'rec', icon: 'repeat', title: 'Agregá tus pagos fijos', sub: 'Alquiler, servicios, suscripciones. Te avisamos antes.', done: st.rec, run: () => go('/recurrentes') },
-    { key: 'lim', icon: 'target', title: 'Ponele un límite a una categoría', sub: 'Así sabés cuánto te queda en el mes.', done: st.lim, run: () => go('/categorias') },
+    { key: 'lim', icon: 'envelope', title: 'Creá tu primer sobre', sub: 'Así sabés cuánto te queda para gastar.', done: st.lim, run: () => go('/sobre/nuevo') },
   ];
   if (ownShared) {
     items.push({

@@ -15,6 +15,7 @@ import { NotifPrompt } from './screens/NotifPrompt';
 import { Onboarding, pendingInvite, setPendingInvite } from './screens/Onboarding';
 import { db } from './lib/api';
 import { Categorias, Tendencias } from './screens/Presupuesto';
+import { EnvelopeEdit, EnvelopeView } from './screens/Sobres';
 import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
 import { useDesktop } from './lib/useDesktop';
@@ -162,6 +163,8 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return <TxForm key={b} id={b} />;
     case 'categoria':
       return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
+    case 'sobre':
+      return b === 'nuevo' || c === 'editar' ? <EnvelopeEdit key={b} id={b!} /> : <EnvelopeView key={b} id={b!} />;
     case 'recurrente':
       return <RecurringEdit key={b} id={b} />;
     case 'saldos':

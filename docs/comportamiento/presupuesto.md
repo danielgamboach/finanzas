@@ -12,7 +12,7 @@ Las **categorías** solo dicen qué es un gasto (Restaurantes, Suscripciones). Y
 
 ### SOB-01 · Un sobre
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Un sobre tiene nombre, monto, período y una o varias categorías.
 
@@ -31,9 +31,11 @@ Un sobre tiene nombre, monto, período y una o varias categorías.
 
 La cara del sobre es el emoji de su categoría si tiene una sola, o el ícono de sobre si tiene varias.
 
+<sub>Dónde vive: `envelopes`, `envelope_categories` (una categoría en un solo sobre; el trigger `check_envelope_category` impide padre e hija en sobres distintos), `EnvelopeEdit` en `src/screens/Sobres.tsx`.</sub>
+
 ### SOB-02 · Qué cuenta en un sobre
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cuenta todo gasto del espacio cuya categoría está en el sobre, con fecha dentro del período actual del sobre. Es la misma regla que el gasto del mes (`spend()`):
 
@@ -48,7 +50,7 @@ Cuenta todo gasto del espacio cuya categoría está en el sobre, con fecha dentr
 
 ### SOB-03 · Períodos
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cada sobre elige su período. Al empezar uno nuevo, el sobre vuelve a su monto completo. Lo que sobró o lo que se pasó no se arrastra.
 
@@ -63,9 +65,11 @@ Cada sobre elige su período. Al empezar uno nuevo, el sobre vuelve a su monto c
 - **Entonces** el domingo dice "Te pasaste por 12.000 CRC"
 - **Y** el lunes dice "Quedan 50.000 de 50.000 CRC"
 
+<sub>Dónde vive: `envRange` en `src/lib/envelopes.ts`; en la base, `envelope_period`.</sub>
+
 ### SOB-04 · Comprometido: los recurrentes del sobre
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Los recurrentes de gasto cuyas categorías están en el sobre y que vencen en el período, pero que todavía no se pagaron, son dinero **comprometido**: no se puede gastar en otra cosa. Se descuentan de lo que queda.
 
@@ -89,9 +93,11 @@ Para gastar = monto − lo gastado − lo comprometido
 
 En el detalle del sobre se ven sus recurrentes del período, con "Pagado el 5 nov" o "Vence el 20 nov".
 
+<sub>Dónde vive: `envelopeStats` en `src/lib/envelopes.ts`.</sub>
+
 ### SOB-05 · Todo lo demás
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Cada espacio tiene un sobre fijo, **Todo lo demás**, que recibe los gastos cuya categoría no está en ningún otro sobre (y los gastos sin categoría). No se borra, no se le eligen categorías y va siempre al final.
 
@@ -99,7 +105,7 @@ Puede tener monto y período como cualquier sobre, o no tener monto: entonces so
 
 ### SOB-06 · El monto y la sugerencia
 
-**Estado:** Falta
+**Estado:** Hecho
 
 El monto lo escribís vos. Si las categorías del sobre tienen recurrentes con fecha en el período, al editar el sobre se sugiere su suma, y un toque la usa como monto.
 
@@ -111,7 +117,7 @@ La sugerencia no cambia el monto sola: si después agregás un recurrente, el so
 
 ### SOB-07 · "Para gastar" en Inicio y en Presupuesto
 
-**Estado:** Falta
+**Estado:** Hecho
 
 El número de Inicio que hoy dice "Disponible" pasa a ser **Para gastar**: la suma de lo que queda para gastar en el período actual de cada sobre con monto (SOB-04), incluido "Todo lo demás" si tiene monto. No mira el ingreso ni los saldos de las cuentas.
 
@@ -125,9 +131,11 @@ El número de Inicio que hoy dice "Disponible" pasa a ser **Para gastar**: la su
 | No hay ningún sobre con monto | No se muestra; Inicio muestra solo lo gastado |
 | Sobres con períodos distintos | Cada uno aporta lo de su período actual |
 
+<sub>Dónde vive: `toSpend` en `src/lib/envelopes.ts`, `useHomeSummary` en `src/screens/Home.tsx`.</sub>
+
 ### SOB-08 · La pantalla Presupuesto
 
-**Estado:** Falta
+**Estado:** Hecho
 
 De arriba abajo:
 
@@ -150,7 +158,7 @@ Presupuesto muestra siempre el período actual. Lo de meses anteriores por categ
 
 ### SOB-09 · Paso de los límites a sobres
 
-**Estado:** Falta
+**Estado:** Hecho
 
 Una sola vez, al publicar los sobres: cada categoría que tenía límite se convierte en un sobre con su nombre, su monto y su período (mensual o semanal), con esa categoría adentro. Después se pueden juntar, renombrar o borrar. Las categorías dejan de tener el campo de límite.
 
@@ -159,10 +167,12 @@ Una sola vez, al publicar los sobres: cada categoría que tenía límite se conv
 
 Las categorías marcadas como fijas (CAT-04) con límite también pasan a sobre; la marca de fija deja de usarse en Presupuesto.
 
+<sub>Dónde vive: migración `20261031220000_envelopes.sql`.</sub>
+
 ---
 
 ## Preguntas abiertas
 
 **1. Sobres de varios espacios.** Los sobres son de cada espacio. ¿Hace falta ver en algún lugar cuánto te queda para gastar sumando tu personal y el compartido?
 
-**2. Recordatorios.** ¿Una notificación cuando un sobre llega al 80% o se pasa? Hoy existe "notificaciones de límites" en Ajustes; pasaría a ser de sobres.
+**2. Recordatorios.** Los avisos de "límites" (Ajustes → Notificaciones) ahora son de sobres: al 80% y al pasarse, en el período actual (`check_limit_alert`). No miran lo comprometido. ¿Deberían?
