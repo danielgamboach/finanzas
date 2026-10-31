@@ -157,3 +157,64 @@ export function cumulative(txs: Tx[], y: number, m: number, upTo: number) {
   let acc = 0;
   return daily.map((v) => (acc += v));
 }
+
+/**
+ * How much an account (not a card) moved between two moments, in its own currency: incomes and refunds add,
+ * expenses and money moved out subtract, money moved or contributed in adds. Authorizations don't count (same rule
+ * as spend()). A movement in the other currency converts at that day's rate (`rateOn`, colones per dollar).
+ */
+export function accountDelta(
+  a: Pick<Account, 'id' | 'currency'>,
+  txs: Pick<Tx, 'kind' | 'amount' | 'currency' | 'amount_crc' | 'account_id' | 'to_account_id' | 'occurred_at' | 'hold'>[],
+  after: string,
+  until: string,
+  rateOn: (iso: string) => number,
+) {
+  let d = 0;
+  for (const t of txs) {
+    if (t.hold || t.occurred_at <= after || t.occurred_at > until) continue;
+    let sign = 0;
+    if (t.to_account_id === a.id && t.account_id !== a.id) sign = t.kind === 'transfer' || t.kind === 'contribution' ? 1 : 0;
+    else if (t.account_id === a.id) sign = t.kind === 'income' || t.kind === 'refund' ? 1 : t.kind === 'expense' || t.kind === 'transfer' ? -1 : 0;
+    if (!sign) continue;
+    const amt = Number(t.amount);
+    const v = t.currency === a.currency ? amt : a.currency === 'USD' ? amt / (rateOn(t.occurred_at) || 1) : Number(t.amount_crc);
+    d += sign * v;
+  }
+  return d;
+}
+
+/**
+ * When a typed-in balance was true: the moment it was saved if that was on its own day, otherwise (a balance entered
+ * later for a past day) the end of that day in Costa Rica.
+ */
+export function snapshotMoment(s: { taken_on: string; created_at?: string | null }) {
+  const end = new Date(`${s.taken_on}T23:59:59.999-06:00`).toISOString();
+  if (!s.created_at) return end;
+  const at = new Date(s.created_at).toISOString();
+  const day = new Date(new Date(at).getTime() - 6 * 3600000).toISOString().slice(0, 10);
+  return day === s.taken_on ? at : end;
+}
+
+/**
+ * The balance an account (not a card) has at `until`: the last balance typed in for a day up to then, plus what
+ * moved since. Null when it has none. Movements are only loaded from `txsFrom`: a base older than that keeps its number.
+ */
+export function accountBalanceAt(
+  a: Pick<Account, 'id' | 'currency' | 'kind'>,
+  snaps: { account_id: string; balance: number | string; taken_on: string; created_at?: string | null }[],
+  txs: Parameters<typeof accountDelta>[1],
+  until: string,
+  rateOn: (iso: string) => number,
+  txsFrom?: string,
+) {
+  // snaps come newest first
+  const s = snaps.find((x) => x.account_id === a.id && snapshotMoment(x) <= until);
+  if (!s) return null;
+  const base = Number(s.balance);
+  const after = snapshotMoment(s);
+  if (txsFrom && after < txsFrom) return base;
+  const d = accountDelta(a, txs, after, until, rateOn);
+  // a loan's balance is what's owed: money in pays it down
+  return a.kind === 'loan' ? (base >= 0 ? base - d : base + d) : base + d;
+}

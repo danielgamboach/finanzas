@@ -150,6 +150,8 @@ export interface Snapshot {
   account_id: string;
   balance: number;
   taken_on: string;
+  /** When it was typed in: movements after this moment move the balance. */
+  created_at?: string;
 }
 
 export interface Tag {

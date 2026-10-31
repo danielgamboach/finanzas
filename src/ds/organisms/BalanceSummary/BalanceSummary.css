@@ -5,3 +5,5 @@
 .ds-balance__avail { color: var(--foreground); font-variant-numeric: tabular-nums; }
 .ds-balance__avail.is-neg { color: var(--destructive); }
 .ds-balance__actions { display: flex; gap: 8px; margin-top: 4px; }
+/* a long line (an account's details and where its balance started) wraps instead of running off the screen */
+.ds-balance__meta > span:last-child { white-space: normal; }

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { AccountGroup, AccountRow, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton, ActionBar } from '../ds';
 import { PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
-import { cardOutstanding, cardPaidThrough } from '../lib/calc';
+import { accountBalanceAt, cardOutstanding, cardPaidThrough, snapshotMoment } from '../lib/calc';
 import { amount, crIso, money, moneyRaw, parseAmount, shortDate, todayCR, unitOf } from '../lib/format';
 import type { Account, Goal, Snapshot, Tx } from '../lib/types';
 import { go, navigate, navigateBack, useApp } from '../store';
@@ -20,7 +20,10 @@ export const KIND_EMOJI: Record<string, string> = { credit_card: '💳', debit: 
 
 export interface WorthData {
   accounts: Account[];
+  /** The last balance typed in for each account. */
   latest: Record<string, Snapshot | undefined>;
+  /** What each account (not a card) has now, in its own currency: the last balance typed in plus what moved since. */
+  balance: Record<string, number | undefined>;
   snaps: Snapshot[];
   cardDebt: Record<string, number>;
   cardSplit: Record<string, { CRC: number; USD: number }>;
@@ -55,7 +58,10 @@ export function useNetWorth(spaceId: string | null): WorthData {
   const { fx, version } = useApp();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [snaps, setSnaps] = useState<Snapshot[]>([]);
+  // movements of the space: the cards' debt and what moved each account since its last typed-in balance
   const [cardTx, setCardTx] = useState<Tx[]>([]);
+  const [rates, setRates] = useState<{ rate_date: string; crc_per_usd: number }[]>([]);
+  const [txFrom, setTxFrom] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
 
@@ -67,15 +73,24 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const accs = await db.from<Account>('accounts').eq('space_id', spaceId).eq('archived', false).order('created_at');
       const ids = accs.map((a) => a.id);
       const s = ids.length ? await db.from<Snapshot>('balance_snapshots').in('account_id', ids).order('taken_on', false).limit(1000) : [];
-      const cards = accs.filter((a) => a.kind === 'credit_card').map((a) => a.id);
-      const since = new Date(Date.now() - 60 * 86400000).toISOString();
-      const ct = cards.length
-        ? await db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').eq('space_id', spaceId).gte('occurred_at', since).limit(3000).then((r) => r.filter((t) => t.hold !== 'void'))
-        : [];
+      // movements: the cards' last two months, and everything since the oldest balance still in use
+      const newest: Record<string, Snapshot> = {};
+      for (const x of s) if (!newest[x.account_id]) newest[x.account_id] = x;
+      const bases = Object.values(newest).map(snapshotMoment).sort();
+      const hasCards = accs.some((a) => a.kind === 'credit_card');
+      const from = [hasCards ? new Date(Date.now() - 60 * 86400000).toISOString() : null, bases[0] || null].filter(Boolean).sort()[0] as string | undefined;
+      const [ct, rates] = from
+        ? await Promise.all([
+            db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').eq('space_id', spaceId).gte('occurred_at', from).limit(5000).then((r) => r.filter((t) => t.hold !== 'void')),
+            db.from<{ rate_date: string; crc_per_usd: number }>('fx_rates', 'rate_date,crc_per_usd').gte('rate_date', new Date(new Date(from).getTime() - 10 * 86400000).toISOString().slice(0, 10)).order('rate_date', false).limit(400).then((r) => r, () => []),
+          ])
+        : [[], []];
       if (!alive) return;
       setAccounts(accs);
       setSnaps(s);
       setCardTx(ct);
+      setRates(rates);
+      setTxFrom(from || null);
       setLoading(false);
     })().catch(() => setLoading(false));
     return () => {
@@ -83,8 +98,16 @@ export function useNetWorth(spaceId: string | null): WorthData {
     };
   }, [spaceId, version, tick]);
 
+  // colones per dollar on a movement's day (Costa Rica), for movements in the other currency
+  const rateOn = (iso: string) => {
+    const day = new Date(new Date(iso).getTime() - 6 * 3600000).toISOString().slice(0, 10);
+    return Number(rates.find((r) => r.rate_date <= day)?.crc_per_usd) || fx;
+  };
+  const nowIso = new Date().toISOString();
+
   const latest: Record<string, Snapshot | undefined> = {};
   for (const s of snaps) if (!latest[s.account_id]) latest[s.account_id] = s;
+  const balance: Record<string, number | undefined> = {};
   let savings = 0, investments = 0, debts = 0, stale = 0, cards = 0;
   const cardDebt: Record<string, number> = {};
   const cardSplit: Record<string, { CRC: number; USD: number }> = {};
@@ -100,7 +123,9 @@ export function useNetWorth(spaceId: string | null): WorthData {
       continue;
     }
     const s = latest[a.id];
-    const v = s ? toCrc(Number(s.balance), a, fx) : 0;
+    const b = accountBalanceAt(a, snaps, cardTx, nowIso, rateOn, txFrom || undefined);
+    if (b !== null) balance[a.id] = b;
+    const v = b !== null ? toCrc(b, a, fx) : 0;
     if (!s || now - new Date(s.taken_on).getTime() > 10 * 86400000) stale++;
     if (a.kind === 'loan') debts += Math.abs(v);
     else if (a.kind === 'investment') investments += v;
@@ -110,18 +135,19 @@ export function useNetWorth(spaceId: string | null): WorthData {
   const history = Array.from({ length: 6 }, (_, i) => {
     const end = crIso(t.y, t.m - 4 + i, 1).slice(0, 10);
     let v = 0;
+    const until = new Date(`${end}T00:00:00-06:00`).getTime() > now ? nowIso : new Date(`${end}T00:00:00-06:00`).toISOString();
     for (const a of accounts) {
       if (a.kind === 'credit_card') continue;
-      const s = snaps.find((x) => x.account_id === a.id && x.taken_on < end);
-      if (!s) continue;
-      const c = toCrc(Number(s.balance), a, fx);
+      const b = accountBalanceAt(a, snaps, cardTx, until, rateOn, txFrom || undefined);
+      if (b === null) continue;
+      const c = toCrc(b, a, fx);
       v += a.kind === 'loan' ? -Math.abs(c) : c;
     }
     return { m: (t.m - 5 + i + 12) % 12, v };
   });
   const tracked = accounts.filter((a) => a.kind !== 'credit_card').length;
   return {
-    accounts, latest, snaps, cardDebt, cardSplit, cards, assets: savings + investments, savings, investments, debts,
+    accounts, latest, balance, snaps, cardDebt, cardSplit, cards, assets: savings + investments, savings, investments, debts,
     net: savings + investments - debts, count: tracked, stale, history, loading, reload: () => setTick((x) => x + 1),
   };
 }
@@ -166,7 +192,7 @@ export function AccountListRow({ a, w }: { a: Account; w: WorthData }) {
       amt = 'Sin saldo';
       muted = true;
     } else {
-      amt = `${amount(Number(s.balance), a.currency, 1, { decimals: false })} ${a.currency}`;
+      amt = `${amount(w.balance[a.id] ?? Number(s.balance), a.currency, 1, { decimals: false })} ${a.currency}`;
       if (a.kind === 'investment' || a.kind === 'cdp') {
         const prev = w.snaps.find((x) => x.account_id === a.id && x.id !== s.id);
         const d = prev ? Number(s.balance) - Number(prev.balance) : 0;
@@ -189,7 +215,7 @@ function accountFigure(a: Account, w: WorthData) {
   }
   const s = w.latest[a.id];
   const stale = !s || Date.now() - new Date(s.taken_on).getTime() > 10 * 86400000;
-  return { main: s ? moneyRaw(Number(s.balance), a.currency) : 'Sin saldo', sub: s ? `Saldo · ${shortDate(s.taken_on + 'T18:00:00Z')}` : 'Agregá el saldo', stale };
+  return { main: s ? moneyRaw(w.balance[a.id] ?? Number(s.balance), a.currency) : 'Sin saldo', sub: s ? `Saldo · ${shortDate(s.taken_on + 'T18:00:00Z')}` : 'Agregá el saldo', stale };
 }
 
 /** One account drawn as a card. `full` shows the bottom half (number and brand). */
@@ -255,7 +281,7 @@ export function Cuentas() {
       ) : (
         goals.map((gl) => {
           const linked = (gl.goal_accounts || []).map((x) => w.accounts.find((a) => a.id === x.account_id)).filter(Boolean) as Account[];
-          const saved = linked.reduce((acc, a) => acc + (w.latest[a.id] ? toCrc(Number(w.latest[a.id]!.balance), a, fx) : 0), 0);
+          const saved = linked.reduce((acc, a) => acc + (w.balance[a.id] !== undefined ? toCrc(w.balance[a.id]!, a, fx) : 0), 0);
           const target = gl.currency === 'USD' ? Number(gl.target_amount) * fx : Number(gl.target_amount);
           const pct = target ? Math.min(100, Math.round((saved / target) * 100)) : 0;
           return (
@@ -325,7 +351,9 @@ function CardPaid({ a, owed, onDone }: { a: Account; owed: number; onDone: () =>
     if (!space) return;
     setBusy(true);
     try {
-      const debit = accounts.find((x) => x.kind === 'debit' && !x.archived && x.space_id === a.space_id);
+      // the payment goes out in colones: from a colones debit account if there is one (it now moves that balance)
+      const debits = accounts.filter((x) => x.kind === 'debit' && !x.archived && x.space_id === a.space_id);
+      const debit = debits.find((x) => x.currency === 'CRC') || debits[0];
       const [tx] = await db.insert<Tx>('transactions', {
         space_id: a.space_id, kind: 'transfer', amount: Math.round(owed * 100) / 100, currency: 'CRC', occurred_at: new Date().toISOString(),
         merchant: 'Pago de tarjeta', account_id: debit?.id ?? null, to_account_id: a.id, source: 'system',
@@ -370,12 +398,16 @@ export function AccountView({ id }: { id: string }) {
       />
     );
   } else {
+    // the balance now; when movements moved it since the last one typed in, say where it started
+    const now = w.balance[a.id] ?? Number(s?.balance || 0);
+    const moved = Boolean(s) && Math.abs(now - Number(s!.balance)) >= 0.01;
+    const since = s ? shortDate(s.taken_on + 'T18:00:00Z') : '';
     hero = (
       <BalanceSummary
-        label={s ? `Saldo · ${shortDate(s.taken_on + 'T18:00:00Z')}` : 'Sin saldo'}
-        value={s ? amount(Number(s.balance), a.currency, 1) : '0'}
+        label={s ? 'Saldo' : 'Sin saldo'}
+        value={s ? amount(now, a.currency, 1) : '0'}
         unit={a.currency}
-        meta={details}
+        meta={s ? [details, moved ? `Desde ${moneyRaw(Number(s.balance), a.currency)} el ${since}, más movimientos` : `Saldo del ${since}`].filter(Boolean).join(' · ') : details}
         action={<Button variant="primary" size="xs" leading={<Icon name="refresh" size={16} />} href="#/saldos">Actualizar saldo</Button>}
       />
     );
@@ -425,7 +457,7 @@ export function Saldos() {
     const today = new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
     const rows = Object.entries(vals)
       .filter(([, v]) => v.trim() !== '')
-      .map(([account_id, v]) => ({ account_id, balance: parseAmount(v), taken_on: today }));
+      .map(([account_id, v]) => ({ account_id, balance: parseAmount(v), taken_on: today, created_at: new Date().toISOString() }));
     if (rows.length) await db.upsert('balance_snapshots', rows, 'account_id,taken_on');
     bump();
     toast(`${rows.length} saldo${rows.length === 1 ? '' : 's'} actualizado${rows.length === 1 ? '' : 's'}`);
@@ -450,7 +482,7 @@ export function Saldos() {
                   key={a.id}
                   leading={<ListRow.Icon name={ic.name} color={ic.color} />}
                   title={a.name}
-                  detail={last ? `Antes ${moneyRaw(Number(last.balance), a.currency)} · ${shortDate(last.taken_on + 'T18:00:00Z')}` : 'Sin saldo todavía'}
+                  detail={last ? `Ahora ${moneyRaw(w.balance[a.id] ?? Number(last.balance), a.currency)}` : 'Sin saldo todavía'}
                   actions={
                     <label className="saldo-input">
                       <span>{a.currency === 'USD' ? '$' : '¢'}</span>
@@ -509,7 +541,7 @@ export function AccountEdit({ id }: { id: string }) {
         accountId = c.id;
       } else await db.update('accounts', { id }, row);
       if (balance.trim()) {
-        await db.upsert('balance_snapshots', [{ account_id: accountId, balance: parseAmount(balance), taken_on: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10) }], 'account_id,taken_on');
+        await db.upsert('balance_snapshots', [{ account_id: accountId, balance: parseAmount(balance), taken_on: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10), created_at: new Date().toISOString() }], 'account_id,taken_on');
       }
       await reloadMeta();
       bump();

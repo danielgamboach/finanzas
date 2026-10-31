@@ -104,7 +104,7 @@ export const tables = {
   goals: [{ id: 'g-casa', space_id: SPACE, name: 'Casa propia', emoji: '🏡', color: 'mint', target_amount: 20000000, currency: 'CRC', goal_accounts: [{ account_id: 'a-ahorro' }] }],
   balance_snapshots: [
     { id: 's1', account_id: 'a-ahorro', balance: 6400000, taken_on: day(-3) },
-    { id: 's2', account_id: 'a-deb', balance: 812000, taken_on: day(-1) },
+    { id: 's2', account_id: 'a-deb', balance: 812000, taken_on: day(-2) },
     { id: 's3', account_id: 'a-visa', balance: -318500, taken_on: day(-1) },
     { id: 's4', account_id: 'a-amex', balance: -42000, taken_on: day(-2) },
   ],
