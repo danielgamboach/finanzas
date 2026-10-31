@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
-import { envelopesSpan, envelopeStats, toSpend, useEnvelopes } from '../lib/envelopes';
+import { buildBudget, useBudgetData } from '../lib/budget';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
 import { byKind } from '../lib/accounts';
@@ -67,13 +67,10 @@ export function useHomeSummary() {
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
   const { txs, loading } = useTxs(range);
-  const envs = useEnvelopes(space?.id);
-  // the envelopes' periods can start before this month (a week that began on the 29th)
-  const envSpan = useMemo(() => envelopesSpan(space?.week_start ?? 1), [space?.week_start]);
-  const { txs: envTxs } = useTxs(envSpan);
+  const bd = useBudgetData(space?.id);
   if (!space) return null;
-  // SOB-07: "Para gastar" is what's left in the current period of every envelope with an amount
-  const toSpendNow = envs ? toSpend(envelopeStats({ ...envs, categories, txs: envTxs, spaceId: space.id, weekStart: space.week_start ?? 1, fx })) : null;
+  // PPT-06: "Para gastar" is what's left this month in the budget's caps
+  const toSpendNow = bd ? buildBudget({ ...bd, categories, txs, spaceId: space.id, fx }).toSpend : null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);

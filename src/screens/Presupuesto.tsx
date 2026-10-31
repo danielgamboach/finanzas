@@ -40,8 +40,8 @@ function useMonthData(ym: [number, number]) {
   return { txs, loading, first: loading && txs.length === 0, isCurrent, week, stats, spent, budget, daysInMonth, curSeries, prevSeries, prevSoFar, prevName: monthName(pl.getUTCMonth()) };
 }
 
-/** Presupuesto (menu, route #/categorias) is the envelopes screen. */
-export { Presupuesto as Categorias } from './Sobres';
+/** Presupuesto (menu, route #/categorias) is the list of budget lines (PPT). */
+export { Presupuesto as Categorias } from './Partidas';
 
 /**
  * Mis finanzas (menu, route #/tendencias): how the month is going against the last one (the cumulative chart and the AI note),

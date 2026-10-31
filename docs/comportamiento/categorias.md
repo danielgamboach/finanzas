@@ -20,7 +20,7 @@ Una categoría puede tener subcategorías: funcionan igual que una categoría, p
 - **Cuando** registro un gasto de ¢10.000 en Restaurantes
 - **Entonces** la fila del movimiento dice "Restaurantes"
 - **Y** el detalle dice "Comida › Restaurantes"
-- **Y** el sobre que tenga Comida suma los ¢10.000
+- **Y** el tope que tenga Comida suma los ¢10.000
 - **Y** la vista de Comida muestra cuánto va en cada subcategoría
 
 Un gasto puede ir directo en la categoría padre; en la vista de la categoría aparece como la parte "directa".
@@ -29,13 +29,13 @@ Un gasto puede ir directo en la categoría padre; en la vista de la categoría a
 
 **Estado:** Eliminada
 
-Las categorías ya no tienen límite: solo clasifican. Lo que se puede gastar vive en los sobres (presupuesto.md, SOB-01). Cada límite que existía se convirtió en un sobre (SOB-09).
+Las categorías ya no tienen límite: solo clasifican. Los límites viven en las partidas de tope del presupuesto (presupuesto.md, PPT-03).
 
 ### CAT-04 · Categorías fijas
 
 **Estado:** Eliminada
 
-Con los sobres, la marca de fija ya no se usa (SOB-09). La columna sigue en la base, sin uso en el app.
+La marca de fija ya no se usa: los pagos fijos son partidas del presupuesto (PPT-02). La columna sigue en la base, sin uso en el app.
 
 Una categoría marcada como fija (alquiler, servicios, suscripciones) no muestra proyección de fin de mes ni se marca en rojo al llegar al límite, porque se espera gastarla completa.
 
@@ -43,4 +43,4 @@ Una categoría marcada como fija (alquiler, servicios, suscripciones) no muestra
 
 ## Preguntas abiertas
 
-Ninguna por ahora: la pregunta sobre límites en subcategorías se resuelve con los sobres (SOB-01).
+Ninguna por ahora: la pregunta sobre límites en subcategorías se resuelve con los topes (PPT-03).
