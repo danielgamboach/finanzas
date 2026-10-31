@@ -157,7 +157,8 @@ export function CardCycle({ card, info }: { card: Account; info?: CardStatus }) 
   const edit = `#/cuenta/${card.id}/editar`;
   // the limit, in its own currency
   const limit = card.credit_limit ? Number(card.credit_limit) : null;
-  const usedCrc = info ? Math.max(0, owedCrc(info.owed, fx)) : 0;
+  // the bank holds the whole installment purchase against the limit, not just the parts already charged
+  const usedCrc = info ? Math.max(0, owedCrc(info.owed, fx) + owedCrc(info.pendingInstallments, fx)) : 0;
   const used = card.currency === 'USD' ? usedCrc / fx : usedCrc;
   const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   return (
@@ -177,6 +178,9 @@ export function CardCycle({ card, info }: { card: Account; info?: CardStatus }) 
         </>
       ) : (
         <ListRow leading={<ListRow.Icon name="calendar" />} title="Agregá la fecha de corte y la de pago" detail="Así sabés cuánto pagar de contado y hasta cuándo" chevron href={edit} />
+      )}
+      {info && hasOwed(info.pendingInstallments) && (
+        <ListRow title="Cuotas por cargar" detail="De compras a cuotas: el banco las carga una por mes" value={owedText(info.pendingInstallments)} />
       )}
       {limit !== null && (
         <ListRow

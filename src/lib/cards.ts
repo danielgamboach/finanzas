@@ -8,7 +8,43 @@ import type { Account, Snapshot, Tx } from './types';
  */
 
 export interface Owed { CRC: number; USD: number }
-type CardTx = Pick<Tx, 'kind' | 'amount' | 'currency' | 'account_id' | 'to_account_id' | 'occurred_at' | 'hold'>;
+type CardTx = Pick<Tx, 'kind' | 'amount' | 'currency' | 'account_id' | 'to_account_id' | 'occurred_at' | 'hold'> & { installments?: number | null };
+
+/** The same moment, `k` months later (a day that doesn't exist moves to the month's last day). */
+export function addMonths(iso: string, k: number) {
+  if (!k) return iso;
+  const d = new Date(iso);
+  const y = d.getUTCFullYear(), m = d.getUTCMonth() + k;
+  const day = Math.min(d.getUTCDate(), new Date(Date.UTC(y, m + 1, 0)).getUTCDate());
+  return new Date(Date.UTC(y, m, day, d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds())).toISOString();
+}
+
+/** One part of an installment purchase (TAR-11): the last one takes the rounding. */
+export const installmentPart = (amount: number, n: number, k: number) => {
+  const part = Math.round((amount / n) * 100) / 100;
+  return k < n - 1 ? part : Math.round((amount - part * (n - 1)) * 100) / 100;
+};
+
+interface Entry { at: string; cur: 'CRC' | 'USD'; v: number; kind: 'charge' | 'payment' }
+/**
+ * What moves a card's balance, one entry per movement: charges (+), refunds (−), payments (−). An installment
+ * purchase is one charge per month, from the day of the purchase (TAR-11).
+ */
+function cardEntries(family: Set<string>, txs: CardTx[]): Entry[] {
+  const out: Entry[] = [];
+  for (const t of txs) {
+    if (t.hold) continue;
+    const cur = t.currency === 'USD' ? 'USD' : 'CRC';
+    const amt = Number(t.amount);
+    if (t.kind === 'transfer' && t.to_account_id && family.has(t.to_account_id)) out.push({ at: t.occurred_at, cur, v: -amt, kind: 'payment' });
+    else if (t.account_id && family.has(t.account_id) && t.kind === 'refund') out.push({ at: t.occurred_at, cur, v: -amt, kind: 'charge' });
+    else if (t.account_id && family.has(t.account_id) && t.kind === 'expense') {
+      const n = t.installments && t.installments > 1 ? t.installments : 1;
+      for (let k = 0; k < n; k++) out.push({ at: addMonths(t.occurred_at, k), cur, v: n === 1 ? amt : installmentPart(amt, n, k), kind: 'charge' });
+    }
+  }
+  return out;
+}
 type CardSnap = Pick<Snapshot, 'account_id' | 'balance' | 'taken_on' | 'created_at' | 'balance_usd'>;
 
 const CR = 6 * 3600000;
@@ -60,13 +96,7 @@ export function cardOwedAt(main: Pick<Account, 'id' | 'statement_day'>, family: 
     const d = crDay(at);
     since = new Date(new Date(`${d.slice(0, 8)}01T00:00:00-06:00`).getTime() - 1).toISOString();
   }
-  for (const t of txs) {
-    if (t.hold || t.occurred_at <= since || t.occurred_at > at) continue;
-    let v = 0;
-    if (t.account_id && family.has(t.account_id)) v = t.kind === 'expense' ? 1 : t.kind === 'refund' ? -1 : 0;
-    if (t.kind === 'transfer' && t.to_account_id && family.has(t.to_account_id)) v = -1;
-    if (v) out[t.currency === 'USD' ? 'USD' : 'CRC'] += v * Number(t.amount);
-  }
+  for (const e of cardEntries(family, txs)) if (e.at > since && e.at <= at) out[e.cur] += e.v;
   return out;
 }
 
@@ -82,6 +112,8 @@ export interface CardStatus {
   /** Charged since the last payment: what an early payment would cover. */
   sinceLastPayment: Owed;
   lastPaymentAt: string | null;
+  /** Installments of purchases already made that the card hasn't charged yet (TAR-11). */
+  pendingInstallments: Owed;
 }
 
 const minus = (a: Owed, b: Owed): Owed => ({ CRC: a.CRC - b.CRC, USD: a.USD - b.USD });
@@ -92,15 +124,14 @@ export function cardStatus(main: Account, accounts: Account[], snaps: CardSnap[]
   const owed = cardOwedAt(main, fam, snaps, txs, now);
   const payments = txs.filter((t) => t.kind === 'transfer' && !t.hold && t.to_account_id && fam.has(t.to_account_id) && t.occurred_at <= now);
   const lastPaymentAt = payments.reduce<string | null>((a, t) => (!a || t.occurred_at > a ? t.occurred_at : a), null);
+  const entries = cardEntries(fam, txs).filter((e) => e.kind === 'charge');
   const charges = (from: string | null): Owed => {
     const o: Owed = { CRC: 0, USD: 0 };
-    for (const t of txs) {
-      if (t.hold || !t.account_id || !fam.has(t.account_id) || (from && t.occurred_at <= from) || t.occurred_at > now) continue;
-      const v = t.kind === 'expense' ? 1 : t.kind === 'refund' ? -1 : 0;
-      o[t.currency === 'USD' ? 'USD' : 'CRC'] += v * Number(t.amount);
-    }
+    for (const e of entries) if ((!from || e.at > from) && e.at <= now) o[e.cur] += e.v;
     return o;
   };
+  const pendingInstallments: Owed = { CRC: 0, USD: 0 };
+  for (const e of entries) if (e.at > now) pendingInstallments[e.cur] += e.v;
   // never more than what's owed: an early payment covers what was charged since the last one
   const since = charges(lastPaymentAt);
   const sinceLastPayment = floor0({ CRC: Math.min(since.CRC, owed.CRC), USD: Math.min(since.USD, owed.USD) });
@@ -115,7 +146,7 @@ export function cardStatus(main: Account, accounts: Account[], snaps: CardSnap[]
     const daysToDue = Math.round((new Date(`${due}T00:00:00Z`).getTime() - new Date(`${crDay(now)}T00:00:00Z`).getTime()) / 86400000);
     cycle = { cut, nextCut: nextCut(main.statement_day, now), due, statement, paidSince, left: floor0(minus(statement, paidSince)), chargedSince: charges(cutAt), daysToDue };
   }
-  return { owed, cycle, sinceLastPayment, lastPaymentAt };
+  return { owed, cycle, sinceLastPayment, lastPaymentAt, pendingInstallments };
 }
 
 /** One number in colones: the colones part plus the dollars at today's rate. */

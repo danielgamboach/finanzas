@@ -499,13 +499,38 @@ Sin fechas, en su lugar aparece "Agregá la fecha de corte y la de pago".
 
 **Estado:** Hecho
 
-Opcional, en colones o en dólares. La vista muestra "Disponible" (límite menos lo que se debe, convertido a la moneda del límite) con una barra que se pone en advertencia desde el 80% y en rojo al llegar al límite.
+Opcional, en colones o en dólares. La vista muestra "Disponible" (límite menos lo que se debe y menos las cuotas por cargar, convertido a la moneda del límite) con una barra que se pone en advertencia desde el 80% y en rojo al llegar al límite.
 
 ### TAR-10 · Recordatorios
 
 **Estado:** Hecho
 
 Con las notificaciones de "Pago de la tarjeta" activas, llega un aviso el día de cada pago anticipado y otro dos días antes y el mismo día de la fecha máxima de pago, mientras el pago de contado no esté cubierto ("Vence el pago de Visa: ¢121.200 + $15,00 para el pago de contado, antes del 2").
+
+### TAR-11 · Compras a cuotas
+
+**Estado:** Hecho
+
+Un gasto con tarjeta de crédito se puede marcar "A cuotas" (2 a 48 meses) en Más detalles. La compra completa cuenta en el gasto del mes el día que se hizo, porque la decisión se tomó ese día. La tarjeta, en cambio, debe una cuota por mes: la primera el día de la compra y las demás el mismo día de los meses siguientes. La última cuota absorbe el redondeo.
+
+- **Dado** que el 21 sep compré en iShop ¢600.000 a 6 cuotas con la Visa
+- **Entonces** el gasto de septiembre sube ¢600.000
+- **Y** la Visa debe ¢100.000 el 21 sep, ¢100.000 más el 21 oct, y así hasta el 21 feb
+- **Y** el 31 oct la vista de la Visa muestra "Cuotas por cargar: ¢400.000"
+- **Y** "Disponible" resta los ¢600.000 completos (el banco reserva toda la compra en el límite)
+- **Y** la fila del movimiento dice "Casa · 6 cuotas" y el detalle "A cuotas: 6 meses de ¢100.000"
+
+Las cuotas entran en el saldo al corte y en el pago de contado del mes en que se cargan. El banco no cobra intereses en estas compras (tasa cero); si los cobra, se corrige escribiendo lo que se debe (TAR-02).
+
+<sub>Dónde vive: `transactions.installments`; `cardEntries` en `src/lib/cards.ts`; `card_owed` en la base.</sub>
+
+### TAR-12 · Lo que el app no hace con las tarjetas
+
+**Estado:** Hecho
+
+- **No calcula intereses.** Cada banco los calcula distinto. Si el banco cobra intereses, se corrigen escribiendo lo que se debe (TAR-02) o importando el estado de cuenta.
+- **No hay adelantos de efectivo.** Una tarjeta de crédito no manda dinero a otras cuentas, tampoco al Efectivo (CTA-12).
+- **No maneja programas de lealtad.** Ni cashback, ni puntos, ni millas.
 
 ---
 
@@ -599,10 +624,10 @@ Cosas que el app hace hoy y que hay que confirmar si son a propósito. Al contes
 
 **10. ¿Qué pasa con el desembolso del préstamo?** Cuando se crea un préstamo nuevo, el dinero normalmente entra a una cuenta (o directo al vendedor del carro). Propuesta: al crear el préstamo, preguntar opcionalmente "¿A qué cuenta entró el dinero?" y registrar ese ingreso.
 
-**11. Compras a cuotas (tasa cero).** Una compra de ¢600.000 a 6 meses sin intereses: el banco carga ¢100.000 por mes, pero el app hoy la registraría completa el día de la compra. Propuesta: marcar un gasto como "a cuotas" con el número de meses; cuenta completo en el gasto del mes (la decisión se tomó ese día), pero la deuda de la tarjeta y el pago de contado solo suman la cuota de cada mes.
+**11. ~~Compras a cuotas.~~** Resuelta: TAR-11.
 
-**12. Pago mínimo e intereses.** El estado de cuenta trae un pago mínimo, y si no se paga el contado, el banco cobra intereses sobre lo que quedó. Propuesta: no calcular intereses (cada banco lo hace distinto); avisar cuando la fecha máxima pasa sin cubrir el contado ("El banco probablemente cobre intereses") y que los intereses entren como gasto (categoría Intereses) al escribir lo que se debe o al importar el estado de cuenta.
+**12. ~~Pago mínimo e intereses.~~** Resuelta: el app no calcula intereses (TAR-12).
 
-**13. Adelantos de efectivo.** Sacar efectivo con la tarjeta hoy no se puede registrar (una tarjeta no manda dinero). Propuesta: permitir Mover dinero de una tarjeta hacia el Efectivo como "Adelanto de efectivo", que suma a la deuda.
+**13. ~~Adelantos de efectivo.~~** Resuelta: no se permiten (TAR-12).
 
-**14. Cashback y reembolsos.** Hoy solo las devoluciones y los pagos bajan la deuda (pregunta 6). Si el banco abona cashback a la tarjeta, se registraría como devolución. ¿Hace falta un tipo aparte?
+**14. ~~Cashback y reembolsos.~~** Resuelta: el app no maneja programas de lealtad (TAR-12).

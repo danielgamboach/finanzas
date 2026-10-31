@@ -48,6 +48,7 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
   if (t.hold === 'pending') what = 'Por confirmar';
   if (t.hold === 'void') what = 'No se cobró';
   if (t.auto_flag === 'no_voucher') what = `${what} · Sin voucher`;
+  if (t.installments) what = `${what} · ${t.installments} cuotas`;
   const way = transferWay(t, useContext(TxAccountScope));
   const inflow = t.kind === 'income' || t.kind === 'refund' || incoming || way === 'in';
   const neutral = t.kind === 'transfer' && !incoming && !way;

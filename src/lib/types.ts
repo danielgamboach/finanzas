@@ -109,6 +109,8 @@ export interface Tx {
   created_at?: string;
   /** 'no_voucher': an automatic charge registered with the expected amount because the bank's voucher didn't arrive. */
   auto_flag?: 'no_voucher' | null;
+  /** A card purchase in N monthly installments (TAR-11): spent today, charged to the card one part per month. */
+  installments?: number | null;
   transaction_tags?: { tags: { name: string } | null }[];
 }
 

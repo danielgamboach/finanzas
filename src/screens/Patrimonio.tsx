@@ -53,6 +53,8 @@ export interface WorthData {
 
 const toCrc = (v: number, a: Account, fx: number) => (a.currency === 'USD' ? v * fx : v);
 
+const TXW = 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id,installments';
+
 export function useNetWorth(spaceId: string | null): WorthData {
   const { fx, version } = useApp();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -81,7 +83,11 @@ export function useNetWorth(spaceId: string | null): WorthData {
       const from = [hasCards ? new Date(Date.now() - 75 * 86400000).toISOString() : null, bases[0] || null].filter(Boolean).sort()[0] as string | undefined;
       const [ct, rates] = from
         ? await Promise.all([
-            db.from<Tx>('transactions', 'id,kind,amount,currency,amount_crc,account_id,to_account_id,occurred_at,hold,external_id').or(`space_id.eq.${spaceId}`, `to_space_id.eq.${spaceId}`).gte('occurred_at', from).limit(5000).then((r) => r.filter((t) => t.hold !== 'void')),
+            Promise.all([
+              db.from<Tx>('transactions', TXW).or(`space_id.eq.${spaceId}`, `to_space_id.eq.${spaceId}`).gte('occurred_at', from).limit(5000),
+              // installment purchases keep charging the card for months (TAR-11): the older ones too
+              hasCards ? db.from<Tx>('transactions', TXW).eq('space_id', spaceId).gte('installments', 2).lt('occurred_at', from).gte('occurred_at', new Date(Date.now() - 1830 * 86400000).toISOString()).limit(500).then((r) => r, () => []) : Promise.resolve([] as Tx[]),
+            ]).then(([a, b]) => [...a, ...b].filter((t) => t.hold !== 'void')),
             db.from<{ rate_date: string; crc_per_usd: number }>('fx_rates', 'rate_date,crc_per_usd').gte('rate_date', new Date(new Date(from).getTime() - 10 * 86400000).toISOString().slice(0, 10)).order('rate_date', false).limit(400).then((r) => r, () => []),
           ])
         : [[], []];

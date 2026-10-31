@@ -73,6 +73,7 @@ const transactions = [
   tx(15, 'Alquiler', 'c-casa', 350000, { account_id: 'a-deb', source: 'recurring' }),
   // moved from Dani's personal account to the shared one (it shows in both spaces)
   tx(5, 'Pago anticipado', null, 100000, { kind: 'transfer', account_id: 'a-deb', to_account_id: 'a-visa', source: 'manual', raw_merchant: null }),
+  tx(40, 'iShop', 'c-casa', 600000, { installments: 6 }),
   tx(2, 'Parte del mes', null, 300000, { kind: 'transfer', space_id: PERSONAL, account_id: 'a-pdeb', to_account_id: 'a-deb', to_space_id: SPACE, contributor_id: DANI, source: 'manual', raw_merchant: null }),
   // an automatic charge registered without its voucher
   tx(1, 'Spotify', 'c-ocio', 5900, { source: 'recurring', auto_flag: 'no_voucher', recurring_id: 'r-spot', raw_merchant: null }),

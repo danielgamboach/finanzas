@@ -8,6 +8,7 @@ import { tagsOf } from '../lib/calc';
 import { amount, cap, money, moneyRaw, shortDate, unitOf } from '../lib/format';
 import { normWords, photoUrl, txBadge, txMerchant, type Merchant } from '../lib/merchants';
 import type { Tx } from '../lib/types';
+import { installmentPart } from '../lib/cards';
 import { useDesktop } from '../lib/useDesktop';
 import { closeModal, go, TX_SELECT, useApp } from '../store';
 import { Emo, Icon, Loading } from '.';
@@ -147,6 +148,9 @@ function Body({ t }: { t: Tx }) {
       <section className="field-card txd-fields" aria-label="Detalles">
         <Row label="Fecha">{cap(fullDate.format(d).replace(/\./g, '').replace(/,/g, ''))} · {timeFmt.format(d)}</Row>
         <Row label="Tipo">{KIND_LABEL[t.kind] || t.kind}</Row>
+        {t.installments && (
+          <Row label="A cuotas">{t.installments} meses de {moneyRaw(installmentPart(Number(t.amount), t.installments, 0), t.currency)}</Row>
+        )}
         {t.kind === 'transfer' && <Row label="Categoría">{incoming ? 'Entró de otro espacio' : transferLabel(t, accounts)}</Row>}
         {(t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund') && (
           <Row label="Categoría">

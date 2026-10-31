@@ -78,6 +78,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [merchant, setMerchant] = useState('');
   const [when, setWhen] = useState(toInputDateTime(new Date().toISOString()));
   const [note, setNote] = useState('');
+  // a card purchase in installments (TAR-11): null = paid at once
+  const [installments, setInstallments] = useState<number | null>(null);
   const [repeat, setRepeat] = useState(false);
   const [freq, setFreq] = useState<Frequency>('monthly');
   const [everyN, setEveryN] = useState(10);
@@ -129,6 +131,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
       setToAccountId(t.to_account_id);
       setMerchant(t.merchant || '');
       setWhen(toInputDateTime(t.occurred_at));
+      setInstallments(t.installments ?? null);
       const tg = tagsOf(t);
       const base = (t.note || '').replace(/#[\p{L}\p{N}_-]+/gu, '').trim();
       setNote([base, ...tg].filter(Boolean).join(' '));
@@ -157,6 +160,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   // which accounts fit this kind of movement (CTA-12)
   const fromAccs = accs.filter((a) => (type === 'ingreso' ? canReceiveIncome(a) : type === 'transferir' ? canSendMoney(a) : canPay(a)));
   const cashId = accs.find((a) => a.system === 'cash')?.id || null;
+  const onCard = accs.find((a) => a.id === accountId)?.kind === 'credit_card';
   // every movement has an account (MOV-02): the space's Efectivo unless another one fits
   useEffect(() => {
     if (!accs.length) return;
@@ -223,6 +227,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         category_id: isSpend ? categoryId : null,
         account_id: accountId,
         to_account_id: type === 'transferir' ? toAccountId : null,
+        installments: onCard && type === 'gasto' && installments ? installments : null,
         // who put the money, when it goes to another space (the other space shows "De Dani")
         contributor_id: type === 'transferir' && toSpaceId && toSpaceId !== spaceId ? orig?.contributor_id || userId : null,
         status: 'posted',
@@ -615,6 +620,15 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                       <span>Fecha</span>
                       <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
                     </label>
+                    {onCard && type === 'gasto' && (
+                      <label className="field-row">
+                        <span>A cuotas</span>
+                        <select value={installments || ''} onChange={(e) => setInstallments(e.target.value ? Number(e.target.value) : null)} aria-label="A cuotas">
+                          <option value="">No, de contado</option>
+                          {[2, 3, 4, 6, 8, 10, 12, 18, 24, 36, 48].map((n) => <option key={n} value={n}>{n} meses{num > 0 ? ` de ${moneyRaw(Math.round((num / n) * 100) / 100, cur)}` : ''}</option>)}
+                        </select>
+                      </label>
+                    )}
                     {isSpend && <MerchantPhotoField spaceId={spaceId} name={merchant} raw={orig?.raw_merchant} merchantId={orig && merchant === orig.merchant ? orig.merchant_id : null} />}
                   </div>
                   <label className="col gap8">
