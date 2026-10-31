@@ -107,7 +107,11 @@ export const tables = {
   categories,
   accounts,
   tags: [],
-  merchants: [],
+  merchants: [
+    { id: 'mc-ampm', name: 'ampm', photo_path: 'seed/ampm.jpg', created_by: null, merchant_patterns: [{ id: 'mp1', merchant_id: 'mc-ampm', pattern: 'AMPM', norm: 'ampm', active: true, created_by: null }] },
+    { id: 'mc-fercori', name: 'Parqueos Fércori', photo_path: 'seed/fercori.jpg', created_by: null, merchant_patterns: [{ id: 'mp2', merchant_id: 'mc-fercori', pattern: 'FERCORI', norm: 'fercori', active: true, created_by: null }] },
+    { id: 'mc-soda', name: 'Soda La Mandarina', photo_path: null, created_by: null, merchant_patterns: [{ id: 'mp3', merchant_id: 'mc-soda', pattern: 'SODA LA MANDARINA', norm: 'soda la mandarina', active: true, created_by: null }] },
+  ],
   merchant_patterns: [],
   transactions,
   recurring,
@@ -145,6 +149,12 @@ function dailySpend({ p_from, p_to }) {
 export const rpcs = {
   daily_spend: dailySpend,
   is_app_admin: true,
+  admin_merchant_movements: [
+    { id: 'm1', occurred_at: '2026-10-20T19:10:00Z', raw_merchant: 'PARQUEO FERCORI SAN J', merchant: 'Parqueo Fércori', category: 'Parqueo', emoji: '🅿️', color: 'sky' },
+    { id: 'm2', occurred_at: '2026-10-11T15:40:00Z', raw_merchant: 'PARQUEO FERCORI CENTR', merchant: 'Parqueo Fércori', category: 'Parqueo', emoji: '🅿️', color: 'sky' },
+    { id: 'm3', occurred_at: '2025-12-02T22:05:00Z', raw_merchant: 'PARQUEO FERCORI SAN J', merchant: 'Parqueo Fércori', category: null, emoji: null, color: null },
+  ],
+  admin_merchant_photo_skip: null,
   admin_merchants_without_photo: [
     { merchant_id: null, name: 'Culqi', raw: 'CULQI LA MOLINA', movements: 11, last_at: '2026-10-20T15:00:00Z' },
     { merchant_id: null, name: 'Parqueo Fércori', raw: 'PARQUEO FERCORI SAN J', movements: 6, last_at: '2026-10-18T15:00:00Z' },
