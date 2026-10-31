@@ -26,6 +26,8 @@ export interface Line {
   group_category_id: string | null;
   account_id: string | null;
   active: boolean;
+  /** Fixed group: the amount is what its recurrents add up to this month (PPT-09). */
+  amount_auto?: boolean;
   is_rest: boolean;
   sort: number;
 }
@@ -78,6 +80,25 @@ export interface Budget {
   toSpend: { left: number; total: number; count: number } | null;
 }
 
+/** What a set of recurrents adds up to this month: paid ones by what was paid, due ones by their amount (PPT-09). */
+export function recurringMonth(recs: RecState[], fx: number) {
+  return recs.reduce((a, s) => {
+    const each = toCrc(s.r.amount, s.r.currency, fx);
+    const paid = s.paidOn ? s.paid || each : 0; // paid without a linked movement: its usual amount
+    return a + paid + (s.dueOn ? each : 0);
+  }, 0);
+}
+
+/** This month's recurrents of a category (and its subcategories), for the editor's preview. */
+export function categoryRecsThisMonth(recurring: Recurring[], categories: Category[], categoryId: string, txs: Tx[], spaceId: string) {
+  const t = todayCR();
+  const range = monthRange(t.y, t.m);
+  const fam = familyIds(categories, categoryId);
+  const monthTxs = txs.filter((x) => x.space_id === spaceId && x.occurred_at >= range.from && x.occurred_at < range.to);
+  return recurring.filter((r) => r.kind === 'expense' && r.category_id && fam.has(r.category_id))
+    .map((r) => recState(r, monthTxs, dayKey(range.from), dayKey(range.to))).filter(Boolean) as RecState[];
+}
+
 /** This month's state of one recurrent: paid (and when) or due (and when). */
 function recState(r: Recurring, monthTxs: Tx[], from: string, to: string): RecState | null {
   const paidTxs = monthTxs.filter((x) => x.recurring_id === r.id);
@@ -116,7 +137,9 @@ export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Re
         : fam ? o.recurring.filter((r) => r.kind === 'expense' && r.category_id && fam.has(r.category_id)) : [];
       const recs = rs.map((r) => recState(r, monthTxs, from, to)).filter(Boolean) as RecState[];
       const actual = recs.reduce((a, s) => a + s.paid, 0);
-      return { ...base, recs, actual, done: recs.length > 0 && recs.every((s) => s.paidOn && !s.dueOn) };
+      // PPT-09: the month's recurrents set the amount (what was paid, or what's expected for the ones still due)
+      const auto = line.amount_auto && !!line.group_category_id ? recurringMonth(recs, fx) : null;
+      return { ...base, amount: auto ?? amount, recs, actual, done: recs.length > 0 && recs.every((s) => s.paidOn && !s.dueOn) };
     }
     if (line.kind === 'cap') {
       const ids = new Set<string>();

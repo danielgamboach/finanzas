@@ -56,7 +56,7 @@ Un pago fijo **es** un recurrente mensual: al crearlo en Presupuesto se crea en 
 - **Cuando** registro el pago (desde Pagos pendientes o ligado al recurrente)
 - **Entonces** la fila dice "Pagado el 5 nov" en verde
 
-**Varios pagos de una categoría:** un pago fijo puede agrupar todos los recurrentes de gasto de una categoría, por ejemplo Suscripciones. No crea recurrentes; muestra "3 de 4 pagados" con los que caen en el mes. Al elegir la categoría, sugiere la suma de sus recurrentes como monto.
+**Varios pagos de una categoría:** un pago fijo puede agrupar todos los recurrentes de gasto de una categoría, por ejemplo Suscripciones. No crea recurrentes; muestra "3 de 4 pagados" con los que caen en el mes. Al elegir la categoría, lista sus recurrentes del mes y sugiere su suma como monto; o el monto puede seguir a los recurrentes solo (PPT-09).
 
 | Caso | Resultado esperado |
 |---|---|
@@ -158,6 +158,26 @@ Los gastos que no están en ningún tope no aparecen aquí: se ven en Mis finanz
 **Estado:** Hecho
 
 Los sobres que ya existían pasaron a ser topes mensuales con el mismo monto y las mismas categorías. "Todo lo demás" ya no se usa.
+
+### PPT-09 · Monto según los recurrentes
+
+**Estado:** Hecho
+
+Un pago fijo que agrupa los recurrentes de una categoría puede tener el monto **según los recurrentes** (interruptor en su edición). Entonces no se escribe: cada mes es la suma de sus recurrentes de ese mes, con lo pagado para los que ya se pagaron y el monto esperado para los que faltan (≈ el promedio en los variables). Se recalcula solo cuando agregás, pausás o cambiás un recurrente, y "Te queda libre" se ajusta.
+
+- **Dado** el pago fijo "Suscripciones" con monto según los recurrentes, y en la categoría Netflix (¢7.900) y Spotify (¢5.900)
+- **Entonces** la partida vale ¢13.800 y la fila dice "2 de 2 pagados · según recurrentes"
+- **Cuando** me suscribo a iCloud (¢1.500, recurrente en la misma categoría)
+- **Entonces** la partida pasa a ¢15.300 sin editarla
+
+| Caso | Resultado esperado |
+|---|---|
+| Un recurrente anual que cae este mes | Suma solo este mes |
+| Se pagó un monto distinto al del recurrente | Cuenta lo pagado |
+| Apago el interruptor | El monto vuelve a ser el que escribo; se ofrece "Usar" con la suma del mes |
+| La categoría no tiene recurrentes este mes | No se puede activar |
+
+<sub>Dónde vive: `envelopes.amount_auto`, `recurringMonth` en `src/lib/budget.ts`.</sub>
 
 ---
 

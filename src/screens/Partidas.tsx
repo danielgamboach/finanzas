@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ActionBar, BalanceSummary, Button, Checkbox, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, Switch, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
-import { buildBudget, GROUP_LABEL, KIND_LABEL, monthKeyNow, nextDueForDay, toCrc, useBudgetData, type LineKind, type LineStat, type Line } from '../lib/budget';
+import { buildBudget, categoryRecsThisMonth, GROUP_LABEL, KIND_LABEL, monthKeyNow, nextDueForDay, recurringMonth, toCrc, useBudgetData, type LineKind, type LineStat, type Line } from '../lib/budget';
 import { familyIds } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import { daysUntil, shortDay } from '../lib/recurring';
@@ -24,7 +24,7 @@ export function useBudget() {
   const { txs, loading } = useTxs(range);
   const data = useBudgetData(space?.id);
   const budget = data && space ? buildBudget({ ...data, categories, txs, spaceId: space.id, fx }) : null;
-  return { budget, data, first: (loading && txs.length === 0) || !data };
+  return { budget, data, txs, first: (loading && txs.length === 0) || !data };
 }
 
 const tone = (pct: number) => (pct >= 100 ? 'destructive' : pct >= 80 ? 'warning' : 'default') as 'destructive' | 'warning' | 'default';
@@ -45,7 +45,7 @@ function FixedRow({ s }: { s: LineStat }) {
   let detail = 'No se paga este mes', detailTone: 'muted' | 'success' | 'warning' = 'muted';
   if (s.recs.length > 1) {
     const paid = s.recs.filter((x) => x.paidOn && !x.dueOn).length;
-    detail = `${paid} de ${s.recs.length} pagados`;
+    detail = `${paid} de ${s.recs.length} pagados${s.line.amount_auto ? ' · según recurrentes' : ''}`;
     if (s.done) detailTone = 'success';
   } else if (s.recs.length === 1) {
     const r = s.recs[0];
@@ -302,11 +302,11 @@ export function LineView({ id }: { id: string }) {
 /** Add or edit a line (#/partida/nueva, #/partida/<id>/editar): the kind first, then only what that kind needs (PPT-01). */
 export function LineEdit({ id }: { id: string }) {
   const { space, categories, accounts, cur, fx, toast, bump } = useApp();
-  const { data } = useBudget();
+  const { data, txs } = useBudget();
   const isNew = id === 'nueva';
   const existing = data?.lines.find((l) => l.id === id) || null;
   const rec = existing?.recurring_id ? data?.recurring.find((r) => r.id === existing.recurring_id) : undefined;
-  const [form, setForm] = useState<null | { kind: LineKind; name: string; amt: string; currency: Currency; day: string; catId: string; group: boolean; cats: Set<string>; accountId: string }>(null);
+  const [form, setForm] = useState<null | { kind: LineKind; name: string; amt: string; currency: Currency; day: string; catId: string; group: boolean; auto: boolean; cats: Set<string>; accountId: string }>(null);
   const [busy, setBusy] = useState(false);
   if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Nueva partida' : 'Editar partida'} />;
 
@@ -318,6 +318,7 @@ export function LineEdit({ id }: { id: string }) {
     day: rec ? String(Number(rec.next_due.slice(8, 10))) : '',
     catId: existing?.group_category_id || rec?.category_id || '',
     group: !!existing?.group_category_id,
+    auto: !!existing?.amount_auto,
     cats: new Set(data.links.filter((l) => existing && l.envelope_id === existing.id).map((l) => l.category_id)),
     accountId: existing?.account_id || '',
   };
@@ -329,13 +330,14 @@ export function LineEdit({ id }: { id: string }) {
   const lines = data.lines.filter((l) => l.active && !l.is_rest);
   const owner = new Map(data.links.filter((l) => l.envelope_id !== existing?.id && lines.some((x) => x.id === l.envelope_id && x.kind === 'cap')).map((l) => [l.category_id, lines.find((x) => x.id === l.envelope_id)!.name]));
 
-  // a group of recurrents (Suscripciones): suggest what they add up to in a month
-  const groupRecs = f.group && f.catId ? data.recurring.filter((r) => r.active && r.kind === 'expense' && r.category_id && familyIds(categories, f.catId).has(r.category_id)) : [];
-  const groupSum = groupRecs.reduce((a, r) => a + toCrc(r.amount, r.currency, fx), 0);
+  // a group of recurrents (Suscripciones): what they add up to this month, to use once or to follow (PPT-09)
+  const groupRecs = f.group && f.catId ? categoryRecsThisMonth(data.recurring, categories, f.catId, txs, space.id) : [];
+  const groupSum = recurringMonth(groupRecs, fx);
   const inCur = (crc: number) => (f.currency === 'USD' ? crc / fx : crc);
+  const auto = f.kind === 'fixed' && f.group && f.auto;
 
   const day = Math.round(Number(f.day));
-  const valid = f.name.trim() && num > 0
+  const valid = f.name.trim() && (auto ? groupRecs.length > 0 : num > 0)
     && (f.kind !== 'fixed' || (f.group ? !!f.catId : day >= 1 && day <= 31))
     && (f.kind !== 'cap' || f.cats.size > 0);
 
@@ -353,7 +355,7 @@ export function LineEdit({ id }: { id: string }) {
     if (!space || !valid) return;
     setBusy(true);
     try {
-      const amt = Math.round(num * 100) / 100;
+      const amt = auto ? Math.max(1, Math.round(inCur(groupSum) * 100) / 100) : Math.round(num * 100) / 100;
       let recurringId = existing?.recurring_id || null;
       // a single fixed payment is a recurrent: created or updated here, so it keeps showing in Pagos pendientes (PPT-02)
       if (f.kind === 'fixed' && !f.group) {
@@ -369,6 +371,7 @@ export function LineEdit({ id }: { id: string }) {
         name: f.name.trim(), amount: amt, currency: f.currency, kind: f.kind, period: 'monthly',
         recurring_id: f.kind === 'fixed' && !f.group ? recurringId : null,
         group_category_id: f.kind === 'fixed' && f.group ? f.catId : null,
+        amount_auto: auto,
         account_id: f.kind === 'saving' ? f.accountId || null : null,
       };
       let lineId = existing?.id;
@@ -418,17 +421,26 @@ export function LineEdit({ id }: { id: string }) {
             <span>Nombre</span>
             <input value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === 'fixed' ? 'Alquiler de la casa' : f.kind === 'cap' ? 'Restaurantes' : 'Emergencias'} aria-label="Nombre" />
           </label>
-          <label className="field-row">
-            <span>Monto al mes</span>
-            <input inputMode="decimal" value={f.amt} onChange={(e) => set({ amt: e.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0" aria-label="Monto al mes" />
-          </label>
-          <label className="field-row">
-            <span>Moneda</span>
-            <select value={f.currency} onChange={(e) => set({ currency: e.target.value as Currency })} aria-label="Moneda">
-              <option value="CRC">Colones</option>
-              <option value="USD">Dólares</option>
-            </select>
-          </label>
+          {auto ? (
+            <div className="field-row">
+              <span>Monto al mes</span>
+              <span className="muted">{amount(groupSum, cur, fx)} {unitOf(cur)} este mes</span>
+            </div>
+          ) : (
+            <label className="field-row">
+              <span>Monto al mes</span>
+              <input inputMode="decimal" value={f.amt} onChange={(e) => set({ amt: e.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0" aria-label="Monto al mes" />
+            </label>
+          )}
+          {!auto && (
+            <label className="field-row">
+              <span>Moneda</span>
+              <select value={f.currency} onChange={(e) => set({ currency: e.target.value as Currency })} aria-label="Moneda">
+                <option value="CRC">Colones</option>
+                <option value="USD">Dólares</option>
+              </select>
+            </label>
+          )}
 
           {f.kind === 'fixed' && !f.group && (
             <label className="field-row">
@@ -465,11 +477,30 @@ export function LineEdit({ id }: { id: string }) {
 
         {f.kind === 'fixed' && !f.group && <p className="page-text">Se agrega a Recurrentes, así te avisa en Pagos pendientes cuando toca pagarlo.</p>}
         {f.kind === 'fixed' && f.group && f.catId && (
-          groupRecs.length === 0 ? <p className="page-text">Esa categoría no tiene pagos recurrentes todavía.</p> : (
-            <div className="row between gap10 env-sug">
-              <span className="page-text">{groupRecs.length} {groupRecs.length === 1 ? 'pago suma' : 'pagos suman'} {amount(groupSum, f.currency, fx)} {unitOf(f.currency)} al mes</span>
-              <Button variant="secondary" size="xs" onClick={() => set({ amt: typed(Math.round(inCur(groupSum) * 100) / 100) })}>Usar</Button>
-            </div>
+          groupRecs.length === 0 ? <p className="page-text">Esa categoría no tiene pagos recurrentes este mes.</p> : (
+            <>
+              <ListGroup>
+                <ListRow
+                  title="Monto según los recurrentes"
+                  detail={f.auto ? 'Cada mes, lo que sumen sus pagos' : 'Lo escribís vos'}
+                  actions={<Switch checked={f.auto} label="Monto según los recurrentes" onChange={() => set({ auto: !f.auto })} />}
+                />
+              </ListGroup>
+              <ListGroup title={`Recurrentes de este mes · ${amount(groupSum, cur, fx)} ${unitOf(cur)}`}>
+                {groupRecs.map((g) => (
+                  <ListRow key={g.r.id} title={g.r.merchant}
+                    detail={g.dueOn ? `Vence el ${shortDay(g.dueOn)}` : g.paidOn ? `Pagado el ${shortDay(g.paidOn)}` : undefined}
+                    value={<>{g.r.variable && g.dueOn ? '≈ ' : ''}{amount(g.dueOn ? toCrc(g.r.amount, g.r.currency, fx) : g.paid || toCrc(g.r.amount, g.r.currency, fx), cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}
+                    href={`#/recurrente/${g.r.id}`} chevron />
+                ))}
+              </ListGroup>
+              {!f.auto && (
+                <div className="row between gap10 env-sug">
+                  <span className="page-text">Suman {amount(groupSum, f.currency, fx)} {unitOf(f.currency)} este mes</span>
+                  <Button variant="secondary" size="xs" onClick={() => set({ amt: typed(Math.round(inCur(groupSum) * 100) / 100) })}>Usar</Button>
+                </div>
+              )}
+            </>
           )
         )}
         {f.kind === 'saving' && f.accountId && <p className="page-text">Queda apartado cuando movés el dinero a esa cuenta.</p>}

@@ -15,7 +15,7 @@ Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar
 | [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, posponer, ignorar | 9 | | 1 |
 | [categorias.md](categorias.md) | Categorías y subcategorías (solo clasifican) | 2 | | |
 | [importar-estados.md](importar-estados.md) | Subir estados de cuenta del BAC en PDF | | | 7 |
-| [presupuesto.md](presupuesto.md) | Partidas del mes: pagos fijos, topes, ahorro, salario, "Para gastar" | 8 | | |
+| [presupuesto.md](presupuesto.md) | Partidas del mes: pagos fijos, topes, ahorro, salario, "Para gastar", monto según recurrentes | 9 | | |
 | automatico.md | Vouchers, preautorizaciones, "¿Es una suscripción?", Apple | | | Por escribir |
 
 En cuentas-y-saldos.md, CTA-08 (los aportes) quedó eliminada.
