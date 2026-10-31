@@ -29,13 +29,15 @@ Un gasto puede ir directo en la categoría padre; en la vista de la categoría a
 
 **Estado:** Parcial
 
-Una categoría puede tener límite mensual o semanal, o no tener límite. El presupuesto del mes es la suma de los límites (los semanales cuentan unas 4,33 veces); "Disponible" en Inicio es el presupuesto menos lo gastado.
+Una categoría puede tener límite mensual o semanal, o no tener límite. Los límites son una parte del plan del mes (presupuesto.md, PRS-04). Sin ingreso en el plan, el presupuesto del mes es la suma de los límites (los semanales cuentan unas 4,33 veces) y "Disponible" en Inicio es eso menos lo gastado; con ingreso, manda PRS-07.
 
 | Uso del límite | Resultado esperado |
 |---|---|
 | Menos del 80% | Barra normal |
 | Del 80% al 99% | Barra en advertencia |
 | 100% o más | Barra en rojo, salvo las categorías fijas (alquiler, servicios), que no se marcan |
+
+En Presupuesto, al límite solo le cuenta el gasto que no es un pago de un fijo o variable del plan (PRS-04).
 
 **Hoy:** las subcategorías no pueden tener límite propio; solo la categoría padre.
 

@@ -291,6 +291,13 @@ export function CategoryView({ id }: { id: string }) {
   const periodSpent = weekly && isCurrent ? sumSpend(mine.filter((x) => inRange(x, week))) : famTotal;
   const pct = limit ? Math.round((periodSpent / limit) * 100) : null;
   const groups = groupByDay(inMonth);
+  // PRS-04: the pace of a monthly limit, only here (the budget row just says what's left)
+  const tc = todayCR();
+  const restDays = new Date(Date.UTC(tc.y, tc.m + 1, 0)).getUTCDate() - tc.d + 1;
+  const left = limit !== null ? limit - famTotal : 0;
+  const pace = cat.kind === 'expense' && !cat.is_fixed && !weekly && limit !== null && pk === 'month' && sub === 'all' && left > 0
+    ? ` · Quedan ${amount(left, cur, fx)} ${unitOf(cur)} para ${restDays === 1 ? 'hoy' : `${restDays} días`}${restDays > 1 ? ` (${amount(left / restDays, cur, fx)} por día)` : ''}`
+    : '';
 
   const subLabel = sub !== 'all' ? ` · ${sub === 'none' ? 'sin detalle' : kids.find((k) => k.id === sub)?.name || ''}` : '';
   return (
@@ -305,7 +312,7 @@ export function CategoryView({ id }: { id: string }) {
           label={`${cat.kind === 'income' ? 'Ingresos' : 'Gastado'}${subLabel}${parent ? ` · en ${parent.name}` : ''}`}
           value={amount(total, cur, fx)}
           unit={unitOf(cur)}
-          meta={inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}
+          meta={`${inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}${pace}`}
           action={<PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />}
         />
       </div>

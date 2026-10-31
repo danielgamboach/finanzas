@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
+import { buildPlan, usePlanData } from '../lib/budget';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
 import { byKind } from '../lib/accounts';
@@ -66,7 +67,10 @@ export function useHomeSummary() {
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
   const { txs, loading } = useTxs(range);
+  const pd = usePlanData(space?.id);
   if (!space) return null;
+  // PRS-07: with an income, "Disponible" is what's left after savings, payments (paid or not) and spending
+  const plan = pd ? buildPlan({ ym: [t.y, t.m], spaceId: space.id, txs, categories, accounts, fx, ...pd }) : null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
@@ -83,7 +87,11 @@ export function useHomeSummary() {
   const shared = space.kind === 'shared';
   let label: string, value: number, negative = false;
   let delta: { text: string; good: boolean } | null = null;
-  if (budget > 0) {
+  if (plan && plan.available !== null) {
+    value = Math.abs(plan.available);
+    negative = plan.available < 0;
+    label = negative ? (shared ? 'Se pasaron del ingreso' : 'Te pasaste del ingreso') : `Disponible en ${monthName(t.m)}`;
+  } else if (budget > 0) {
     const avail = budget - spent;
     value = Math.abs(avail);
     negative = avail < 0;

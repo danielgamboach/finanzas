@@ -122,6 +122,13 @@ export const tables = {
     { id: 's3', account_id: 'a-visa', balance: -318500, taken_on: day(-1) },
     { id: 's4', account_id: 'a-amex', balance: -42000, taken_on: day(-2) },
   ],
+  budget_months: [{ space_id: SPACE, month: `${day(0).slice(0, 7)}-01`, income: 1200000, closed_at: null, carried: null }],
+  budget_savings: [
+    { id: 'bs-emerg', space_id: SPACE, name: 'Emergencias', amount: 100000, currency: 'CRC', goal_id: null, active: true, sort: 1 },
+    { id: 'bs-casa', space_id: SPACE, name: 'Casa propia', amount: 150000, currency: 'CRC', goal_id: 'g-casa', active: true, sort: 2 },
+  ],
+  budget_carry: [],
+  budget_saving_marks: [],
   apple_receipts: [],
   ingest_unmatched: [],
   recurring_dismissals: [],
