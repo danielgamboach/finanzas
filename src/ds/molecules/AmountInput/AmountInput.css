@@ -7,3 +7,17 @@
 .ds-amount--small { align-items: center; padding: 16px; border-radius: var(--radius-3xl); background: var(--muted); }
 .ds-amount--small .ds-amount__sym { font-size: var(--text-xl); }
 .ds-amount--small .ds-amount__field { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); letter-spacing: var(--tracking-tight); }
+.ds-amount.is-positive .ds-amount__field { color: var(--success); }
+
+/* display: "100.000 CRC" in the movement form, left aligned; the field is as wide as what it holds */
+.ds-amount--display { justify-content: flex-start; align-items: baseline; gap: 4px; min-width: 0; max-width: 100%; font-size: var(--text-5xl); line-height: var(--text-5xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.ds-amount--fit-sm { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); }
+.ds-amount--fit-xs { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
+.ds-amount--fit-xxs { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); }
+.ds-amount__grow { display: inline-grid; min-width: 0; }
+.ds-amount__grow::after { content: attr(data-value); padding-right: 2px; grid-area: 1 / 1; visibility: hidden; white-space: pre; font: inherit; letter-spacing: inherit; font-variant-numeric: tabular-nums; }
+.ds-amount--display .ds-amount__field { grid-area: 1 / 1; width: 100%; min-width: 1ch; font: inherit; letter-spacing: inherit; line-height: inherit; outline: none; box-shadow: none; }
+.ds-amount--display .ds-amount__field::placeholder { color: var(--input); }
+.ds-amount__unit { flex: none; border: none; background: none; padding: 0; margin: 0; color: var(--muted-foreground); font: inherit; letter-spacing: inherit; line-height: inherit; cursor: pointer; border-radius: var(--radius-lg); }
+.ds-amount__unit:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) { button.ds-amount__unit:hover { color: var(--foreground); } }

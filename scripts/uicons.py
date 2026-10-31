@@ -78,6 +78,9 @@ MAP = {
     'wave': 'hand-wave',
     'checkCircle': 'check-circle',
     'link': 'link',
+    'arrowDownLeft': 'arrow-down-left',
+    'exchange': 'exchange',
+    'handUsd': 'hand-holding-usd',
 }
 
 # Los que además se usan rellenos (fi-ss-*): agregar y la flecha del cambio en Inicio.

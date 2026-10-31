@@ -13,6 +13,7 @@ import { TxSheet } from '../ui/TxSheet';
 import { usePendingCount } from '../ui/AppMenu';
 import { openKai } from '../ui/Kai';
 import { useMenu } from '../lib/menu';
+import { primeKeyboard } from '../lib/keyboard';
 
 export function MonthNav({ ym, setYm }: { ym: [number, number]; setYm: (v: [number, number]) => void }) {
   const t = todayCR();
@@ -52,6 +53,7 @@ export function groupByDay(txs: Tx[]) {
 }
 
 export function goAdd(tipo: string) {
+  primeKeyboard();
   go(`/agregar?tipo=${tipo}`);
 }
 
@@ -213,7 +215,7 @@ export function Home({ open, setOpen, focus }: { open: boolean; setOpen: (v: boo
     <div className="home">
       <div className="home-top">
         <HomeHeader
-          actions={<HomeHeaderButton icon="plus" label="Nuevo movimiento" onClick={() => go('/agregar')} />}
+          actions={<HomeHeaderButton icon="plus" label="Nuevo movimiento" onClick={() => { primeKeyboard(); go('/agregar'); }} />}
           center={<button type="button" className="ds-home-header__title" onClick={() => menu?.open()} aria-label={`Espacio ${h.space.name}, abrir menú`}>{h.space.emoji} {h.space.name}</button>}
         >
           <MenuButton

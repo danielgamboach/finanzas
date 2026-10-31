@@ -1081,7 +1081,6 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .shell .form-layer { position: absolute; z-index: 1; box-shadow: none; transform: translateX(calc((1 - var(--form-p)) * 24%)); }
 .form-layer .form-screen { min-height: 100%; padding-top: env(safe-area-inset-top); background: var(--background); }
 .form-layer .sheet-page { min-height: 0; border-radius: 0; padding-top: 0; }
-.form-layer .form-page-head { margin: 0 -24px -4px; }
 
 @media (prefers-reduced-motion: reduce) {
   .shell-menu, .shell-stage, .shell-scrim, .form-layer { transition-duration: .01s; }
@@ -1099,18 +1098,60 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
   .dmain .page > .ds-action-bar { padding-bottom: 24px; }
 }
 
-/* movement form: the merchant right under the amount, centered and quiet like it */
-.merchant-input { display: flex; flex-direction: column; gap: 8px; margin-top: -8px; }
-.merchant-field { display: flex; justify-content: center; }
-.merchant-field input { width: 100%; border: none; outline: none; background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-tight); text-align: center; padding: 4px 0; }
+/* movement form (Figma "Gasto"): header, then a sentence ("↗ Gasto ⌄ en Efectivo ⌄"), the amount and the merchant
+   big and left aligned; category, recurring and the rest under them. On the phone, while the amount or the merchant
+   has the keyboard, only that top part shows. */
+.tx-form { gap: 0; }
+/* the page fills the layer, so the save bar sits at the bottom (or right on the keyboard) even when the form is short */
+.form-layer .tx-form { min-height: calc(100dvh - env(safe-area-inset-top)); }
+.txf-head { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 8px; height: 62px; margin: 0 -24px; padding: 0 16px; }
+.txf-title { margin: 0; text-align: center; font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txf-space { position: relative; display: flex; justify-content: flex-end; }
+.txf-space-btn { padding: 0; border: none; background: none; border-radius: var(--radius-xl); cursor: pointer; }
+.txf-space-btn:disabled { cursor: default; }
+.txf-space-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.txf-space-scrim { position: fixed; inset: 0; z-index: 20; }
+.txf-space-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 21; animation: fade-in .12s ease-out; }
+.txf-main { display: flex; flex-direction: column; gap: 16px; padding: 32px 0 16px; min-width: 0; }
+.txf-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: -4px; }
+.txf-conn { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
+.txf-amount { width: 100%; }
+.txf-eq { margin-top: -12px; font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
+.txf-rest { display: flex; flex-direction: column; gap: 12px; animation: fade-in .16s ease-out; }
+.txf-cat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.txf-ai { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--ai-subtle-foreground); }
+.txf-check { font-size: var(--text-xs); }
+.txf-body { display: flex; flex-direction: column; gap: 16px; padding: 20px 0 16px; }
+.txf-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 8px 8px 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); }
+.txf-toggle small { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: var(--font-weight-normal); color: var(--muted-foreground); }
+.txf-more .ds-btn__label { text-decoration: none; }
+.txf-more { align-self: flex-start; color: var(--muted-foreground); padding-left: 4px; padding-right: 4px; }
+.txf-more-body { display: flex; flex-direction: column; gap: 16px; animation: fade-in .16s ease-out; }
+.tx-form > .ds-action-bar { padding: 32px 16px calc(16px + env(safe-area-inset-bottom)); margin: auto -24px 0; }
+.kb-open .tx-form > .ds-action-bar { padding-top: 16px; padding-bottom: 10px; }
+
+/* the merchant: as big as the amount's little sibling, the field as wide as its text so the faces follow it */
+.merchant-input { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.merchant-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.merchant-field { display: inline-grid; grid-template-columns: minmax(1ch, auto); min-width: 0; max-width: 100%; font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-tight); }
+.merchant-field::after { content: attr(data-value); padding-right: 2px; grid-area: 1 / 1; visibility: hidden; white-space: pre; overflow: hidden; font: inherit; letter-spacing: inherit; }
+.merchant-field input { grid-area: 1 / 1; box-shadow: none; width: 100%; min-width: 0; border: none; outline: none; background: transparent; color: var(--foreground); font: inherit; letter-spacing: inherit; line-height: inherit; padding: 0; text-overflow: ellipsis; }
 .merchant-field input::placeholder { color: var(--input); }
+.txf-faces { flex: none; display: inline-flex; align-items: center; padding: 4px 0 0 4px; }
+.txf-face { box-shadow: 0 0 0 2px var(--background); }
+.txf-face--logo { transform: rotate(-15deg); }
+.txf-face--cat { transform: rotate(15deg); }
+.txf-face--logo + .txf-face--cat { margin-left: -12px; }
 .merchant-suggest { animation: fade-in .12s ease-out; }
+.merchant-suggest .ds-group__title { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); }
+.merchant-suggest .ds-group__list { background: var(--muted); --badge-ring: var(--muted); }
 
 /* Kai floats at the bottom right of Inicio; it steps aside while the movements sheet is open */
 .home-kai.ds-kai--fab { position: absolute; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6; transition: opacity .2s ease, transform .2s ease; }
 .home-kai.is-hidden { opacity: 0; transform: scale(.85); pointer-events: none; }
-/* "Descartar" closes the form; at the very bottom, under the save bar, not pinned */
-.form-discard { margin-top: -12px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
-.form-discard .ds-btn { color: var(--muted-foreground); }
 .light .dkai { background: var(--ai-subtle); color: var(--ai-subtle-foreground); }
 .light .dkai:hover { background: var(--ai); }
+
+/* hidden field that opens the phone keyboard inside the "+" tap (lib/keyboard primeKeyboard) */
+.kb-primer { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: none; padding: 0; font-size: var(--text-base); pointer-events: none; }
+.desk-modal .tx-form { padding-top: 4px; }

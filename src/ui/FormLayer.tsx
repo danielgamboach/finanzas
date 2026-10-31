@@ -75,7 +75,7 @@ export const FormLayer = forwardRef<FormLayerHandle, { spec: FormSpec | null; on
       if (commit) {
         set(1, true);
         // focus while still inside the finger's gesture, so the phone opens the keyboard
-        el.current?.querySelector<HTMLInputElement>('.amount-input input')?.focus({ preventScroll: true });
+        el.current?.querySelector<HTMLInputElement>('.txf-amount input')?.focus({ preventScroll: true });
       } else close();
     },
   }));

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Bone, Button, Chip, FormSkeleton, Loader, PageHeader, Switch, ActionBar } from '../ds';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActionBar, AmountInput, Avatar, Bone, Button, FormSkeleton, Loader, Menu, MenuItem, SelectPill, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
 import { addPeriod, patternFrom } from '../lib/recurring';
@@ -7,12 +7,12 @@ import { useDesktop } from '../lib/useDesktop';
 import { MerchantPhotoField } from '../ui/Merchant';
 import { MerchantInput } from '../ui/MerchantInput';
 import { merchantSiblings, setMerchantCategory } from '../lib/merchantCategory';
-import { txMerchant } from '../lib/merchants';
+import { namePhoto, photoUrl, txMerchant } from '../lib/merchants';
 import { extractTags, tagsOf } from '../lib/calc';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
 import type { Account, Category, Currency, Tx, TxKind } from '../lib/types';
 import { closeModal, go, TX_SELECT, useApp } from '../store';
-import { Icon, Loading, Segmented } from '../ui';
+import { Icon } from '../ui';
 
 type FormType = 'gasto' | 'ingreso' | 'transferir' | 'aporte';
 const TYPE_TO_KIND: Record<FormType, TxKind> = { gasto: 'expense', ingreso: 'income', transferir: 'transfer', aporte: 'contribution' };
@@ -42,18 +42,14 @@ function rulePattern(raw: string) {
     .trim();
 }
 
-/** On the phone the form is a page that comes in from the right (back arrow); on desktop, a centered dialog with X. */
-function FormHead({ title }: { title: string }) {
-  const desk = useDesktop();
-  const close = () => closeModal();
-  if (!desk) return <PageHeader className="form-page-head" title={title} onBack={close} backLabel="Cerrar" />;
-  return (
-    <div className="form-head">
-      <h1 className="form-title">{title}</h1>
-      <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
-    </div>
-  );
-}
+const TYPE_META: Record<FormType, { label: string; icon: string; title: string; save: string }> = {
+  gasto: { label: 'Gasto', icon: 'arrowUpRight', title: 'Nuevo gasto', save: 'Guardar gasto' },
+  ingreso: { label: 'Ingreso', icon: 'arrowDownLeft', title: 'Nuevo ingreso', save: 'Guardar ingreso' },
+  transferir: { label: 'Mover', icon: 'exchange', title: 'Mover dinero', save: 'Guardar movimiento' },
+  aporte: { label: 'Aporte', icon: 'handUsd', title: 'Nuevo aporte', save: 'Guardar aporte' },
+};
+
+const spaceColor = (kind?: string) => (kind === 'shared' ? 'mint' : 'sky');
 
 export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAmount?: boolean }) {
   const app = useApp();
@@ -64,9 +60,15 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
   const [type, setType] = useState<FormType>((params.get('tipo') as FormType) || 'gasto');
   const [spaceId, setSpaceId] = useState<string>(app.space?.id || spaces[0]?.id || '');
-  const [cur, setCur] = useState<Currency>('CRC');
+  const [cur, setCur] = useState<Currency>(app.cur || 'CRC');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  // a category chosen by hand isn't replaced when a suggested merchant brings its own
+  const [catTouched, setCatTouched] = useState(Boolean(id));
+  // the catalog merchant picked from the suggestions (for its logo); typing again forgets it
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+  const [spaceMenu, setSpaceMenu] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
   const [contributor, setContributor] = useState<string>(userId);
@@ -77,7 +79,6 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [remember, setRemember] = useState(true);
   const [applyAll, setApplyAll] = useState(true);
   const [siblings, setSiblings] = useState(0);
-  const [showAllCats, setShowAllCats] = useState(false);
   const [cats, setCats] = useState<Category[]>([]);
   const [accs, setAccs] = useState<Account[]>([]);
   const [busy, setBusy] = useState(false);
@@ -85,18 +86,23 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   // on the phone the bottom button follows the keyboard: amount → add the merchant, any other field → close the
   // keyboard, nothing focused → save
   const phone = !useDesktop();
-  const [field, setField] = useState<'amount' | 'text' | null>(null);
+  // amount and merchant are the top of the form; while one of them has the keyboard, the rest steps aside
+  const [field, setField] = useState<'amount' | 'merchant' | 'text' | null>(null);
   const onFocusIn = (e: React.FocusEvent) => {
     const el = e.target as HTMLElement;
-    if (el.closest('.amount-input')) setField('amount');
-    else if (el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'file'].includes(el.type))) setField('text');
+    if (el.closest('.txf-amount')) setField('amount');
+    else if (el.closest('.merchant-field')) setField('merchant');
+    else if (el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && !['checkbox', 'radio', 'file', 'date', 'datetime-local'].includes(el.type))) setField('text');
     else setField(null);
   };
   const onFocusOut = () => setField(null);
   // keep the field focused (and the keyboard up) while the bottom button is pressed
   const keep = (e: React.PointerEvent | React.MouseEvent) => e.preventDefault();
-  const toMerchant = () => document.querySelector<HTMLInputElement>('.merchant-field input')?.focus();
+  const merchantRef = useRef<HTMLDivElement>(null);
+  const toMerchant = () => merchantRef.current?.querySelector<HTMLInputElement>('.merchant-field input')?.focus();
   const doneTyping = () => (document.activeElement as HTMLElement | null)?.blur?.();
+  // "Continuar" on the amount: on to the merchant, or done if it's already there
+  const next = () => (merchant.trim() ? doneTyping() : toMerchant());
 
   // load the transaction when editing
   useEffect(() => {
@@ -145,7 +151,6 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const kind = TYPE_TO_KIND[type];
   const catKind = type === 'ingreso' ? 'income' : 'expense';
   const visibleCats = pickerOrder(cats.filter((c) => c.kind === catKind));
-  const shownCats = showAllCats || visibleCats.findIndex((c) => c.id === categoryId) >= 8 ? visibleCats : visibleCats.slice(0, 8);
   const num = parseAmount(amount);
   const eq = cur === 'USD' ? moneyRaw(num * fx, 'CRC') : moneyRaw(num / fx, 'USD');
   const spaceMembers = members.filter((m) => m.space_id === spaceId);
@@ -259,213 +264,309 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
     return base;
   }, [sharedSpaces.length]);
 
+  // the space menu closes with Esc before the form does
+  useEffect(() => {
+    if (!spaceMenu) return;
+    const on = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      setSpaceMenu(false);
+    };
+    addEventListener('keydown', on, true);
+    return () => removeEventListener('keydown', on, true);
+  }, [spaceMenu]);
+
+  const meta = TYPE_META[type];
+  const title = id ? 'Editar movimiento' : meta.title;
+  const spaceChoices = spaces.filter((s) => type !== 'aporte' || s.kind === 'shared');
+  const pickSpace = (sid: string) => {
+    setSpaceMenu(false);
+    if (sid === spaceId) return;
+    setSpaceId(sid);
+    setCategoryId(null);
+    setAccountId(null);
+    setToAccountId(null);
+  };
+
+  const head = (
+    <header className="txf-head">
+      <Button variant="ghost" size="sm" iconOnly onClick={() => closeModal()} aria-label={phone ? 'Volver' : 'Cerrar'}>
+        <Icon name={phone ? 'back' : 'close'} size={16} stroke={phone ? 2 : 2.4} />
+      </Button>
+      <h1 className="txf-title">{title}</h1>
+      <div className="txf-space">
+        {space && (
+          <button
+            type="button"
+            className="txf-space-btn"
+            onClick={() => setSpaceMenu((o) => !o)}
+            disabled={spaceChoices.length < 2}
+            aria-haspopup="menu"
+            aria-expanded={spaceMenu}
+            aria-label={`Espacio: ${space.name}${spaceChoices.length > 1 ? '. Cambiar' : ''}`}
+            title={space.name}
+          >
+            <Avatar emoji={space.emoji} color={spaceColor(space.kind)} size={32} />
+          </button>
+        )}
+        {spaceMenu && (
+          <>
+            <div className="txf-space-scrim" onClick={() => setSpaceMenu(false)} />
+            <Menu className="txf-space-menu" label="Espacio del movimiento">
+              {spaceChoices.map((s) => (
+                <MenuItem key={s.id} icon={<Avatar emoji={s.emoji} color={spaceColor(s.kind)} size={32} />} selected={s.id === spaceId} onClick={() => pickSpace(s.id)}>
+                  {s.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </>
+        )}
+      </div>
+    </header>
+  );
+
   if (loadingTx) {
     return (
       <div className="form-screen">
-        <div className="sheet-page" aria-label="Editar movimiento">
-          <FormHead title="Editar movimiento" />
+        <div className="sheet-page tx-form" aria-label="Editar movimiento">
+          {head}
           <Loader>
-            <Bone height={36} radius="xl" />
-            <span className="amount-block"><Bone width={180} height={56} radius="lg" /></span>
-            <FormSkeleton fields={3} />
+            <div className="txf-main">
+              <Bone width={160} height={28} radius="full" />
+              <Bone width={220} height={48} radius="lg" />
+              <Bone width={180} height={40} radius="lg" />
+            </div>
+            <FormSkeleton fields={2} />
           </Loader>
         </div>
       </div>
     );
   }
 
+  const isSpend = type === 'gasto' || type === 'ingreso';
+  const accName = (aid: string | null, empty: string) => accs.find((a) => a.id === aid)?.name || empty;
+  const accOptions = (empty: string) => (
+    <>
+      <option value="">{empty}</option>
+      {accs.map((a) => (
+        <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
+      ))}
+    </>
+  );
+  const typeSel = (
+    <SelectPill icon={meta.icon} label={meta.label} value={type} onChange={(v) => setType(v as FormType)} ariaLabel="Tipo de movimiento">
+      {typeOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </SelectPill>
+  );
+  const conn = (w: string) => <span className="txf-conn">{w}</span>;
+
+  // the faces after the merchant: its logo and its category's emoji, tilted against each other
+  const pickedMerchant = pickedId ? app.merchants.find((m) => m.id === pickedId) : null;
+  const logo = isSpend && merchant.trim() ? (pickedMerchant ? photoUrl(pickedMerchant) : namePhoto(app.merchants, merchant)) : null;
+  const faceCat = isSpend ? selectedCat : null;
+  const faces = merchant.trim() && (logo || faceCat) ? (
+    <span className="txf-faces" aria-hidden="true">
+      {logo && <Avatar img={logo} size={40} className="txf-face txf-face--logo" />}
+      {faceCat && <Avatar emoji={faceCat.emoji} color={faceCat.color} size={40} className="txf-face txf-face--cat" />}
+    </span>
+  ) : null;
+
+  const aiHint = orig?.status === 'review' && orig.suggested_category_id && categoryId === orig.suggested_category_id;
+  // on the phone, while the amount or the merchant has the keyboard, only the top of the form shows
+  const typing = phone && (field === 'amount' || field === 'merchant');
+
   return (
     <div className="form-screen">
-      <div className="sheet-page" role="dialog" aria-label={id ? 'Editar movimiento' : 'Nuevo movimiento'} onFocus={onFocusIn} onBlur={onFocusOut}>
-        <FormHead title={id ? 'Editar movimiento' : 'Nuevo movimiento'} />
+      <div className="sheet-page tx-form" role="dialog" aria-label={title} onFocus={onFocusIn} onBlur={onFocusOut}>
+        {head}
 
-        {orig?.raw_merchant && (
-          <div className="from-bank">
-            <Icon name="bank" size={18} solid />
-            <span className="col">
-              <strong>Del banco: {orig.raw_merchant}</strong>
-              <span>{orig.currency} {String(orig.amount)} {orig.currency === 'USD' ? `· tipo de cambio ${Number(orig.fx_rate).toFixed(2)}` : ''}</span>
-            </span>
-          </div>
-        )}
-
-        <Segmented value={type} options={typeOptions} onChange={setType} />
-
-        <div className="amount-block">
-          <div className="row gap6" role="group" aria-label="Moneda">
-            {(['CRC', 'USD'] as Currency[]).map((c) => (
-              <Chip key={c} size="sm" selected={cur === c} onClick={() => setCur(c)}>{c === 'CRC' ? '¢ Colones' : '$ Dólares'}</Chip>
-            ))}
-          </div>
-          <label className="amount-input">
-            <span className="sr">Monto</span>
-            <span className="amount-sym">{cur === 'USD' ? '$' : '¢'}</span>
-            <input
-              inputMode="decimal"
-              autoFocus={autoFocusAmount}
-              placeholder="0"
-              value={displayAmount(amount)}
-              onChange={(e) => setAmount(rawAmount(e.target.value))}
-              enterKeyHint="next"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  toMerchant();
-                }
-              }}
-              className={type === 'ingreso' || type === 'aporte' ? 'pos' : ''}
-              style={{ width: `${Math.max(1, displayAmount(amount).length) * 0.62 + 0.3}em` }}
-            />
-          </label>
-          {num > 0 && <span className="muted-label">≈ {eq}</span>}
-        </div>
-
-        <MerchantInput
-          value={merchant}
-          onChange={setMerchant}
-          onPick={(name, cat) => {
-            setMerchant(name);
-            if (cat && !categoryId && (type === 'gasto' || type === 'ingreso')) setCategoryId(cat);
-          }}
-          spaceId={spaceId}
-          cats={cats}
-          suggest={type !== 'aporte'}
-          placeholder={type === 'aporte' ? 'Detalle (opcional)' : type === 'transferir' ? '¿Para qué? (opcional)' : '¿Dónde?'}
-        />
-
-        <div className="grid2">
-          {spaces
-            .filter((s) => type !== 'aporte' || s.kind === 'shared')
-            .map((s) => (
-              <button key={s.id} className={s.id === spaceId ? 'opt on' : 'opt'} aria-pressed={s.id === spaceId} onClick={() => { setSpaceId(s.id); setCategoryId(null); setAccountId(null); setToAccountId(null); }}>
-                <span>{s.emoji}</span>
-                {s.name}
-              </button>
-            ))}
-        </div>
-
-        {(type === 'gasto' || type === 'ingreso') && (
-          <div className="col gap10">
-            <span className="field-label">Categoría</span>
-            {orig?.status === 'review' && orig.suggested_category_id && categoryId === orig.suggested_category_id && (
-              <span className="hint"><span className="inline-icon"><Icon name="wand" size={12} /></span> Sugerida por IA{orig.ai_confidence ? ` · ${Math.round(Number(orig.ai_confidence) * 100)}% de confianza` : ''}. Confirmala o elegí otra.</span>
+        <div className="txf-main">
+          <div className="txf-line">
+            {typeSel}
+            {isSpend && (
+              <>
+                {conn('en')}
+                <SelectPill label={accName(accountId, 'Efectivo')} value={accountId || ''} onChange={(v) => setAccountId(v || null)} ariaLabel="Cuenta">
+                  {accOptions('Efectivo o SINPE')}
+                </SelectPill>
+              </>
             )}
-            <div className="cat-grid">
-              {shownCats.map((c) => (
-                <button
-                  key={c.id}
-                  className={c.id === categoryId ? 'cat-tile on' : 'cat-tile'}
-                  aria-pressed={c.id === categoryId}
-                  onClick={() => setCategoryId(c.id === categoryId ? null : c.id)}
+            {type === 'transferir' && (
+              <>
+                {conn('de')}
+                <SelectPill label={accName(accountId, 'Elegir')} value={accountId || ''} onChange={(v) => setAccountId(v || null)} ariaLabel="Desde">
+                  {accOptions('Elegir cuenta')}
+                </SelectPill>
+                {conn('a')}
+                <SelectPill label={accName(toAccountId, 'Elegir')} value={toAccountId || ''} onChange={(v) => setToAccountId(v || null)} ariaLabel="Hacia">
+                  {accOptions('Elegir cuenta')}
+                </SelectPill>
+              </>
+            )}
+            {type === 'aporte' && (
+              <>
+                {conn('de')}
+                <SelectPill emoji={profiles[contributor]?.emoji} label={profiles[contributor]?.name || 'Miembro'} value={contributor} onChange={setContributor} ariaLabel="¿Quién aporta?">
+                  {spaceMembers.map((m) => <option key={m.user_id} value={m.user_id}>{profiles[m.user_id]?.name || 'Miembro'}</option>)}
+                </SelectPill>
+                {conn('a')}
+                <SelectPill label={accName(toAccountId, 'Elegir')} value={toAccountId || ''} onChange={(v) => setToAccountId(v || null)} ariaLabel="Hacia">
+                  {accOptions('Elegir cuenta')}
+                </SelectPill>
+              </>
+            )}
+          </div>
+
+          <AmountInput
+            size="display"
+            wrapClassName="txf-amount"
+            aria-label="Monto"
+            placeholder="0"
+            autoFocus={autoFocusAmount}
+            value={displayAmount(amount)}
+            onChange={(e) => setAmount(rawAmount(e.target.value))}
+            enterKeyHint="next"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                next();
+              }
+            }}
+            positive={type === 'ingreso' || type === 'aporte'}
+            unit={cur}
+            onUnit={() => setCur((c) => (c === 'CRC' ? 'USD' : 'CRC'))}
+            unitLabel={cur === 'CRC' ? 'En colones. Cambiar a dólares' : 'En dólares. Cambiar a colones'}
+          />
+          {cur !== app.cur && num > 0 && <span className="txf-eq">≈ {eq}</span>}
+
+          <div ref={merchantRef}>
+            <MerchantInput
+              value={merchant}
+              onChange={(v) => {
+                setMerchant(v);
+                setPickedId(null);
+              }}
+              onPick={(name, cat, mid) => {
+                setMerchant(name);
+                setPickedId(mid);
+                if (cat && isSpend && (!categoryId || !catTouched)) setCategoryId(cat);
+              }}
+              onDone={doneTyping}
+              spaceId={spaceId}
+              cats={cats}
+              suggest={type !== 'aporte'}
+              countWord={type === 'gasto' ? ['compra', 'compras'] : ['vez', 'veces']}
+              placeholder={type === 'aporte' ? 'detalle (opcional)' : type === 'transferir' ? '¿para qué? (opcional)' : 'comercio o detalle'}
+              after={faces}
+            />
+          </div>
+        </div>
+
+        {!typing && (
+          <div className="txf-rest">
+            {isSpend && (
+              <div className="txf-cat">
+                <span className="txf-conn">Categoría</span>
+                <SelectPill
+                  emoji={selectedCat?.emoji}
+                  label={selectedCat ? selectedCat.name : 'Elegir'}
+                  value={categoryId || ''}
+                  onChange={(v) => {
+                    setCategoryId(v || null);
+                    setCatTouched(true);
+                  }}
+                  ariaLabel="Categoría"
                 >
-                  <span className="cat-emoji">{c.emoji}</span>
-                  <span>
-                    {c.name}
-                    {c.parent_id && <span className="cat-parent">{cats.find((p) => p.id === c.parent_id)?.name}</span>}
+                  <option value="">Sin categoría</option>
+                  {visibleCats.map((c) => (
+                    <option key={c.id} value={c.id}>{c.parent_id ? '   ' : ''}{c.emoji} {c.name}</option>
+                  ))}
+                </SelectPill>
+                {aiHint && (
+                  <span className="txf-ai" title={orig?.ai_confidence ? `${Math.round(Number(orig.ai_confidence) * 100)}% de confianza` : undefined}>
+                    <Icon name="wand" size={12} /> Sugerida por IA
                   </span>
-                </button>
-              ))}
-              {shownCats.length < visibleCats.length && (
-                <button className="cat-tile" onClick={() => setShowAllCats(true)}>
-                  <span className="cat-emoji"><Icon name="dots" size={20} /></span>
-                  Más
-                </button>
-              )}
-            </div>
-            {canApplyAll ? (
-              <label className="check">
+                )}
+              </div>
+            )}
+            {isSpend && (canApplyAll ? (
+              <label className="check txf-check">
                 <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />
                 <span>Mover todo {merchantName} a {selectedCat?.emoji} {catLabel(cats, selectedCat)}: {siblings === 1 ? 'el otro movimiento' : `los otros ${siblings} movimientos`} y los que vengan</span>
               </label>
             ) : orig && categoryChanged && fromEmail && (
-              <label className="check">
+              <label className="check txf-check">
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
                 <span>Recordar: “{rulePattern(orig.raw_merchant || '')}” siempre va en {selectedCat?.emoji} {catLabel(cats, selectedCat)}</span>
               </label>
-            )}
-          </div>
-        )}
+            ))}
 
-        {type === 'aporte' && (
-          <div className="col gap10">
-            <span className="field-label">¿Quién aporta?</span>
-            <div className="grid2">
-              {spaceMembers.map((m) => (
-                <button key={m.user_id} className={contributor === m.user_id ? 'opt big on' : 'opt big'} aria-pressed={contributor === m.user_id} onClick={() => setContributor(m.user_id)}>
-                  <span>{profiles[m.user_id]?.emoji || '🙂'}</span>
-                  {profiles[m.user_id]?.name || 'Miembro'}
-                </button>
-              ))}
+            <div className="txf-body">
+              {!id && (
+                <div className="txf-toggle">
+                  <span className="col">
+                    <span>Recurrente</span>
+                    {repeat && <small>Cada mes, queda en Recurrentes</small>}
+                  </span>
+                  <Switch checked={repeat} label="Recurrente" onChange={() => setRepeat((r) => !r)} />
+                </div>
+              )}
+              {type === 'transferir' && <span className="hint">Mover no cuenta como gasto ni ingreso, así el balance no se duplica.</span>}
+
+              <Button
+                variant="link"
+                size="sm"
+                className="txf-more"
+                aria-expanded={more}
+                onClick={() => setMore((m) => !m)}
+                trailing={<Icon name={more ? 'chevUp' : 'chevDown'} size={12} stroke={2.4} />}
+              >
+                {more ? 'Menos detalles' : 'Más detalles'}
+              </Button>
+              {more && (
+                <div className="txf-more-body">
+                  {orig?.raw_merchant && (
+                    <div className="from-bank">
+                      <Icon name="bank" size={18} solid />
+                      <span className="col">
+                        <strong>Del banco: {orig.raw_merchant}</strong>
+                        <span>{orig.currency} {String(orig.amount)} {orig.currency === 'USD' ? `· tipo de cambio ${Number(orig.fx_rate).toFixed(2)}` : ''}</span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="field-card">
+                    <label className="field-row">
+                      <span>Fecha</span>
+                      <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+                    </label>
+                    {isSpend && <MerchantPhotoField spaceId={spaceId} name={merchant} raw={orig?.raw_merchant} merchantId={orig && merchant === orig.merchant ? orig.merchant_id : null} />}
+                  </div>
+                  <label className="col gap8">
+                    <span className="field-label">Nota y tags <small>(opcional)</small></span>
+                    <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej. compra de la semana #finde" />
+                  </label>
+                </div>
+              )}
+
+              {error && <div className="error">{error}</div>}
+              {id && (
+                <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Eliminar movimiento</Button>
+              )}
             </div>
           </div>
         )}
 
-        <div className="field-card">
-          {(type === 'gasto' || type === 'ingreso') && <MerchantPhotoField spaceId={spaceId} name={merchant} raw={orig?.raw_merchant} merchantId={orig && merchant === orig.merchant ? orig.merchant_id : null} />}
-          {type !== 'aporte' && (
-            <label className="field-row">
-              <span>{type === 'transferir' ? 'Desde' : 'Cuenta'}</span>
-              <select value={accountId || ''} onChange={(e) => setAccountId(e.target.value || null)}>
-                <option value="">{type === 'transferir' ? 'Elegir…' : 'Efectivo / SINPE'}</option>
-                {accs.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          {(type === 'transferir' || type === 'aporte') && (
-            <label className="field-row">
-              <span>Hacia</span>
-              <select value={toAccountId || ''} onChange={(e) => setToAccountId(e.target.value || null)}>
-                <option value="">Elegir…</option>
-                {accs.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="field-row">
-            <span>Fecha</span>
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-          </label>
-          {!id && (
-            <div className="field-row">
-              <span className="col">
-                <span>Repetir cada mes</span>
-                <small>{repeat ? 'Queda en Recurrentes y te avisamos el próximo mes' : 'Para alquiler, suscripciones o salario'}</small>
-              </span>
-              <Switch checked={repeat} label="Repetir cada mes" onChange={() => setRepeat((r) => !r)} />
-            </div>
-          )}
-        </div>
-        {type === 'transferir' && <span className="hint">Las transferencias no cuentan como gasto ni ingreso, así el balance no se duplica.</span>}
-
-        <label className="col gap8">
-          <span className="field-label">Nota y tags <small>(opcional)</small></span>
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej. compra de la semana #finde" />
-        </label>
-
-        {error && <div className="error">{error}</div>}
-
-        {id && (
-          <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Eliminar movimiento</Button>
-        )}
         <ActionBar>
-          {phone && field === 'amount' && !merchant.trim() ? (
-            <Button variant="primary" size="lg" block onPointerDown={keep} onMouseDown={keep} onClick={toMerchant}>{type === 'aporte' || type === 'transferir' ? 'Agregar detalle' : 'Agregar comercio'}</Button>
+          {phone && field === 'amount' ? (
+            <Button variant="primary" size="xl" block disabled={num <= 0} onPointerDown={keep} onMouseDown={keep} onClick={next}>Continuar</Button>
           ) : phone && field ? (
-            <Button variant="primary" size="lg" block onPointerDown={keep} onMouseDown={keep} onClick={doneTyping}>Continuar</Button>
+            <Button variant="primary" size="xl" block onPointerDown={keep} onMouseDown={keep} onClick={doneTyping}>Continuar</Button>
           ) : (
-            <Button variant="primary" size="lg" block disabled={!canSave || busy} onClick={save}>
-              {busy ? 'Guardando…' : id ? 'Guardar cambios' : { gasto: 'Guardar gasto', ingreso: 'Guardar ingreso', transferir: 'Guardar movimiento', aporte: 'Guardar aporte' }[type]}
+            <Button variant="primary" size="xl" block disabled={!canSave || busy} onClick={save}>
+              {busy ? 'Guardando…' : id ? 'Guardar cambios' : meta.save}
             </Button>
           )}
         </ActionBar>
-        {phone && (
-          <div className="form-discard">
-            <Button variant="ghost" size="md" block onClick={() => closeModal()}>Descartar</Button>
-          </div>
-        )}
       </div>
     </div>
   );

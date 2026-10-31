@@ -1,0 +1,11 @@
+/* SelectPill: a choice inside a sentence; the native select sits on top, invisible, so the whole pill opens it */
+.ds-select-pill { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 4px; border-radius: var(--radius-full); color: var(--muted-foreground); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); white-space: nowrap; max-width: 100%; transition: background .15s ease; }
+.ds-select-pill__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-right: -2px; }
+.ds-select-pill__emoji { font-size: var(--text-sm); line-height: 1; color: var(--foreground); }
+.ds-select-pill.is-strong .ds-select-pill__label { color: var(--foreground); }
+.ds-select-pill > svg { flex: none; }
+.ds-select-pill select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; margin: 0; font-size: var(--text-base); cursor: pointer; appearance: none; }
+.ds-select-pill:focus-within { box-shadow: 0 0 0 2px var(--ring); }
+.ds-select-pill:has(select:focus:not(:focus-visible)) { box-shadow: none; }
+.ds-select-pill.is-disabled { opacity: .45; }
+@media (hover: hover) { .ds-select-pill:not(.is-disabled):hover { background: var(--accent); } }

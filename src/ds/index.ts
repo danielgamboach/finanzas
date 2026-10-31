@@ -19,6 +19,7 @@ export { SearchField } from './molecules/SearchField/SearchField';
 export { Field } from './molecules/Field/Field';
 export { FieldRow, FieldGroup } from './molecules/FieldRow/FieldRow';
 export { AmountInput } from './molecules/AmountInput/AmountInput';
+export { SelectPill } from './molecules/SelectPill/SelectPill';
 export { ListItem, type ListItemProps } from './molecules/ListItem/ListItem';
 export { OptionCard } from './molecules/OptionCard/OptionCard';
 export { Alert, type AlertTone } from './molecules/Alert/Alert';

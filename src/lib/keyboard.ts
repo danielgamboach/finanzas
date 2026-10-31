@@ -22,3 +22,25 @@ export function watchKeyboard() {
   vv.addEventListener('scroll', on);
   paint();
 }
+
+/**
+ * iOS opens the keyboard only when a field takes focus inside the tap itself. The form mounts a beat later, so the
+ * tap that opens it ("+") focuses a hidden field right away; the form's amount then takes the focus from it and the
+ * keyboard stays up. Only on touch screens; it cleans itself up.
+ */
+export function primeKeyboard() {
+  if (typeof matchMedia === 'undefined' || !matchMedia('(pointer: coarse)').matches) return;
+  const el = document.createElement('input');
+  el.setAttribute('inputmode', 'decimal');
+  el.setAttribute('aria-hidden', 'true');
+  el.tabIndex = -1;
+  el.className = 'kb-primer';
+  document.body.appendChild(el);
+  el.focus({ preventScroll: true });
+  const drop = () => el.remove();
+  el.addEventListener('blur', drop, { once: true });
+  window.setTimeout(() => {
+    if (document.activeElement === el) el.blur();
+    drop();
+  }, 1500);
+}
