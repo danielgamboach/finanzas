@@ -99,6 +99,8 @@ export function MerchantInput({ value, onChange, onPick, onClear, onDone, spaceI
           <textarea
             ref={field}
             rows={1}
+            // a textarea is 20 characters wide by default; at 1 the hidden copy (::after) sets the width, so the faces sit right after the text
+            cols={1}
             value={value}
             onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, ' '))}
             onFocus={() => setFocus(true)}
