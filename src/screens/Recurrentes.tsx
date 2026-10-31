@@ -1,5 +1,5 @@
 import { useMenu } from '../lib/menu';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BalanceSummary, Button, Chip, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, SummarySkeleton, Switch, ActionBar } from '../ds';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { pickerOrder } from '../lib/cats';
@@ -84,8 +84,14 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
 /** What the shared card owes for last week, or null when there's nothing to pay (or it's already paid). */
 export function useCardPayment() {
   const { space, accounts, profiles, userId, toast, bump } = useApp();
-  const prevWeek = weekRange(space?.week_start ?? 5, -1);
-  const { txs } = useTxs(space?.kind === 'shared' ? { from: prevWeek.from, to: new Date(Date.now() + 86400000).toISOString() } : null);
+  const ws = space?.week_start ?? 5;
+  const prevWeek = weekRange(ws, -1);
+  // The range must be stable between renders: useTxs refetches whenever from/to change, so an end like
+  // `Date.now() + 1 day` produced a new key on every render and an endless fetch loop (Supabase egress).
+  // The end of the current week covers last week's charges and this week's "Pago de tarjeta".
+  const thisWeekEnd = weekRange(ws, 0).to;
+  const range = useMemo(() => (space?.kind === 'shared' ? { from: prevWeek.from, to: thisWeekEnd } : null), [space?.kind, prevWeek.from, thisWeekEnd]);
+  const { txs } = useTxs(range);
   const cards = accounts.filter((a) => a.kind === 'credit_card' && !a.archived);
   const cardIds = new Set(cards.map((c) => c.id));
   const owed = sumSpend(txs.filter((x) => x.account_id && cardIds.has(x.account_id) && inRange(x, prevWeek)));
