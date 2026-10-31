@@ -111,6 +111,7 @@ Preautorizaciones de Uber y Didi (`is_hold_merchant`): solo quedan "Por confirma
 
 ## Cómo trabajar
 
+- **Comportamiento**: `docs/comportamiento/` dice qué debe pasar en el app, regla por regla (IDs como `CTA-04`, ejemplos Dado/Cuando/Entonces con números). Es la fuente de verdad del qué; este archivo es la del cómo. Al cambiar un comportamiento, actualizar la regla en el mismo commit. Al empezar una sesión, buscar marcas `> Pendiente:` (cambios que Dani escribió a mano: implementarlos y quitar la marca) y `> Duda:` (contestar). Cada archivo termina con "Preguntas abiertas" para decisiones por tomar.
 - **Build**: `npm run build`. Para ver localmente: `npx serve dist`.
 - **Publicar**: un push a `main` NO publica solo (la integración Git de Vercel no despliega automáticamente). Se publica con un deployment de producción desde GitHub (`main`) en Vercel. Conviene activar el despliegue automático en la configuración Git del proyecto en Vercel.
 - **Migraciones**: un archivo en `supabase/migrations/` por cambio, con el mismo SQL que se aplicó. Al aplicarlas por MCP, los `DROP` y `DELETE` se cancelan: separarlos o evitarlos.
