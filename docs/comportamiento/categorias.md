@@ -27,25 +27,17 @@ Un gasto puede ir directo en la categoría padre; en la vista de la categoría a
 
 ### CAT-03 · Límite opcional
 
-**Estado:** Parcial
+**Estado:** Revisar
 
-Una categoría puede tener límite mensual o semanal, o no tener límite. Los límites son una parte del plan del mes (presupuesto.md, PRS-04). Sin ingreso en el plan, el presupuesto del mes es la suma de los límites (los semanales cuentan unas 4,33 veces) y "Disponible" en Inicio es eso menos lo gastado; con ingreso, manda PRS-07.
+Las categorías dejan de tener límite: solo clasifican. Lo que se puede gastar vive en los sobres (presupuesto.md, SOB-01). Al publicar los sobres, cada límite se convierte en un sobre (SOB-09).
 
-| Uso del límite | Resultado esperado |
-|---|---|
-| Menos del 80% | Barra normal |
-| Del 80% al 99% | Barra en advertencia |
-| 100% o más | Barra en rojo, salvo las categorías fijas (alquiler, servicios), que no se marcan |
-
-En Presupuesto, al límite solo le cuenta el gasto que no es un pago de un fijo o variable del plan (PRS-04).
-
-**Hoy:** las subcategorías no pueden tener límite propio; solo la categoría padre.
-
-> Ver la pregunta abierta 1.
+**Hoy:** las categorías todavía tienen límite mensual o semanal y Presupuesto muestra el plan del mes con ingreso.
 
 ### CAT-04 · Categorías fijas
 
-**Estado:** Hecho
+**Estado:** Revisar
+
+Con los sobres, la marca de fija deja de usarse en Presupuesto (SOB-09).
 
 Una categoría marcada como fija (alquiler, servicios, suscripciones) no muestra proyección de fin de mes ni se marca en rojo al llegar al límite, porque se espera gastarla completa.
 
@@ -53,4 +45,4 @@ Una categoría marcada como fija (alquiler, servicios, suscripciones) no muestra
 
 ## Preguntas abiertas
 
-**1. ¿Las subcategorías pueden tener límite?** Por ejemplo, Comida con ¢200.000 y adentro Restaurantes con ¢60.000. Si sí, el límite de la subcategoría es un tope dentro del de la padre, y el presupuesto del mes sigue sumando solo los límites de las padres (para no contar dos veces).
+Ninguna por ahora: la pregunta sobre límites en subcategorías se resuelve con los sobres (SOB-01).

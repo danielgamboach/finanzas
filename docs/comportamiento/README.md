@@ -15,7 +15,7 @@ Qué debe pasar en el app, regla por regla, con ejemplos que se pueden comprobar
 | [recurrentes.md](recurrentes.md) | Frecuencias, automático o manual, pagar, posponer, ignorar | 9 | | 1 |
 | [categorias.md](categorias.md) | Subcategorías, límites, fijas | 3 | 1 | |
 | [importar-estados.md](importar-estados.md) | Subir estados de cuenta del BAC en PDF | | | 7 |
-| [presupuesto.md](presupuesto.md) | El plan del mes: ingreso, ahorro, fijos, variables, límites, cierre del mes, "Disponible" | 8 | | |
+| [presupuesto.md](presupuesto.md) | Sobres: cuánto queda para gastar, períodos, comprometido, "Para gastar" en Inicio | | | 9 |
 | automatico.md | Vouchers, preautorizaciones, "¿Es una suscripción?", Apple | | | Por escribir |
 
 En cuentas-y-saldos.md, CTA-08 (los aportes) quedó eliminada.
@@ -34,8 +34,9 @@ Cada regla dice debajo del título cómo está hoy el app:
 
 ## Qué falta, en orden sugerido
 
-Hecho el 31 oct: el presupuesto como plan del mes (PRS), la base de cuentas y movimientos (Efectivo, cuenta y categoría siempre, qué puede hacer cada tipo de cuenta, aportes como Mover dinero entre espacios), quitar lo que era solo de Dani y Kimmy, recurrentes (pagar, posponer, ignorar, automáticos, personalizados) y abandonar espacios.
+Hecho el 31 oct: la base de cuentas y movimientos (Efectivo, cuenta y categoría siempre, qué puede hacer cada tipo de cuenta, aportes como Mover dinero entre espacios), quitar lo que era solo de Dani y Kimmy, recurrentes (pagar, posponer, ignorar, automáticos, personalizados) y abandonar espacios.
 
+1. **Sobres** (SOB-01 a SOB-09): reemplazan los límites de las categorías.
 1. **Préstamos y CDP** con sus datos y cálculos (PRE-02 a PRE-04, CDP-01 a CDP-03, REC-10). Antes conviene contestar las preguntas 7 a 10 de cuentas-y-saldos.md.
 2. **Importar estados de cuenta del BAC** (IMP). Hace falta un PDF de ejemplo de cada tipo (tarjeta y cuenta), con los datos sensibles tapados.
 3. **Borrar la cuenta de usuario** (PRI-04) y el script de vouchers para cualquiera (PRI-01).
@@ -89,7 +90,8 @@ Para contestar una pregunta abierta, escribí la respuesta debajo de la pregunta
 | MOV | Movimientos |
 | REC | Recurrentes |
 | CAT | Categorías |
-| PRS | Presupuesto (el plan del mes) |
+| PRS | Presupuesto como plan del mes (descartado; IDs reservados) |
+| SOB | Sobres (presupuesto) |
 | IMP | Importar estados de cuenta |
 
 Un ID no se reutiliza: si una regla se elimina, su número queda libre para siempre. Así un test o una nota que mencione `CTA-04` nunca apunta a otra cosa.

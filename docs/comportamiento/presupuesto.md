@@ -1,204 +1,168 @@
 # Presupuesto
 
-El presupuesto es el **plan del mes**: el dinero que entra, repartido de antemano según lo que es cada cosa. No es lo mismo que las categorías: las categorías clasifican lo que pasó; el presupuesto dice qué se piensa hacer con el ingreso.
+El presupuesto responde una sola pregunta: **¿cuánto puedo gastar todavía?** No representa el dinero que hay en las cuentas ni el ingreso; representa lo que decidiste que vas a gastar.
 
-Cada línea del plan es de uno de cuatro tipos, y cada tipo se comporta distinto:
+Se arma con **sobres**. Un sobre es un monto para gastar en algo durante un período (semana, quincena o mes): "Comer afuera, ¢60.000 al mes". Cada gasto cae en un sobre según su categoría. Cuando termina el período, el sobre vuelve a empezar lleno: lo que sobró o lo que se pasó no se arrastra.
 
-| Tipo | Ejemplo | De dónde sale el monto | Qué significa "cumplido" |
-|---|---|---|---|
-| **Ahorro** | Emergencias, inversión, una meta | Lo elegís, sale primero | Se apartó |
-| **Fijo** | Alquiler, internet, suscripciones | Exacto, del recurrente | Se pagó |
-| **Variable** | Luz, agua | Estimado (≈ promedio de los últimos 3 pagos) | Se pagó, por el monto que fuera |
-| **Límite** | Restaurantes, súper | Lo elegís, es un tope | No pasarse del tope |
+Las **categorías** solo dicen qué es un gasto (Restaurantes, Suscripciones). Ya no tienen límite: eso vive en los sobres.
 
-La cuenta que importa:
+> Esta versión reemplaza la del plan del mes con ingreso, ahorro, fijos y variables (PRS-01 a PRS-08), que se publicó el 31 oct y se descartó el mismo día. Esos IDs quedan reservados.
 
-```
-Ingreso del mes                      1.200.000
-− Ahorro (emergencias, inversión)      250.000
-− Fijos (alquiler, internet…)          375.000
-− Variables (≈ luz, agua)               28.000
-− Límites (restaurantes, súper…)       270.000
-= Sin asignar                          277.000
-```
+## Reglas
 
-Todo se calcula por espacio y por mes, en la moneda de visualización (los montos en dólares se convierten con el tipo de cambio actual).
+### SOB-01 · Un sobre
 
-### PRS-01 · Ingreso del mes
+**Estado:** Falta
 
-**Estado:** Hecho
+Un sobre tiene nombre, monto, período y una o varias categorías.
 
-El ingreso del mes es el que se escribió para ese mes; si no se escribió, la suma de los ingresos recurrentes del espacio que caen en el mes (los ya cobrados por lo que entró y los que faltan por su monto). Escribirlo cambia solo ese mes.
-
-- **Dado** que tengo un recurrente "Salario" de ¢1.200.000 mensual
-- **Cuando** abro Presupuesto en noviembre
-- **Entonces** el ingreso de noviembre es ¢1.200.000 sin escribir nada
-- **Y** si escribo ¢1.350.000 (por un bono), noviembre usa ¢1.350.000 y diciembre vuelve a ¢1.200.000
-- **Y** "Usar mis ingresos recurrentes" borra lo escrito y vuelve a ¢1.200.000
-
-Junto al ingreso se muestra lo que realmente entró en el mes ("entraron ¢1.150.000"): ingresos del espacio más el dinero que llegó con Mover desde otro espacio.
+- **Dado** que creo el sobre "Comer afuera" de ¢60.000 mensual con Restaurantes y Cafés
+- **Cuando** registro ¢8.500 en Restaurantes y ¢2.400 en Cafés
+- **Entonces** el sobre dice "Quedan 49.100 de 60.000 CRC" con la barra al 18%
 
 | Caso | Resultado esperado |
 |---|---|
-| Sin ingreso escrito ni recurrentes | Presupuesto muestra el gasto del mes (como antes) y el botón "Agregar ingreso" |
-| Salario quincenal de ¢600.000 | El ingreso del mes es ¢1.200.000 (dos fechas en el mes) |
-| Salario en dólares | Se convierte con el tipo de cambio actual |
+| Elijo una categoría padre (Comida) | Entran ella y todas sus subcategorías |
+| Elijo solo una subcategoría (Súper) | Entra solo esa; el resto de Comida queda libre para otro sobre |
+| La categoría ya está en otro sobre | No se puede elegir: aparece con el nombre del sobre donde está |
+| Elijo Comida y Súper ya está en otro sobre | No se puede: primero hay que sacar Súper del otro |
+| Archivo una categoría | Sale del sobre; sus gastos viejos siguen contando en el período en que pasaron |
+| Borro un sobre | Sus categorías pasan a "Todo lo demás" (SOB-05), con deshacer |
 
-> Ver la pregunta abierta 2 (espacios compartidos).
+La cara del sobre es el emoji de su categoría si tiene una sola, o el ícono de sobre si tiene varias.
 
-<sub>Dónde vive: `budget_months.income`, `buildPlan` en `src/lib/budget.ts`, `IncomeSheet` en `src/ui/BudgetSheets.tsx`.</sub>
+### SOB-02 · Qué cuenta en un sobre
 
-### PRS-02 · Fijos
+**Estado:** Falta
 
-**Estado:** Hecho
+Cuenta todo gasto del espacio cuya categoría está en el sobre, con fecha dentro del período actual del sobre. Es la misma regla que el gasto del mes (`spend()`):
 
-Los fijos salen solos de Recurrentes: cada gasto recurrente activo con al menos una fecha en el mes, y cada Mover dinero recurrente hacia una cuenta de **otro** espacio (por ejemplo, el aporte mensual al espacio compartido). No se configuran en Presupuesto: se editan en el recurrente.
+| Movimiento | En el sobre |
+|---|---|
+| Gasto | Suma |
+| Devolución | Resta |
+| Preautorización por confirmar (Uber, Didi) | No cuenta hasta que se cobra |
+| Mover dinero (también a otro espacio) | No cuenta: no es gasto |
+| Ingreso | No cuenta |
+| Pago de un recurrente de esas categorías | Suma, como cualquier gasto |
 
-- **Dado** el recurrente "Alquiler" de ¢350.000 que vence el 5 de cada mes
-- **Cuando** abro Presupuesto el 2 de noviembre
-- **Entonces** en Fijos aparece "Alquiler · Vence el 5 nov · 350.000 CRC"
-- **Y** al registrar el pago (ligado al recurrente), la fila dice "Pagado el 5 nov" en verde y baja al final del grupo
+### SOB-03 · Períodos
+
+**Estado:** Falta
+
+Cada sobre elige su período. Al empezar uno nuevo, el sobre vuelve a su monto completo. Lo que sobró o lo que se pasó no se arrastra.
+
+| Período | Va de | Ejemplo |
+|---|---|---|
+| Semanal | El día en que empieza la semana del espacio (Ajustes) hasta 6 días después | Semana de lunes: del lunes 2 al domingo 8 nov |
+| Quincenal | Del 1 al 15 y del 16 al último día del mes | 16 al 30 nov |
+| Mensual | El mes calendario | 1 al 30 nov |
+
+- **Dado** "Súper" de ¢50.000 semanal y una semana que empieza el lunes
+- **Cuando** el domingo llevo ¢62.000
+- **Entonces** el domingo dice "Te pasaste por 12.000 CRC"
+- **Y** el lunes dice "Quedan 50.000 de 50.000 CRC"
+
+### SOB-04 · Comprometido: los recurrentes del sobre
+
+**Estado:** Falta
+
+Los recurrentes de gasto cuyas categorías están en el sobre y que vencen en el período, pero que todavía no se pagaron, son dinero **comprometido**: no se puede gastar en otra cosa. Se descuentan de lo que queda.
+
+```
+Para gastar = monto − lo gastado − lo comprometido
+```
+
+- **Dado** el sobre "Suscripciones" de ¢40.000 mensual, con Netflix (¢7.900, ya cobrado), Spotify (¢5.900, vence el 20) e iCloud (¢1.500, vence el 25)
+- **Entonces** el sobre dice "Quedan 24.700 para gastar · 7.400 comprometidos"
+- **Cuando** se cobra Spotify
+- **Entonces** lo que queda para gastar no cambia (24.700): se movió de comprometido a gastado
 
 | Caso | Resultado esperado |
 |---|---|
-| Se pagó ¢352.000 en vez de ¢350.000 | La línea cuenta ¢352.000 (lo pagado manda) |
-| Recurrente semanal | Una línea con la suma de las fechas del mes ("4 pagos · el próximo el 7 nov") |
-| Venció y no se pagó | "Venció el 5 nov" en advertencia |
-| Recurrente anual que no cae este mes | No aparece |
-| Mover dinero recurrente a una cuenta del mismo espacio | No aparece (es ahorro, ver PRS-05) |
-| Recurrente pausado con un pago en el mes | Aparece con lo pagado |
+| Recurrente variable (luz ≈ ¢28.000) | Compromete su monto estimado; al pagarse cuenta lo pagado |
+| Recurrente que vence dos veces en el período (semanal en un sobre mensual) | Compromete cada fecha pendiente |
+| Recurrente atrasado (venció y no se pagó) | Sigue comprometido hasta que se pague, se ignore o se pause |
+| Recurrente pagado pero sin ligar | Cuenta como gasto y su fecha sigue comprometida hasta que se ligue (REC) |
+| Recurrente pausado | No compromete |
+| Ingreso o Mover dinero recurrente | No compromete |
 
-Un pago cuenta para su línea solo si está ligado al recurrente (`recurring_id`); si no se ligó, cuenta como gasto de su categoría (PRS-04).
+En el detalle del sobre se ven sus recurrentes del período, con "Pagado el 5 nov" o "Vence el 20 nov".
 
-<sub>Dónde vive: `buildPlan` y `dueDatesIn` en `src/lib/budget.ts`.</sub>
+### SOB-05 · Todo lo demás
 
-### PRS-03 · Variables
+**Estado:** Falta
 
-**Estado:** Hecho
+Cada espacio tiene un sobre fijo, **Todo lo demás**, que recibe los gastos cuya categoría no está en ningún otro sobre (y los gastos sin categoría). No se borra, no se le eligen categorías y va siempre al final.
 
-Un recurrente marcado como variable (luz, agua) va en Variables con su monto estimado, que es el promedio de los últimos 3 pagos (REC). Mientras no se paga se muestra con "≈"; al pagarse cuenta lo pagado.
+Puede tener monto y período como cualquier sobre, o no tener monto: entonces solo muestra lo gastado ("Gastado 23.400 CRC este mes") y no suma a "Para gastar" (SOB-07).
 
-- **Dado** que la luz se pagó ¢26.000, ¢29.000 y ¢30.000 los últimos tres meses
-- **Entonces** en Variables aparece "CNFL · ≈ 28.333 CRC"
-- **Cuando** la pago por ¢31.200
-- **Entonces** la línea pasa a "Pagado" con 31.200 CRC y el Sin asignar baja ¢2.867
+### SOB-06 · El monto y la sugerencia
 
-### PRS-04 · Límites
+**Estado:** Falta
 
-**Estado:** Hecho
+El monto lo escribís vos. Si las categorías del sobre tienen recurrentes con fecha en el período, al editar el sobre se sugiere su suma, y un toque la usa como monto.
 
-Un límite es el tope de una categoría (CAT-03): lo que se puede gastar y no es un pago fijo. Cada fila muestra lo que queda ("Quedan 31.000 de 60.000 CRC") con su barra. Lo que no se gasta sigue disponible el resto del mes. Un límite semanal cuenta una vez por cada semana del mes (días del mes ÷ 7).
+- **Dado** que en Suscripciones tengo Netflix ¢7.900, Spotify ¢5.900, iCloud ¢1.500 y YouTube ¢4.100
+- **Cuando** edito el sobre "Suscripciones"
+- **Entonces** debajo del monto dice "Tus recurrentes de este mes suman 19.400 CRC · Usar"
 
-Al límite le cuenta todo el gasto de la categoría (con sus subcategorías) que **no** es un pago de un fijo o variable del plan.
+La sugerencia no cambia el monto sola: si después agregás un recurrente, el sobre queda igual hasta que lo editás.
 
-- **Dado** Restaurantes con límite de ¢60.000 y ¢29.000 gastados al 18 de noviembre
-- **Entonces** la fila dice "Quedan 31.000 de 60.000 CRC" con la barra al 48%
-- **Y** en la vista de Restaurantes dice "Quedan 31.000 CRC para 13 días (2.385 por día)"
-- **Cuando** no salgo a comer esa semana
-- **Entonces** el número no se mueve: los ¢31.000 siguen ahí
+### SOB-07 · "Para gastar" en Inicio y en Presupuesto
+
+**Estado:** Falta
+
+El número de Inicio que hoy dice "Disponible" pasa a ser **Para gastar**: la suma de lo que queda para gastar en el período actual de cada sobre con monto (SOB-04), incluido "Todo lo demás" si tiene monto. No mira el ingreso ni los saldos de las cuentas.
+
+- **Dado** "Comer afuera" (quedan ¢49.100), "Súper" semanal (quedan ¢18.000) y "Suscripciones" (quedan ¢24.700 para gastar, ¢7.400 comprometidos)
+- **Entonces** Inicio dice "91.800 CRC Para gastar"
 
 | Caso | Resultado esperado |
 |---|---|
-| Menos del 80% | Barra normal |
-| Del 80% al 99% | Barra en advertencia |
-| 100% o más | "Te pasaste por …" en rojo |
-| Categoría fija (CAT-04) con límite y un fijo del plan en esa categoría | No se muestra como límite: el fijo ya la cuenta (si no, se contaría dos veces) |
-| Categoría fija con límite y sin recurrente | Se muestra como límite, sin rojo |
-| Categoría sin límite con gastos | Va en "Sin plan" con lo gastado |
-| Gasto sin categoría | "Sin categoría" en "Sin plan" |
+| Un sobre se pasó por ¢12.000 | Resta ¢12.000 del total: lo que se pasó en uno se come lo de los otros |
+| El total queda negativo | "Te pasaste por …" ("Se pasaron" en un espacio compartido) |
+| No hay ningún sobre con monto | No se muestra; Inicio muestra solo lo gastado |
+| Sobres con períodos distintos | Cada uno aporta lo de su período actual |
 
-El ritmo por día solo aparece en la vista de la categoría, en el mes actual y para límites mensuales.
+### SOB-08 · La pantalla Presupuesto
 
-<sub>Dónde vive: `src/screens/Presupuesto.tsx` (`LimitRow`), `src/screens/CategoryEdit.tsx` (ritmo).</sub>
+**Estado:** Falta
 
-### PRS-05 · Ahorro
+De arriba abajo:
 
-**Estado:** Hecho
+1. **Para gastar** en grande (SOB-07), con "de 330.000 CRC en 6 sobres" debajo.
+2. Los sobres como filas con su cara, nombre, "Quedan 49.100 de 60.000 CRC" (o "Te pasaste por …" en rojo), el período cuando no es mensual ("Esta semana", "Esta quincena") y su barra. La barra muestra lo gastado y, más claro, lo comprometido.
+3. Al final, **Todo lo demás**.
+4. "Nuevo sobre".
 
-Las líneas de ahorro tienen nombre, monto al mes, moneda y, opcional, una meta. Se reservan al inicio del mes: restan del Sin asignar y del Disponible desde el día 1, aunque todavía no se haya movido el dinero ("págate primero").
+Tocar un sobre abre su detalle: lo que queda, el ritmo ("Quedan 31.000 CRC para 13 días, 2.385 por día"; solo en el período actual), sus categorías, sus recurrentes del período (SOB-04) y los movimientos del período. Desde ahí se edita.
 
-Una línea queda apartada cuando:
+Los colores de la barra siguen la regla de antes:
 
-- tiene meta con cuentas y en el mes entró a esas cuentas al menos su monto (Mover dinero desde otra cuenta o un ingreso directo), o
-- no tiene meta (o la meta no tiene cuentas) y se tocó "Aparté".
+| Uso del sobre | Barra |
+|---|---|
+| Menos del 80% | Normal |
+| Del 80% al 99% | Advertencia |
+| 100% o más | Rojo |
 
-- **Dado** "Emergencias" de ¢100.000 sin meta
-- **Entonces** la fila dice "100.000 CRC · por apartar" con el botón "Aparté"
-- **Cuando** toco "Aparté"
-- **Entonces** la fila dice "Apartado" en verde (con deshacer en el aviso)
+Presupuesto muestra siempre el período actual. Lo de meses anteriores por categoría vive en Mis finanzas.
 
-- **Dado** "Casa propia" de ¢150.000 ligada a la meta Casa propia (cuenta Ahorro BAC)
-- **Cuando** muevo ¢150.000 de Débito a Ahorro BAC
-- **Entonces** la fila pasa sola a "Apartado · Casa propia"
-- **Y** si muevo ¢200.000, el plan cuenta ¢200.000 de ahorro ese mes
+### SOB-09 · Paso de los límites a sobres
 
-"Dejar de apartar" saca la línea de los meses siguientes (no se borra: `active = false`, con deshacer).
+**Estado:** Falta
 
-<sub>Dónde vive: `budget_savings`, `budget_saving_marks`, `SavingSheet` en `src/ui/BudgetSheets.tsx`.</sub>
+Una sola vez, al publicar los sobres: cada categoría que tenía límite se convierte en un sobre con su nombre, su monto y su período (mensual o semanal), con esa categoría adentro. Después se pueden juntar, renombrar o borrar. Las categorías dejan de tener el campo de límite.
 
-### PRS-06 · Cerrar el mes: lo que sobró de los límites
+- **Dado** que Restaurantes tenía límite de ¢60.000 mensual y Súper de ¢50.000 semanal
+- **Entonces** quedan los sobres "Restaurantes" (¢60.000, mensual) y "Súper" (¢50.000, semanal)
 
-**Estado:** Hecho
-
-Al abrir Presupuesto en un mes nuevo, si el mes anterior tuvo movimientos y le sobró algo en los límites, aparece una sola pregunta arriba: "Te sobraron ¢23.000 en 3 categorías".
-
-- **Pasar a noviembre**: lo que sobró en cada categoría se suma a su límite de noviembre (sobres).
-- **Dejarlo**: los límites de noviembre arrancan de cero; lo que sobró queda en las cuentas como ahorro.
-
-Cualquiera de las dos cierra el mes anterior y la pregunta no vuelve. Las dos se pueden deshacer desde el aviso.
-
-- **Dado** que en octubre Restaurantes tenía ¢60.000 y se gastaron ¢45.000
-- **Cuando** el 1 de noviembre toco "Pasar a noviembre"
-- **Entonces** Restaurantes en noviembre tiene un límite de ¢75.000
-- **Y** el Sin asignar de noviembre baja ¢15.000
-
-Solo pregunta en el mes actual y por el mes inmediatamente anterior; un mes que se saltó queda abierto sin preguntar.
-
-<sub>Dónde vive: `budget_carry`, `budget_months.closed_at` y `carried`, `closePrev` en `src/screens/Presupuesto.tsx`.</sub>
-
-### PRS-07 · "Disponible" en Inicio
-
-**Estado:** Hecho
-
-Con ingreso (PRS-01), "Disponible en noviembre" es:
-
-```
-ingreso − ahorro − fijos − variables (pagados o no) − lo gastado que no es un pago del plan
-```
-
-Así lo comprometido que todavía no salió no se ve como disponible.
-
-- **Dado** ingreso ¢1.200.000, ahorro ¢250.000, alquiler ¢350.000 que vence el 5 y luz ≈ ¢28.000
-- **Cuando** el 2 de noviembre llevo ¢40.000 gastados en el súper
-- **Entonces** Inicio dice "532.000 CRC Disponible", aunque el alquiler todavía no se haya pagado
-
-Si el disponible queda negativo: "Te pasaste del ingreso" (o "Se pasaron" en un espacio compartido).
-
-Sin ingreso, se mantiene la regla anterior: la suma de los límites menos todo lo gastado en el mes (CAT-03).
-
-<sub>Dónde vive: `useHomeSummary` en `src/screens/Home.tsx`.</sub>
-
-### PRS-08 · Lo que muestra la pantalla
-
-**Estado:** Hecho
-
-Presupuesto (`#/categorias`), de arriba abajo:
-
-1. El mes (‹ Nov 2026 ›).
-2. **Sin asignar en noviembre** en grande, con "de ¢1.200.000 de ingreso · entraron ¢…" y el botón "Ingreso". Si es negativo: "Asignaste de más". Sin ingreso: el gasto del mes y "Agregar ingreso".
-3. El cierre del mes anterior, si hace falta (PRS-06).
-4. Grupos con su total a la derecha: Ahorro (con "Agregar ahorro"), Fijos, Variables, Límites (con "Nueva") y Sin plan. Sin fijos ni variables, una fila lleva a Recurrentes.
-
-El análisis por categoría (mes contra el anterior, top comercios) vive en Mis finanzas.
+Las categorías marcadas como fijas (CAT-04) con límite también pasan a sobre; la marca de fija deja de usarse en Presupuesto.
 
 ---
 
 ## Preguntas abiertas
 
-**1. ¿El ahorro cuenta también lo que sobra al final?** Hoy "Dejarlo" (PRS-06) no registra nada: el dinero queda en las cuentas. Se podría sumar a una línea de ahorro o a una meta.
+**1. Sobres de varios espacios.** Los sobres son de cada espacio. ¿Hace falta ver en algún lugar cuánto te queda para gastar sumando tu personal y el compartido?
 
-**2. Ingreso en un espacio compartido.** Hoy el ingreso de un espacio compartido es el que se escribe o sus ingresos recurrentes. Lo natural sería la suma de los aportes recurrentes de cada persona (Mover dinero recurrente desde su espacio personal), pero esos recurrentes viven en el espacio de cada uno y el otro no los ve. ¿Se escribe a mano, o se busca la forma de mostrarlos?
-
-**3. ¿Límites en dólares?** Los límites están en colones. Si se cambia la moneda de visualización se convierten, pero no se puede poner un límite en dólares.
-
-**4. Meses futuros.** Hoy se pueden ver (‹ ›) con sus fijos y ahorro, pero no se puede escribir un ingreso distinto por adelantado desde otra pantalla que no sea Presupuesto de ese mes. ¿Hace falta planear varios meses?
+**2. Recordatorios.** ¿Una notificación cuando un sobre llega al 80% o se pasa? Hoy existe "notificaciones de límites" en Ajustes; pasaría a ser de sobres.
