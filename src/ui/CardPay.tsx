@@ -51,8 +51,9 @@ export function CardPaySheet({ cardId, r, onClose, onPaid }: { cardId: string; r
         ['all', 'Todo lo que debo', Math.max(0, info.owed[cur])],
       ] as const).filter(([, , v], i, all) => v > (cur === 'USD' ? 0.009 : 0.5) && all.findIndex((x) => Math.abs(x[2] - v) < 0.01) === i)
     : [];
-  // until the person types, the amount follows the first suggestion (early payment, or what's left of the statement)
-  const shown = touched ? amt : options[0] ? fmt(options[0][2]) : amt;
+  // an early payment is whatever the person decides to pay: the field starts empty and the shortcuts are only suggestions (TAR-05).
+  // Paying the card otherwise starts with the first suggestion (what's left of the statement) until the person types.
+  const shown = touched || r ? amt : options[0] ? fmt(options[0][2]) : amt;
   const num = parseAmount(shown);
 
   async function run(fn: () => Promise<void>) {
@@ -106,7 +107,7 @@ export function CardPaySheet({ cardId, r, onClose, onPaid }: { cardId: string; r
         </div>
         <label className="field-row">
           <span>Monto ({cur})</span>
-          <input inputMode="decimal" value={shown} onChange={(e) => { setTouched(true); setAmt(e.target.value.replace(/[^0-9.,]/g, '')); }} aria-label="Monto pagado" />
+          <input inputMode="decimal" value={shown} placeholder={r ? 'Cuánto pagaste' : '0'} autoFocus={!!r} onChange={(e) => { setTouched(true); setAmt(e.target.value.replace(/[^0-9.,]/g, '')); }} aria-label="Monto pagado" />
         </label>
         <label className="field-row">
           <span>Fecha</span>

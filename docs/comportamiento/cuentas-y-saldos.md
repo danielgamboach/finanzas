@@ -437,12 +437,14 @@ Inicio muestra en Pagos pendientes "Pago de Visa" desde tres días antes de la f
 
 **Estado:** Hecho
 
-En Editar tarjeta, "Pagos anticipados" se programa cada semana, cada dos semanas o cada mes, el día que se elija y desde una cuenta. Es un recurrente manual de Mover dinero hacia la tarjeta: el día que toca aparece en Pagos pendientes (y llega una notificación), y al tocar Pagar se abre la hoja de la tarjeta con "Desde el último pago" ya puesto. Cada pago resta lo que se reporta (TAR-03), así que también baja el saldo al corte y el pago de contado.
+En Editar tarjeta, "Pagos anticipados" se programa cada semana, cada dos semanas o cada mes, el día que se elija y desde una cuenta. Es un recurrente manual de Mover dinero hacia la tarjeta: el día que toca aparece en Pagos pendientes (y llega una notificación), y al tocar Pagar se abre la hoja de la tarjeta con el monto **vacío**: se escribe cuánto se está pagando de verdad. "Desde el último pago", "Pago de contado" y "Todo lo que debo" quedan como atajos que se tocan si se quiere usar uno. Cada pago resta lo que se reporta (TAR-03), así que también baja el saldo al corte y el pago de contado.
 
 - **Dado** que la Visa tiene pagos anticipados cada viernes desde Débito BAC
 - **Y** desde el pago del viernes pasado se cargaron ¢75.110
-- **Cuando** el viernes toco Pagar y confirmo ¢75.110
-- **Entonces** la Visa debe ¢75.110 menos
+- **Cuando** el viernes toco Pagar
+- **Entonces** el monto está vacío, con el atajo "Desde el último pago: ¢75.110"
+- **Cuando** escribo ¢50.000 y registro el pago
+- **Entonces** la Visa debe ¢50.000 menos
 - **Y** el próximo pago anticipado es el viernes siguiente
 
 Se puede posponer, ignorar ese pago o dejar de repetir, como cualquier recurrente (REC-07).
