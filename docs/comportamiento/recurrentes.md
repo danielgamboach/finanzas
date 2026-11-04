@@ -104,6 +104,8 @@ Si el voucher no llega, al día siguiente el app registra el gasto con el monto 
 
 El voucher se reconoce por el nombre del recurrente aunque el banco lo escriba con puntos u otros signos: "CNFL" agarra "C.N.F.L.PAGUELO" (se comparan solo letras y números).
 
+Si el voucher cambia de nombre después de llegar (el catálogo de comercios o la IA le ponen el nombre limpio, como "CLARO TIENDA EN LINEA" → "Claro Hogar Internet"), se vuelve a buscar su recurrente con el nombre nuevo. Y cada vez que un movimiento se liga a un recurrente después de creado, el recurrente pasa a su siguiente fecha, igual que al registrarlo.
+
 Solo cuentan los cargos de los últimos dos días: un cargo automático vencido hace más tiempo no se registra solo, para no inventar cobros viejos.
 
 <sub>Dónde vive: `run_auto_recurring` en la base (cada hora), `transactions.auto_flag = 'no_voucher'` y `match_recurring`, que borra el gasto sin voucher cuando llega el real.</sub>
