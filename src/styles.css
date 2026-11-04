@@ -1192,3 +1192,9 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .env-sub { padding-left: 24px; }
 .env-period { font-size: var(--text-xs); font-weight: var(--font-weight-normal); color: var(--muted-foreground); margin-left: 4px; }
 .env-sug { align-items: center; padding-right: 4px; }
+
+/* Presupuesto (PRM): movements without a plan unfold under their group */
+.plan-chev { display: inline-flex; transition: transform 160ms ease; }
+.plan-chev.is-open { transform: rotate(180deg); }
+.plan-loose { border-top: 1px solid var(--border); padding: 4px 0; }
+@media (prefers-reduced-motion: reduce) { .plan-chev { transition: none; } }

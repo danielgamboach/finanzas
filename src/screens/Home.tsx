@@ -69,8 +69,9 @@ export function useHomeSummary() {
   const { txs, loading } = useTxs(range);
   const bd = useBudgetData(space?.id);
   if (!space) return null;
-  // PPT-06: "Para gastar" is what's left this month in the budget's caps
-  const toSpendNow = bd ? buildBudget({ ...bd, categories, txs, spaceId: space.id, fx }).toSpend : null;
+  // PRM-06: what's free this month (or what's left in the open plans while nothing comes in yet)
+  const plan = bd ? buildBudget({ ...bd, categories, accounts, txs, spaceId: space.id, fx }) : null;
+  const toSpendNow = plan ? (plan.hasIncome ? { left: plan.free, label: `Libre en ${monthName(t.m)}` } : plan.toSpend ? { left: plan.toSpend.left, label: 'Para gastar' } : null) : null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
@@ -90,7 +91,7 @@ export function useHomeSummary() {
   if (toSpendNow) {
     value = Math.abs(toSpendNow.left);
     negative = toSpendNow.left < 0;
-    label = negative ? (shared ? 'Se pasaron del presupuesto' : 'Te pasaste del presupuesto') : 'Para gastar';
+    label = negative ? (shared ? 'Se pasaron del presupuesto' : 'Te pasaste del presupuesto') : toSpendNow.label;
   } else if (budget > 0) {
     const avail = budget - spent;
     value = Math.abs(avail);
@@ -184,9 +185,9 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
       title: `Gastado: ${amount(s.total, cur, fx)} ${unit}. Antes, a esta altura: ${amount(s.prevTotal, cur, fx)} ${unit}`,
     };
   }
-  // SOB-07: what's left in the envelopes
+  // PRM-06: what's free this month
   const avail = h.toSpend?.left ?? 0;
-  const available = h.toSpend ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0, label: 'Para gastar' } : null;
+  const available = h.toSpend ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0, label: h.toSpend.label } : null;
 
   return (
     <>

@@ -165,9 +165,9 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
     case 'partida':
     case 'sobre':
-      return b === 'nueva' || b === 'nuevo' || c === 'editar' ? <LineEdit key={b} id={b === 'nuevo' ? 'nueva' : b!} /> : <LineView key={b} id={b!} />;
+      return b === 'nueva' || b === 'nuevo' || c === 'editar' ? <LineEdit key={`${b}/${c || ''}`} id={b === 'nuevo' ? 'nueva' : b!} sub={c} /> : <LineView key={b} id={b!} />;
     case 'recurrente':
-      return <RecurringEdit key={b} id={b} />;
+      return <RecurringEdit key={`${b}/${c || ''}`} id={b} preset={c} />;
     case 'saldos':
       return <Saldos />;
     case 'cuenta':

@@ -271,12 +271,14 @@ function groupBySpace(accs: Account[], first: string): [string, Account[]][] {
   return [...m.entries()].sort(([a], [b]) => Number(b === first) - Number(a === first));
 }
 
-export function RecurringEdit({ id }: { id: string }) {
+export function RecurringEdit({ id, preset }: { id: string; preset?: string }) {
   const { space, spaces, categories, accounts, toast, bump } = useApp();
   const spacesById = Object.fromEntries(spaces.map((s) => [s.id, s]));
   const isNew = id === 'nueva';
+  // from Presupuesto → Planear: an income or a saving starts as a manual payment of that kind (PRM-03)
   const [r, setR] = useState<Partial<Recurring>>({
-    merchant: '', currency: 'CRC', frequency: 'monthly', method: 'card', auto: true, active: true, kind: 'expense',
+    merchant: preset === 'ingreso' ? 'Salario' : preset === 'ahorro' ? 'Ahorro' : '', currency: 'CRC', frequency: 'monthly', active: true,
+    ...(preset === 'ingreso' ? { kind: 'income', method: 'transfer', auto: false } : preset === 'ahorro' ? { kind: 'transfer', method: 'transfer', auto: false } : { kind: 'expense', method: 'card', auto: true }),
     next_due: new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10),
   });
   // every account the person can reach: a recurring transfer can go to a shared space's account

@@ -1,294 +1,221 @@
 import { useMemo, useState } from 'react';
-import { ActionBar, BalanceSummary, Button, Checkbox, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, Switch, TxListSkeleton } from '../ds';
+import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
-import { buildBudget, categoryRecsThisMonth, GROUP_LABEL, KIND_LABEL, monthKeyNow, nextDueForDay, recurringMonth, toCrc, useBudgetData, type LineKind, type LineStat, type Line } from '../lib/budget';
-import { familyIds } from '../lib/cats';
+import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type OpenPlan, type PlanGroup, type RecMonth } from '../lib/budget';
+import { pickerOrder } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import { daysUntil, shortDay } from '../lib/recurring';
-import { canPay } from '../lib/transfers';
 import type { Currency } from '../lib/types';
 import { navigateBack, useApp, useTxs } from '../store';
-import { Emo, Icon, Segmented } from '../ui';
+import { Emo, Icon } from '../ui';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { TxRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
 import { useDesktop } from '../lib/useDesktop';
 import { useMenu } from '../lib/menu';
 
-/** This month's budget for the current space. */
+/** This month's plan for the current space: real and planned movements (PRM). */
 export function useBudget() {
-  const { space, categories, fx } = useApp();
+  const { space, categories, accounts, fx } = useApp();
   const t = todayCR();
   const range = useMemo(() => monthRange(t.y, t.m), [t.y, t.m]);
   const { txs, loading } = useTxs(range);
   const data = useBudgetData(space?.id);
-  const budget = data && space ? buildBudget({ ...data, categories, txs, spaceId: space.id, fx }) : null;
+  const budget = data && space ? buildBudget({ ...data, categories, accounts, txs, spaceId: space.id, fx }) : null;
   return { budget, data, txs, first: (loading && txs.length === 0) || !data };
 }
 
 const tone = (pct: number) => (pct >= 100 ? 'destructive' : pct >= 80 ? 'warning' : 'default') as 'destructive' | 'warning' | 'default';
-const money = (v: number, cur: Currency, fx: number) => <>{amount(v, cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>;
 
-/** The face of a line: its category's emoji when there is one, an icon of its kind otherwise. */
-function Face({ s }: { s: LineStat }) {
-  const { categories } = useApp();
-  const c = s.line.kind === 'cap' ? (s.cats.length === 1 ? s.cats[0] : null)
-    : s.line.kind === 'fixed' ? categories.find((x) => x.id === (s.line.group_category_id || s.recs[0]?.r.category_id)) : null;
-  if (c) return <Emo e={c.emoji} color={c.color} size={40} />;
-  return <Emo icon={s.line.kind === 'saving' ? 'piggy' : s.line.kind === 'fixed' ? 'calendar' : 'envelope'} color={s.line.kind === 'saving' ? 'mint' : undefined} size={40} />;
+function useMoney() {
+  const { cur, fx } = useApp();
+  const u = unitOf(cur);
+  return { u, fmt: (v: number) => amount(v, cur, fx), node: (v: number, approx = false) => <>{approx ? '≈ ' : ''}{amount(v, cur, fx)}<span className="amt-unit"> {u}</span></> };
 }
 
-/** A fixed payment: due or paid this month (PPT-02). */
-function FixedRow({ s }: { s: LineStat }) {
-  const { cur, fx } = useApp();
-  let detail = 'No se paga este mes', detailTone: 'muted' | 'success' | 'warning' = 'muted';
-  if (s.recs.length > 1) {
-    const paid = s.recs.filter((x) => x.paidOn && !x.dueOn).length;
-    detail = `${paid} de ${s.recs.length} pagados${s.line.amount_auto ? ' · según recurrentes' : ''}`;
-    if (s.done) detailTone = 'success';
-  } else if (s.recs.length === 1) {
-    const r = s.recs[0];
-    if (r.dueOn) {
-      const late = daysUntil(r.dueOn) < 0;
-      detail = `${late ? 'Venció' : 'Vence'} el ${shortDay(r.dueOn)}`;
-      if (late) detailTone = 'warning';
-    } else if (r.paidOn) {
-      detail = `Pagado el ${shortDay(r.paidOn)}`;
-      detailTone = 'success';
-    }
+/** A recurrent in the month: paid (real) or still due (planned) (PRM-02). */
+function RecRow({ s }: { s: RecMonth }) {
+  const { categories } = useApp();
+  const m = useMoney();
+  const c = categories.find((x) => x.id === s.r.category_id);
+  const n = s.txs.length + s.due.length;
+  const late = s.due[0] && daysUntil(s.due[0]) < 0;
+  const verb = s.r.kind === 'income' ? 'Llega' : s.r.kind === 'transfer' ? 'Se mueve' : 'Vence';
+  const done = s.r.kind === 'income' ? 'Llegó' : s.r.kind === 'transfer' ? 'Movido' : 'Pagado';
+  let detail: string;
+  let detailTone: 'muted' | 'success' | 'warning' = 'muted';
+  if (!s.due.length) {
+    const last = s.txs.map((x) => x.occurred_at).sort().at(-1);
+    detail = n > 1 ? `${n} de ${n} pagos` : last ? `${done} el ${shortDay(last.slice(0, 10))}` : done;
+    detailTone = 'success';
+  } else {
+    const when = late ? `Venció el ${shortDay(s.due[0])}` : `${verb} el ${shortDay(s.due[0])}`;
+    detail = n > 1 ? `${s.txs.length} de ${n} pagos · ${when.toLowerCase()}` : when;
+    if (late) detailTone = 'warning';
   }
   return (
     <ListRow
-      leading={<Face s={s} />}
-      title={s.line.name}
+      leading={c ? <Emo e={c.emoji} color={c.color} size={40} /> : <Emo icon={s.r.kind === 'transfer' ? 'piggy' : 'calendar'} color={s.r.kind === 'transfer' ? 'mint' : undefined} size={40} />}
+      title={s.r.merchant}
       detail={detail}
       detailTone={detailTone}
-      value={money(s.amount, cur, fx)}
-      valueTone={s.done ? 'muted' : 'default'}
-      href={`#/partida/${s.line.id}/editar`}
+      value={m.node(s.total, !!s.r.variable && s.due.length > 0)}
+      valueTone={s.due.length ? 'muted' : 'default'}
+      href={`#/recurrente/${s.r.id}`}
       chevron
     />
   );
 }
 
-/** A cap: what's left of it this month, with its bar (PPT-03). */
-function CapRow({ s }: { s: LineStat }) {
-  const { cur, fx } = useApp();
-  const u = unitOf(cur);
-  const pct = s.amount > 0 ? Math.round((s.actual / s.amount) * 100) : 0;
-  const over = s.left! < 0;
+/** An open plan: what's left of it this month, with its bar (PRM-04). */
+function PlanRow({ p }: { p: OpenPlan }) {
+  const m = useMoney();
+  const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
+  const over = p.left < 0;
+  const c = p.cats[0];
   return (
     <ListRow
-      leading={<Face s={s} />}
-      title={s.line.name}
-      detail={over ? `Te pasaste por ${amount(-s.left!, cur, fx)} ${u}` : `Quedan ${amount(s.left!, cur, fx)} de ${amount(s.amount, cur, fx)} ${u}`}
-      detailTone={over ? 'destructive' : 'muted'}
-      value={`${pct}%`}
-      valueTone={tone(pct)}
-      href={`#/partida/${s.line.id}`}
+      leading={c ? <Emo e={c.emoji} color={c.color} size={40} /> : <Emo icon="envelope" size={40} />}
+      title={c ? c.name : p.line.name}
+      detail={!c ? 'Elegí la categoría' : over ? `Te pasaste por ${m.fmt(-p.left)}` : p.spent > 0 ? `Gastado ${m.fmt(p.spent)}` : 'Sin gastos todavía'}
+      detailTone={!c ? 'warning' : over ? 'destructive' : 'muted'}
+      value={m.node(Math.max(p.amount, p.spent))}
+      valueTone={p.left > 0 ? 'muted' : 'default'}
+      href={c ? `#/partida/${p.line.id}` : `#/partida/${p.line.id}/editar`}
       chevron
-      label={`${s.line.name}: quedan ${amount(s.left!, cur, fx)} de ${amount(s.amount, cur, fx)} ${u}`}
-      below={<Progress size="sm" value={Math.min(pct, 100) / 100} tone={tone(pct)} label={`${s.line.name}: ${pct}% usado`} />}
+      label={`${c ? c.name : p.line.name}: ${m.fmt(p.spent)} de ${m.fmt(p.amount)} ${m.u}`}
+      below={<Progress size="sm" value={Math.min(pct, 100) / 100} tone={tone(pct)} label={`${pct}% usado`} />}
     />
   );
 }
 
-/** Money to set apart: done when it reaches its account, or with "Aparté" (PPT-04). */
-function SavingRow({ s }: { s: LineStat }) {
-  const { cur, fx, accounts, toast, bump } = useApp();
-  const acc = accounts.find((a) => a.id === s.line.account_id);
-  const ask = !s.done && !acc && s.actual === 0;
-  async function mark() {
-    try {
-      await db.upsert('envelope_marks', { envelope_id: s.line.id, month: monthKeyNow() }, 'envelope_id,month');
-      toast(`${s.line.name}: apartado`, () => db.remove('envelope_marks', { envelope_id: s.line.id, month: monthKeyNow() }));
-      bump();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo guardar');
-    }
-  }
-  const u = unitOf(cur);
+/** Real movements no plan covers: one row that unfolds into the movements. */
+function LooseRows({ g }: { g: PlanGroup }) {
+  const m = useMoney();
+  const [open, setOpen] = useState(false);
+  if (!g.loose.length) return null;
+  const n = g.loose.length;
+  const planned = g.recs.length + g.plans.length > 0;
+  const what = g.section === 'in' ? (n === 1 ? 'ingreso' : 'ingresos') : g.section === 'save' ? (n === 1 ? 'movimiento' : 'movimientos') : n === 1 ? 'gasto' : 'gastos';
   return (
-    <ListRow
-      leading={<Face s={s} />}
-      title={s.line.name}
-      detail={s.done ? (acc ? `Apartado en ${acc.name}` : 'Apartado') : ask ? `${amount(s.amount, cur, fx)} ${u} · por apartar` : acc ? (s.actual > 0 ? `Faltan ${amount(s.amount - s.actual, cur, fx)} ${u}` : `Por mover a ${acc.name}`) : 'Por apartar'}
-      detailTone={s.done ? 'success' : 'muted'}
-      value={ask ? undefined : money(s.amount, cur, fx)}
-      actions={ask ? <Button variant="secondary" size="xs" onClick={mark}>Aparté</Button> : undefined}
-      href={`#/partida/${s.line.id}/editar`}
-      chevron
-      label={s.line.name}
-    />
+    <>
+      <ListRow
+        leading={<span className={`plan-chev${open ? ' is-open' : ''}`}><ListRow.Icon name="chevDown" /></span>}
+        title={`${n} ${what}${planned ? ' sin planear' : ''}`}
+        value={m.node(g.looseAmt)}
+        onClick={() => setOpen(!open)}
+        label={`${open ? 'Esconder' : 'Ver'} ${n} ${what}`}
+      />
+      {open && <div className="plan-loose">{g.loose.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate />)}</div>}
+    </>
   );
 }
 
-const ROWS: Record<LineKind, (p: { s: LineStat }) => JSX.Element> = { fixed: FixedRow, cap: CapRow, saving: SavingRow };
+function Group({ g }: { g: PlanGroup }) {
+  const m = useMoney();
+  const title = g.category ? `${g.category.emoji} ${g.title}` : g.title;
+  return (
+    <ListGroup title={title} action={<span className="plan-total">{m.fmt(g.total)} {m.u}</span>}>
+      {g.plans.map((p) => <PlanRow key={p.line.id} p={p} />)}
+      {g.recs.map((s) => <RecRow key={s.r.id} s={s} />)}
+      <LooseRows g={g} />
+    </ListGroup>
+  );
+}
 
-/** Presupuesto (menu, route #/categorias): the month's lines, like a spreadsheet (PPT-07). */
+/** Presupuesto (menu, route #/categorias): the month written ahead, real and planned movements by category (PRM-01). */
 export function Presupuesto() {
-  const { space, cur, fx } = useApp();
+  const { space } = useApp();
   const desk = useDesktop();
   const menu = useMenu();
-  const [editIncome, setEditIncome] = useState(false);
-  const { budget, data, first } = useBudget();
+  const m = useMoney();
+  const { budget: b, first } = useBudget();
   if (!space) return <PageSkeleton title="Presupuesto"><GroupSkeleton rows={5} /></PageSkeleton>;
-  const u = unitOf(cur);
   const t = todayCR();
-  const b = budget;
+  const month = monthName(t.m);
 
-  const summary = b && (b.free != null ? (
+  const summary = b && (
     <BalanceSummary
-      label={b.free < 0 ? 'Presupuestaste de más' : 'Te queda libre'}
-      value={amount(Math.abs(b.free), cur, fx)}
-      unit={u}
+      label={b.free < 0 ? `Te pasás en ${month}` : `Libre en ${month}`}
+      value={m.fmt(Math.abs(b.free))}
+      unit={m.u}
       negative={b.free < 0}
-      meta={`Salario ${amount(b.income!, cur, fx)} · presupuestado ${amount(b.budgeted, cur, fx)} ${u}`}
-      action={<Button variant="secondary" size="xs" onClick={() => setEditIncome(true)}>Salario</Button>}
+      meta={`Entra ${m.fmt(b.entra)} · sale ${m.fmt(b.sale)}${b.aparta ? ` · apartás ${m.fmt(b.aparta)}` : ''} ${m.u}`}
     />
-  ) : (
-    <BalanceSummary
-      label="Presupuestado"
-      value={amount(b.budgeted, cur, fx)}
-      unit={u}
-      meta={`${b.lines.length} ${b.lines.length === 1 ? 'partida' : 'partidas'}`}
-      action={<Button variant="secondary" size="xs" onClick={() => setEditIncome(true)}>Agregar salario</Button>}
-    />
-  ));
+  );
 
+  const empty = b && !b.groups.length && !b.income.recs.length && !b.income.loose.length && !b.save.recs.length && !b.save.loose.length;
   const body = b && (
     <>
-      {b.lines.length === 0 && (
-        <EmptyState icon={<Icon name="list" size={24} />} title="Armá tu presupuesto" action={<Button variant="primary" size="sm" onClick={() => (location.hash = '#/partida/nueva')}>Agregar partida</Button>}>
-          Alquiler, restaurantes, ahorro: lo que pensás gastar o apartar cada mes.
+      {empty && (
+        <EmptyState icon={<Icon name="list" size={24} />} title={`Planeá ${month}`} action={<Button variant="primary" size="sm" onClick={() => (location.hash = '#/partida/nueva')}>Planear</Button>}>
+          Lo que entra, lo que pagás cada mes y cuánto querés gastar en súper o restaurantes.
         </EmptyState>
       )}
-      {(['fixed', 'cap', 'saving'] as LineKind[]).map((k) => b.byKind[k].length > 0 && (
-        <ListGroup key={k} title={GROUP_LABEL[k]} action={<span className="plan-total">{amount(b.total[k], cur, fx)} {u}</span>}>
-          {b.byKind[k].map((s) => {
-            const Row = ROWS[k];
-            return <Row key={s.line.id} s={s} />;
-          })}
-        </ListGroup>
-      ))}
-      {b.lines.length > 0 && (
+      {(b.income.recs.length > 0 || b.income.loose.length > 0) && <Group g={b.income} />}
+      {b.groups.map((g) => <Group key={g.key} g={g} />)}
+      {(b.save.recs.length > 0 || b.save.loose.length > 0) && <Group g={b.save} />}
+      {!empty && (
         <ListGroup>
-          <ListRow leading={<Icon name="plus" size={16} />} title="Agregar partida" href="#/partida/nueva" quiet />
+          <ListRow leading={<ListRow.Icon name="plus" />} title="Planear algo más" href="#/partida/nueva" quiet />
         </ListGroup>
       )}
     </>
   );
 
-  const income = editIncome && data && <IncomeEditor current={data.settings} onClose={() => setEditIncome(false)} />;
-  const title = `Presupuesto de ${monthName(t.m)}`;
-
+  const title = `Presupuesto de ${month}`;
   if (desk) {
     return (
       <div className="dpage">
-        <header className="dpage-head"><h1 className="dtitle">Presupuesto</h1><span className="muted">{monthName(t.m)}</span></header>
-        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{income || summary}{body}</div>}
+        <header className="dpage-head"><h1 className="dtitle">Presupuesto</h1><span className="muted">{month}</span></header>
+        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{summary}{body}</div>}
       </div>
     );
   }
   return (
     <div className="page">
-      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = '#/partida/nueva')} aria-label="Agregar partida"><Icon name="plus" size={14} /></Button>} />
-      <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : income || summary}</div>
+      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = '#/partida/nueva')} aria-label="Planear"><Icon name="plus" size={14} /></Button>} />
+      <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
       <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : body}</div>
     </div>
   );
 }
 
-/** The salary, typed once and repeated every month (PPT-05). Inline, in place of the summary. */
-function IncomeEditor({ current, onClose }: { current: { income: number | null; currency: Currency } | null; onClose: () => void }) {
-  const { space, cur, toast, bump } = useApp();
-  const [val, setVal] = useState(current?.income ? typed(Number(current.income)) : '');
-  const [currency, setCurrency] = useState<Currency>(current?.currency || cur);
-  const [busy, setBusy] = useState(false);
-  async function save(income: number | null) {
-    if (!space) return;
-    setBusy(true);
-    try {
-      await db.upsert('budget_settings', { space_id: space.id, income, currency }, 'space_id');
-      toast(income == null ? 'Salario quitado' : 'Salario guardado');
-      bump();
-      onClose();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo guardar');
-    } finally {
-      setBusy(false);
-    }
-  }
-  const num = parseAmount(val);
-  return (
-    <div className="col gap10">
-      <span className="field-label">Salario del mes</span>
-      <div className="field-card">
-        <label className="field-row">
-          <span>Monto</span>
-          <input inputMode="decimal" value={val} autoFocus onChange={(e) => setVal(e.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" aria-label="Salario del mes" />
-        </label>
-        <label className="field-row">
-          <span>Moneda</span>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)} aria-label="Moneda">
-            <option value="CRC">Colones</option>
-            <option value="USD">Dólares</option>
-          </select>
-        </label>
-      </div>
-      <p className="page-text">Se repite cada mes. Si cambia, lo editás aquí.</p>
-      <div className="row gap10">
-        <Button variant="primary" size="sm" disabled={busy || !(num > 0)} onClick={() => save(Math.round(num * 100) / 100)}>Guardar</Button>
-        <Button variant="secondary" size="sm" disabled={busy} onClick={onClose}>Cancelar</Button>
-        {current?.income != null && <Button variant="ghost" size="sm" className="danger" disabled={busy} onClick={() => save(null)}>Quitar</Button>}
-      </div>
-    </div>
-  );
-}
-
-/** A cap (#/partida/<id>): what's left, the pace, its categories and this month's movements. Other lines open the editor. */
+/** An open plan (#/partida/<id>): what's left, the pace and this month's movements. */
 export function LineView({ id }: { id: string }) {
-  const { space, cur, fx } = useApp();
+  const { space } = useApp();
+  const m = useMoney();
   const { budget, first } = useBudget();
-  const s = budget?.lines.find((x) => x.line.id === id);
+  const p = budget?.plans.find((x) => x.line.id === id);
   if (!space || first) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
-  if (!s) return <div className="page no-nav"><PageHeader title="Presupuesto" onBack={navigateBack} /><EmptyState icon={<Icon name="list" size={24} />} title="Esa partida ya no existe" /></div>;
-  if (s.line.kind !== 'cap') {
-    location.replace(`#/partida/${id}/editar`);
-    return null;
-  }
-  const u = unitOf(cur);
+  if (!p) return <div className="page no-nav"><PageHeader title="Presupuesto" onBack={navigateBack} /><EmptyState icon={<Icon name="list" size={24} />} title="Ese plan ya no existe" /></div>;
   const t = todayCR();
   const days = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
-  const pace = s.left! > 0 && days > 1 ? ` · ${amount(s.left! / days, cur, fx)} ${u} por día` : '';
-  const groups = groupByDay(s.txs);
+  const pace = p.left > 0 && days > 1 ? ` · ${m.fmt(p.left / days)} ${m.u} por día` : '';
+  const groups = groupByDay(p.txs);
+  const name = p.cats[0]?.name || p.line.name;
   return (
     <div className="page no-nav">
-      <PageHeader title={s.line.name} onBack={navigateBack}
-        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = `#/partida/${id}/editar`)} aria-label="Editar partida"><Icon name="pencil" size={14} /></Button>} />
+      <PageHeader title={name} onBack={navigateBack}
+        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = `#/partida/${id}/editar`)} aria-label="Editar plan"><Icon name="pencil" size={14} /></Button>} />
       <div className="page-hero">
         <BalanceSummary
-          label={s.left! < 0 ? 'Te pasaste por' : `Quedan en ${monthName(t.m)}`}
-          value={amount(Math.abs(s.left!), cur, fx)}
-          unit={u}
-          negative={s.left! < 0}
-          meta={`de ${amount(s.amount, cur, fx)} ${u} · ${days === 1 ? 'último día' : `${days} días`}${pace}`}
+          label={p.left < 0 ? 'Te pasaste por' : `Quedan en ${monthName(t.m)}`}
+          value={m.fmt(Math.abs(p.left))}
+          unit={m.u}
+          negative={p.left < 0}
+          meta={`de ${m.fmt(p.amount)} ${m.u} · ${days === 1 ? 'último día' : `${days} días`}${pace}`}
         />
       </div>
       <div className="page-body">
-        <ListGroup title="Categorías" action={<a href={`#/partida/${id}/editar`}>Cambiar</a>}>
-          {s.cats.length === 0 ? <div className="group-pad page-text">Elegí qué categorías cuentan en este tope.</div> : s.cats.map((c) => (
-            <ListRow key={c.id} leading={<Emo e={c.emoji} color={c.color} size={40} />} title={c.name} href={`#/categoria/${c.id}`} chevron />
-          ))}
-        </ListGroup>
         {groups.length === 0 ? (
           <EmptyState icon={<Icon name="list" size={24} />} title={`Sin gastos en ${monthName(t.m)}`} />
         ) : (
           <div className="mb-flat">
             {groups.map((g) => (
               <section key={g.label} className="mb-day">
-                <div className="mb-day-head row between"><span>{g.label}</span>{g.total !== 0 && <span>{amount(g.total, cur, fx)} {u}</span>}</div>
+                <div className="mb-day-head row between"><span>{g.label}</span>{g.total !== 0 && <span>{m.fmt(g.total)} {m.u}</span>}</div>
                 {g.rows.map((x) => <TxRow key={x.id} t={x} size="sheet" />)}
               </section>
             ))}
@@ -299,91 +226,69 @@ export function LineView({ id }: { id: string }) {
   );
 }
 
-/** Add or edit a line (#/partida/nueva, #/partida/<id>/editar): the kind first, then only what that kind needs (PPT-01). */
-export function LineEdit({ id }: { id: string }) {
-  const { space, categories, accounts, cur, fx, toast, bump } = useApp();
-  const { data, txs } = useBudget();
+/** What to plan (#/partida/nueva): a variable expense opens the plan editor; the rest are recurrents (PRM-03). */
+function PlanChooser() {
+  return (
+    <div className="page no-nav">
+      <PageHeader title="Planear" onBack={navigateBack} />
+      <div className="page-body">
+        <ListGroup>
+          <ListRow leading={<Emo icon="envelope" size={40} />} title="Gasto variable" detail="Súper, restaurantes, gasolina" href="#/partida/nueva/abierto" chevron />
+          <ListRow leading={<Emo icon="calendar" size={40} />} title="Pago que se repite" detail="Alquiler, luz, suscripciones" href="#/recurrente/nueva" chevron />
+          <ListRow leading={<Emo icon="arrowDownLeft" size={40} />} title="Ingreso" detail="Salario, lo que te depositan cada mes" href="#/recurrente/nueva/ingreso" chevron />
+          <ListRow leading={<Emo icon="piggy" color="mint" size={40} />} title="Ahorro" detail="Plata que movés a otra cuenta cada mes" href="#/recurrente/nueva/ahorro" chevron />
+        </ListGroup>
+      </div>
+    </div>
+  );
+}
+
+/** Add or edit an open plan (#/partida/nueva/abierto, #/partida/<id>/editar): a category and an amount for the month (PRM-04). */
+export function LineEdit({ id, sub }: { id: string; sub?: string }) {
+  if (id === 'nueva' && sub !== 'abierto') return <PlanChooser />;
+  return <OpenPlanEdit id={id} />;
+}
+
+function OpenPlanEdit({ id }: { id: string }) {
+  const { space, categories, cur, fx, toast, bump } = useApp();
+  const { data } = useBudget();
+  const t = todayCR();
+  const hist = useMemo(() => ({ from: monthRange(t.y, t.m - 3).from, to: monthRange(t.y, t.m).from }), [t.y, t.m]);
+  const { txs: past } = useTxs(hist);
   const isNew = id === 'nueva';
   const existing = data?.lines.find((l) => l.id === id) || null;
-  const rec = existing?.recurring_id ? data?.recurring.find((r) => r.id === existing.recurring_id) : undefined;
-  const [form, setForm] = useState<null | { kind: LineKind; name: string; amt: string; currency: Currency; day: string; catId: string; group: boolean; auto: boolean; cats: Set<string>; accountId: string }>(null);
+  const [form, setForm] = useState<null | { catId: string; amt: string; currency: Currency }>(null);
   const [busy, setBusy] = useState(false);
-  if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Nueva partida' : 'Editar partida'} />;
+  if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Gasto variable' : 'Editar plan'} />;
 
+  const lines = data.lines.filter((l) => l.active && !l.is_rest && l.kind === 'cap');
   const f = form || {
-    kind: existing?.kind || 'fixed',
-    name: existing?.name || '',
+    catId: data.links.find((l) => l.envelope_id === existing?.id)?.category_id || '',
     amt: existing?.amount ? typed(Number(existing.amount)) : '',
     currency: existing?.currency || cur,
-    day: rec ? String(Number(rec.next_due.slice(8, 10))) : '',
-    catId: existing?.group_category_id || rec?.category_id || '',
-    group: !!existing?.group_category_id,
-    auto: !!existing?.amount_auto,
-    cats: new Set(data.links.filter((l) => existing && l.envelope_id === existing.id).map((l) => l.category_id)),
-    accountId: existing?.account_id || '',
   };
   const set = (p: Partial<typeof f>) => setForm({ ...f, ...p });
   const num = parseAmount(f.amt);
-  const expenseRoots = categories.filter((c) => c.kind === 'expense' && !c.archived && !c.parent_id).sort((a, b) => a.sort - b.sort);
-  const expenseAll = categories.filter((c) => c.kind === 'expense' && !c.archived);
-  const kidsOf = (pid: string) => categories.filter((c) => c.parent_id === pid && !c.archived).sort((a, b) => a.sort - b.sort);
-  const lines = data.lines.filter((l) => l.active && !l.is_rest);
-  const owner = new Map(data.links.filter((l) => l.envelope_id !== existing?.id && lines.some((x) => x.id === l.envelope_id && x.kind === 'cap')).map((l) => [l.category_id, lines.find((x) => x.id === l.envelope_id)!.name]));
-
-  // a group of recurrents (Suscripciones): what they add up to this month, to use once or to follow (PPT-09)
-  const groupRecs = f.group && f.catId ? categoryRecsThisMonth(data.recurring, categories, f.catId, txs, space.id) : [];
-  const groupSum = recurringMonth(groupRecs, fx);
+  // a category is in one plan only
+  const taken = new Set(data.links.filter((l) => l.envelope_id !== existing?.id && lines.some((x) => x.id === l.envelope_id)).map((l) => l.category_id));
+  const options = pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived));
+  const cat = categories.find((c) => c.id === f.catId);
+  const avg = f.catId ? categoryAverage(past, categories, f.catId) : 0;
   const inCur = (crc: number) => (f.currency === 'USD' ? crc / fx : crc);
-  const auto = f.kind === 'fixed' && f.group && f.auto;
-
-  const day = Math.round(Number(f.day));
-  const valid = f.name.trim() && (auto ? groupRecs.length > 0 : num > 0)
-    && (f.kind !== 'fixed' || (f.group ? !!f.catId : day >= 1 && day <= 31))
-    && (f.kind !== 'cap' || f.cats.size > 0);
-
-  const toggle = (cid: string) => {
-    const next = new Set(f.cats);
-    if (next.has(cid)) next.delete(cid);
-    else {
-      next.add(cid);
-      kidsOf(cid).forEach((k) => next.delete(k.id));
-    }
-    set({ cats: next });
-  };
+  const valid = !!cat && num > 0;
 
   async function save() {
-    if (!space || !valid) return;
+    if (!space || !valid || !cat) return;
     setBusy(true);
     try {
-      const amt = auto ? Math.max(1, Math.round(inCur(groupSum) * 100) / 100) : Math.round(num * 100) / 100;
-      let recurringId = existing?.recurring_id || null;
-      // a single fixed payment is a recurrent: created or updated here, so it keeps showing in Pagos pendientes (PPT-02)
-      if (f.kind === 'fixed' && !f.group) {
-        const recRow: Record<string, unknown> = { merchant: f.name.trim(), amount: amt, currency: f.currency, category_id: f.catId || null };
-        if (!rec || Number(rec.next_due.slice(8, 10)) !== day) recRow.next_due = nextDueForDay(day);
-        if (rec) await db.update('recurring', { id: rec.id }, recRow);
-        else {
-          const made = await db.insert<{ id: string }>('recurring', { ...recRow, space_id: space.id, kind: 'expense', frequency: 'monthly', method: 'transfer', auto: false, active: true, next_due: nextDueForDay(day) });
-          recurringId = made[0].id;
-        }
-      }
-      const row = {
-        name: f.name.trim(), amount: amt, currency: f.currency, kind: f.kind, period: 'monthly',
-        recurring_id: f.kind === 'fixed' && !f.group ? recurringId : null,
-        group_category_id: f.kind === 'fixed' && f.group ? f.catId : null,
-        amount_auto: auto,
-        account_id: f.kind === 'saving' ? f.accountId || null : null,
-      };
+      const row = { name: cat.name, amount: Math.round(num * 100) / 100, currency: f.currency, kind: 'cap', period: 'monthly', recurring_id: null, group_category_id: null, amount_auto: false, account_id: null };
       let lineId = existing?.id;
       if (lineId) await db.update('envelopes', { id: lineId }, row);
       else lineId = (await db.insert<Line>('envelopes', { ...row, space_id: space.id, sort: lines.length + 1 }))[0].id;
-      // only a cap has categories
-      const before = new Set(data!.links.filter((l) => l.envelope_id === lineId).map((l) => l.category_id));
-      const want = f.kind === 'cap' ? f.cats : new Set<string>();
-      for (const c of before) if (!want.has(c)) await db.remove('envelope_categories', { category_id: c });
-      const add = [...want].filter((c) => !before.has(c));
-      if (add.length) await db.insert('envelope_categories', add.map((c) => ({ category_id: c, envelope_id: lineId })));
-      toast(isNew ? 'Partida agregada' : 'Partida guardada');
+      const before = data!.links.filter((l) => l.envelope_id === lineId).map((l) => l.category_id);
+      for (const c of before) if (c !== cat.id) await db.remove('envelope_categories', { category_id: c });
+      if (!before.includes(cat.id)) await db.insert('envelope_categories', [{ category_id: cat.id, envelope_id: lineId }]);
+      toast(isNew ? `${cat.name} planeado` : `${cat.name} guardado`);
       bump();
       history.back();
     } catch (e) {
@@ -397,7 +302,7 @@ export function LineEdit({ id }: { id: string }) {
     if (!existing) return;
     try {
       await db.update('envelopes', { id: existing.id }, { active: false });
-      toast(existing.recurring_id ? `${existing.name} borrada · el pago sigue en Recurrentes` : `${existing.name} borrada`, () => db.update('envelopes', { id: existing.id }, { active: true }));
+      toast(`${existing.name} ya no está planeado`, () => db.update('envelopes', { id: existing.id }, { active: true }));
       bump();
       location.hash = '#/categorias';
     } catch (e) {
@@ -405,145 +310,46 @@ export function LineEdit({ id }: { id: string }) {
     }
   }
 
-  const payable = accounts.filter((a) => !a.archived && a.kind !== 'credit_card' && a.kind !== 'loan' && a.system !== 'cash');
   return (
     <div className="page no-nav">
-      <PageHeader title={isNew ? 'Nueva partida' : 'Editar partida'} onBack={navigateBack} />
+      <PageHeader title={isNew ? 'Gasto variable' : 'Editar plan'} onBack={navigateBack} />
       <div className="page-body">
-        {isNew && <Segmented value={f.kind} options={[['fixed', 'Pago fijo'], ['cap', 'Tope'], ['saving', 'Ahorro']]} onChange={(v) => set({ kind: v })} />}
-        <p className="page-text">
-          {f.kind === 'fixed' ? 'Algo que pagás cada mes por el mismo monto: alquiler, internet, suscripciones.'
-            : f.kind === 'cap' ? 'Lo máximo que querés gastar al mes en algo: restaurantes, súper, salidas.'
-              : 'Lo que querés separar cada mes: emergencias, inversión, una meta.'}
-        </p>
+        <p className="page-text">Cuánto querés gastar al mes en una categoría. Cada gasto de esa categoría lo va usando, y se repite cada mes.</p>
         <div className="field-card">
           <label className="field-row">
-            <span>Nombre</span>
-            <input value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === 'fixed' ? 'Alquiler de la casa' : f.kind === 'cap' ? 'Restaurantes' : 'Emergencias'} aria-label="Nombre" />
+            <span>Categoría</span>
+            <select value={f.catId} onChange={(e) => set({ catId: e.target.value })} aria-label="Categoría">
+              <option value="">Elegí una</option>
+              {options.map((c) => <option key={c.id} value={c.id} disabled={taken.has(c.id)}>{c.parent_id ? '  ' : ''}{c.emoji} {c.name}{taken.has(c.id) ? ' (ya está planeada)' : ''}</option>)}
+            </select>
           </label>
-          {auto ? (
-            <div className="field-row">
-              <span>Monto al mes</span>
-              <span className="muted">{amount(groupSum, cur, fx)} {unitOf(cur)} este mes</span>
-            </div>
-          ) : (
-            <label className="field-row">
-              <span>Monto al mes</span>
-              <input inputMode="decimal" value={f.amt} onChange={(e) => set({ amt: e.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0" aria-label="Monto al mes" />
-            </label>
-          )}
-          {!auto && (
-            <label className="field-row">
-              <span>Moneda</span>
-              <select value={f.currency} onChange={(e) => set({ currency: e.target.value as Currency })} aria-label="Moneda">
-                <option value="CRC">Colones</option>
-                <option value="USD">Dólares</option>
-              </select>
-            </label>
-          )}
-
-          {f.kind === 'fixed' && !f.group && (
-            <label className="field-row">
-              <span>Se paga el día</span>
-              <input inputMode="numeric" value={f.day} onChange={(e) => set({ day: e.target.value.replace(/\D/g, '').slice(0, 2) })} placeholder="1 a 31" aria-label="Día del mes" />
-            </label>
-          )}
-          {f.kind === 'fixed' && (
-            <label className="field-row">
-              <span>Categoría</span>
-              <select value={f.catId} onChange={(e) => set({ catId: e.target.value })} aria-label="Categoría">
-                <option value="">{f.group ? 'Elegí una' : 'Ninguna'}</option>
-                {expenseAll.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-              </select>
-            </label>
-          )}
-          {f.kind === 'fixed' && isNew && (
-            <div className="field-row">
-              <span className="col"><span>Varios pagos de una categoría</span><small>Por ejemplo, todas tus suscripciones juntas</small></span>
-              <Switch checked={f.group} label="Varios pagos de una categoría" onChange={() => set({ group: !f.group })} />
-            </div>
-          )}
-
-          {f.kind === 'saving' && (
-            <label className="field-row">
-              <span>Va a la cuenta</span>
-              <select value={f.accountId} onChange={(e) => set({ accountId: e.target.value })} aria-label="Cuenta">
-                <option value="">Ninguna (lo marco a mano)</option>
-                {payable.filter((a) => canPay(a) || a.kind === 'savings' || a.kind === 'investment').map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </label>
-          )}
+          <label className="field-row">
+            <span>Monto al mes</span>
+            <input inputMode="decimal" value={f.amt} onChange={(e) => set({ amt: e.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0" aria-label="Monto al mes" />
+          </label>
+          <label className="field-row">
+            <span>Moneda</span>
+            <select value={f.currency} onChange={(e) => set({ currency: e.target.value as Currency })} aria-label="Moneda">
+              <option value="CRC">Colones</option>
+              <option value="USD">Dólares</option>
+            </select>
+          </label>
         </div>
-
-        {f.kind === 'fixed' && !f.group && <p className="page-text">Se agrega a Recurrentes, así te avisa en Pagos pendientes cuando toca pagarlo.</p>}
-        {f.kind === 'fixed' && f.group && f.catId && (
-          groupRecs.length === 0 ? <p className="page-text">Esa categoría no tiene pagos recurrentes este mes.</p> : (
-            <>
-              <ListGroup>
-                <ListRow
-                  title="Monto según los recurrentes"
-                  detail={f.auto ? 'Cada mes, lo que sumen sus pagos' : 'Lo escribís vos'}
-                  actions={<Switch checked={f.auto} label="Monto según los recurrentes" onChange={() => set({ auto: !f.auto })} />}
-                />
-              </ListGroup>
-              <ListGroup title={`Recurrentes de este mes · ${amount(groupSum, cur, fx)} ${unitOf(cur)}`}>
-                {groupRecs.map((g) => (
-                  <ListRow key={g.r.id} title={g.r.merchant}
-                    detail={g.dueOn ? `Vence el ${shortDay(g.dueOn)}` : g.paidOn ? `Pagado el ${shortDay(g.paidOn)}` : undefined}
-                    value={<>{g.r.variable && g.dueOn ? '≈ ' : ''}{amount(g.dueOn ? toCrc(g.r.amount, g.r.currency, fx) : g.paid || toCrc(g.r.amount, g.r.currency, fx), cur, fx)}<span className="amt-unit"> {unitOf(cur)}</span></>}
-                    href={`#/recurrente/${g.r.id}`} chevron />
-                ))}
-              </ListGroup>
-              {!f.auto && (
-                <div className="row between gap10 env-sug">
-                  <span className="page-text">Suman {amount(groupSum, f.currency, fx)} {unitOf(f.currency)} este mes</span>
-                  <Button variant="secondary" size="xs" onClick={() => set({ amt: typed(Math.round(inCur(groupSum) * 100) / 100) })}>Usar</Button>
-                </div>
-              )}
-            </>
-          )
+        {cat && avg > 0 && (
+          <div className="row between gap10 env-sug">
+            <span className="page-text">Promedio de los últimos 3 meses: {amount(avg, f.currency, fx)} {unitOf(f.currency)}</span>
+            <Button variant="secondary" size="xs" onClick={() => set({ amt: typed(Math.round(inCur(avg))) })}>Usar</Button>
+          </div>
         )}
-        {f.kind === 'saving' && f.accountId && <p className="page-text">Queda apartado cuando movés el dinero a esa cuenta.</p>}
-
-        {f.kind === 'cap' && (
-          <ListGroup title="Qué gastos cuentan" note="Una categoría solo puede estar en un tope. La principal incluye sus subcategorías.">
-            {expenseRoots.map((c) => {
-              const taken = owner.get(c.id);
-              const kids = kidsOf(c.id);
-              const kidTaken = kids.find((k) => owner.has(k.id));
-              const on = f.cats.has(c.id);
-              const blocked = !!taken || (!!kidTaken && !on);
-              return (
-                <div key={c.id}>
-                  <ListRow
-                    leading={<Emo e={c.emoji} color={c.color} size={40} />}
-                    title={c.name}
-                    detail={taken ? `En ${taken}` : kidTaken && !on ? `${kidTaken.name} está en ${owner.get(kidTaken.id)}` : undefined}
-                    actions={<Checkbox checked={on} />}
-                    quiet={blocked}
-                    onClick={blocked ? undefined : () => toggle(c.id)}
-                  />
-                  {!on && !taken && kids.map((k) => {
-                    const kt = owner.get(k.id);
-                    return (
-                      <ListRow key={k.id} className="env-sub" leading={<Emo e={k.emoji} color={k.color} size={32} />} title={k.name}
-                        detail={kt ? `En ${kt}` : undefined} actions={<Checkbox checked={f.cats.has(k.id)} />} quiet={!!kt} onClick={kt ? undefined : () => toggle(k.id)} />
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </ListGroup>
-        )}
-
+        <p className="page-text">Te avisamos al llegar al 80% y si te pasás.</p>
         {existing && (
           <div className="page-actions">
-            <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Borrar partida</Button>
+            <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Quitar del presupuesto</Button>
           </div>
         )}
       </div>
       <ActionBar>
-        <Button variant="primary" size="lg" block disabled={busy || !valid} onClick={save}>{isNew ? `Agregar ${KIND_LABEL[f.kind].toLowerCase()}` : 'Guardar'}</Button>
+        <Button variant="primary" size="lg" block disabled={busy || !valid} onClick={save}>{isNew ? 'Planear' : 'Guardar'}</Button>
       </ActionBar>
     </div>
   );
@@ -553,3 +359,5 @@ function typed(n: number) {
   const [i, d] = n.toFixed(2).split('.');
   return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d !== '00' ? `,${d}` : '');
 }
+
+export { toCrc };

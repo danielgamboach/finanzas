@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { db } from './api';
 import { monthRange, spend } from './calc';
-import { familyIds } from './cats';
+import { familyIds, rootId } from './cats';
 import { crLocal, todayCR } from './format';
 import { addPeriod } from './recurring';
-import type { Category, Currency, Recurring, Tx } from './types';
+import type { Account, Category, Currency, Recurring, Tx } from './types';
 import { useApp } from '../store';
 
 /**
- * Presupuesto as a list of budget lines (docs/comportamiento/presupuesto.md, PPT), like a spreadsheet:
- * each line is a fixed payment, a cap on what can be spent, or money to set apart, all monthly.
- * Lines live in the `envelopes` table (`kind`); caps keep their categories in `envelope_categories`.
+ * Presupuesto as the month written ahead of time (docs/comportamiento/presupuesto.md, PRM):
+ * the month's real movements plus the planned ones, grouped by category.
+ * - Planned payments are the recurrents still due this month (they become real when paid).
+ * - A "planeado abierto" (open plan) is an amount for a category that real spending eats up.
+ *   It lives in `envelopes` (kind 'cap', one category in `envelope_categories`) and repeats every month.
  */
-
-export type LineKind = 'fixed' | 'cap' | 'saving';
 
 export interface Line {
   id: string;
@@ -21,189 +21,256 @@ export interface Line {
   name: string;
   amount: number | null;
   currency: Currency;
-  kind: LineKind;
+  kind: 'fixed' | 'cap' | 'saving';
   recurring_id: string | null;
   group_category_id: string | null;
   account_id: string | null;
   active: boolean;
-  /** Fixed group: the amount is what its recurrents add up to this month (PPT-09). */
   amount_auto?: boolean;
   is_rest: boolean;
   sort: number;
 }
 
 export interface LineLink { category_id: string; envelope_id: string }
-export interface Settings { space_id: string; income: number | null; currency: Currency }
-
-export const KIND_LABEL: Record<LineKind, string> = { fixed: 'Pago fijo', cap: 'Tope', saving: 'Ahorro' };
-export const GROUP_LABEL: Record<LineKind, string> = { fixed: 'Pagos fijos', cap: 'Gastos con tope', saving: 'Ahorro' };
 
 export const toCrc = (amount: number, currency: Currency, fx: number) => (currency === 'USD' ? Number(amount) * fx : Number(amount));
 
-/** "2026-11-01" for the current month in CR. */
-export function monthKeyNow() {
-  const t = todayCR();
-  return `${t.y}-${String(t.m + 1).padStart(2, '0')}-01`;
-}
-
 const dayKey = (iso: string) => crLocal(iso).toISOString().slice(0, 10);
 
-export interface RecState { r: Recurring; paidOn: string | null; paid: number; dueOn: string | null }
+/** One recurrent this month: what was paid (its linked movements) and the payments still due. */
+export interface RecMonth {
+  r: Recurring;
+  /** Its movements this month. */
+  txs: Tx[];
+  paid: number;
+  /** Due dates still to pay this month (an overdue one from before counts too). */
+  due: string[];
+  /** One payment, in CRC (≈ the average when it varies). */
+  each: number;
+  /** paid + what's still due. */
+  total: number;
+}
 
-export interface LineStat {
+/** An open plan: an amount for a category that this month's spending eats up (PRM-04). */
+export interface OpenPlan {
   line: Line;
   /** In CRC. */
   amount: number;
-  /** Paid (fixed), spent (cap) or set apart (saving) this month. */
-  actual: number;
-  /** Fixed: every payment of the month made. Saving: set apart. Never for a cap. */
-  done: boolean;
-  /** Cap: amount − spent. */
-  left: number | null;
-  /** Fixed: its recurrents this month. */
-  recs: RecState[];
-  /** Cap: its categories and this month's movements. */
+  spent: number;
+  left: number;
   cats: Category[];
   txs: Tx[];
-  marked: boolean;
+}
+
+export type Section = 'in' | 'out' | 'save';
+
+export interface PlanGroup {
+  key: string;
+  section: Section;
+  /** The root category; null for movements without one (or the savings/income groups). */
+  category: Category | null;
+  title: string;
+  recs: RecMonth[];
+  plans: OpenPlan[];
+  /** Real movements that no plan covers. */
+  loose: Tx[];
+  looseAmt: number;
+  /** Real so far, in CRC. */
+  real: number;
+  /** Still planned: due payments and what's left of the open plans. */
+  pending: number;
+  total: number;
 }
 
 export interface Budget {
-  lines: LineStat[];
-  byKind: Record<LineKind, LineStat[]>;
-  total: Record<LineKind, number>;
-  budgeted: number;
-  income: number | null;
-  /** income − budgeted (PPT-05). */
-  free: number | null;
-  /** What's left in the caps (PPT-06). Null without caps. */
+  income: PlanGroup;
+  groups: PlanGroup[];
+  save: PlanGroup;
+  plans: OpenPlan[];
+  /** Money in: real + planned. */
+  entra: number;
+  /** Spending: real + planned. */
+  sale: number;
+  /** Set apart or sent to another space: real + planned. */
+  aparta: number;
+  /** entra − sale − aparta (PRM-05). */
+  free: number;
+  /** Something planned or received this month. */
+  hasIncome: boolean;
+  /** What's left in the open plans (Inicio when there's no income yet). */
   toSpend: { left: number; total: number; count: number } | null;
 }
 
-/** What a set of recurrents adds up to this month: paid ones by what was paid, due ones by their amount (PPT-09). */
-export function recurringMonth(recs: RecState[], fx: number) {
-  return recs.reduce((a, s) => {
-    const each = toCrc(s.r.amount, s.r.currency, fx);
-    const paid = s.paidOn ? s.paid || each : 0; // paid without a linked movement: its usual amount
-    return a + paid + (s.dueOn ? each : 0);
-  }, 0);
-}
-
-/** This month's recurrents of a category (and its subcategories), for the editor's preview. */
-export function categoryRecsThisMonth(recurring: Recurring[], categories: Category[], categoryId: string, txs: Tx[], spaceId: string) {
-  const t = todayCR();
-  const range = monthRange(t.y, t.m);
-  const fam = familyIds(categories, categoryId);
-  const monthTxs = txs.filter((x) => x.space_id === spaceId && x.occurred_at >= range.from && x.occurred_at < range.to);
-  return recurring.filter((r) => r.kind === 'expense' && r.category_id && fam.has(r.category_id))
-    .map((r) => recState(r, monthTxs, dayKey(range.from), dayKey(range.to))).filter(Boolean) as RecState[];
-}
-
-/** This month's state of one recurrent: paid (and when) or due (and when). */
-function recState(r: Recurring, monthTxs: Tx[], from: string, to: string): RecState | null {
-  const paidTxs = monthTxs.filter((x) => x.recurring_id === r.id);
-  const paid = paidTxs.reduce((a, x) => a + spend(x), 0);
-  const paidOn = paidTxs.length ? dayKey(paidTxs.map((x) => x.occurred_at).sort().at(-1)!) : r.last_paid_on && r.last_paid_on >= from && r.last_paid_on < to ? r.last_paid_on : null;
-  let dueOn: string | null = null;
-  if (r.active) {
-    let d = r.next_due;
-    for (let i = 0; i < 60 && d < to; i++) {
-      if (d >= from || !paidOn) { dueOn = d; break; } // an overdue payment from before the month still counts
-      const n = addPeriod(d, r.frequency, r.every_n, r.every_unit);
-      if (n <= d) break;
-      d = n;
-    }
+/** Due dates of a recurrent inside [from, to) (an overdue one from before the month counts once). */
+function dueDates(r: Recurring, from: string, to: string) {
+  const out: string[] = [];
+  if (!r.active) return out;
+  let d = r.snooze_until && r.snooze_until > r.next_due ? r.snooze_until : r.next_due;
+  if (d < from) out.push(d); // overdue from before the month: counts once
+  for (let i = 0; i < 80 && d < to; i++) {
+    if (d >= from) out.push(d);
+    const n = addPeriod(d, r.frequency, r.every_n, r.every_unit);
+    if (n <= d) break;
+    d = n;
   }
-  if (!paidOn && !dueOn) return null; // nothing this month (an annual one, say)
-  return { r, paidOn, paid, dueOn };
+  return out;
 }
 
-export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Recurring[]; settings: Settings | null; marks: { envelope_id: string; month: string }[]; categories: Category[]; txs: Tx[]; spaceId: string; fx: number }): Budget {
-  const { categories, fx } = o;
+const SAVE_KINDS = new Set(['savings', 'investment', 'cdp']);
+
+/** Which section a recurrent belongs to, or null when it isn't part of the plan (card payments, moves between my own accounts). */
+function recSection(r: Recurring, spaceId: string, accounts: Account[]): Section | null {
+  if (r.purpose === 'card_early') return null;
+  if (r.kind === 'income') return r.space_id === spaceId ? 'in' : null;
+  if (r.kind === 'transfer') {
+    const to = accounts.find((a) => a.id === r.to_account_id);
+    if (r.space_id !== spaceId) return to && to.space_id === spaceId ? 'in' : null; // money another space plans to send here
+    if (!to) return null;
+    if (to.space_id !== spaceId || SAVE_KINDS.has(to.kind)) return 'save';
+    return null;
+  }
+  return r.space_id === spaceId ? 'out' : null;
+}
+
+/** Which section a real movement belongs to, or null when it doesn't change what's free. */
+function txSection(x: Tx, spaceId: string, accounts: Account[]): Section | null {
+  if (x.hold === 'void' || x.hold === 'pending') return null;
+  if (x.kind === 'transfer') {
+    if (x.space_id !== spaceId) return x.to_space_id === spaceId ? 'in' : null;
+    if (x.to_space_id && x.to_space_id !== spaceId) return 'save';
+    const to = accounts.find((a) => a.id === x.to_account_id);
+    return to && SAVE_KINDS.has(to.kind) ? 'save' : null;
+  }
+  if (x.space_id !== spaceId) return null;
+  if (x.kind === 'income') return 'in';
+  if (x.kind === 'expense' || x.kind === 'refund') return 'out';
+  return null;
+}
+
+const txValue = (x: Tx, s: Section) => (s === 'out' ? spend(x) : Number(x.amount_crc));
+
+export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Recurring[]; categories: Category[]; accounts: Account[]; txs: Tx[]; spaceId: string; fx: number }): Budget {
+  const { categories, fx, spaceId, accounts } = o;
   const t = todayCR();
   const range = monthRange(t.y, t.m);
   const from = dayKey(range.from), to = dayKey(range.to);
-  const mKey = monthKeyNow();
-  const monthTxs = o.txs.filter((x) => x.space_id === o.spaceId && x.occurred_at >= range.from && x.occurred_at < range.to && x.hold !== 'void');
+  const monthTxs = o.txs.filter((x) => x.occurred_at >= range.from && x.occurred_at < range.to);
 
-  const lines = o.lines.filter((l) => l.active && !l.is_rest && l.amount != null).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name)).map((line): LineStat => {
+  const groups = new Map<string, PlanGroup>();
+  const make = (key: string, section: Section, category: Category | null, title: string): PlanGroup => {
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, section, category, title, recs: [], plans: [], loose: [], looseAmt: 0, real: 0, pending: 0, total: 0 };
+      groups.set(key, g);
+    }
+    return g;
+  };
+  const income = make('in', 'in', null, 'Entra');
+  const save = make('save', 'save', null, 'Apartar');
+  const outGroup = (catId: string | null | undefined) => {
+    const rid = catId ? rootId(categories, catId) : null;
+    const c = rid ? categories.find((x) => x.id === rid) || null : null;
+    return make(c ? `c:${c.id}` : 'none', 'out', c, c ? c.name : 'Sin categoría');
+  };
+  const groupOf = (s: Section, catId: string | null | undefined) => (s === 'in' ? income : s === 'save' ? save : outGroup(catId));
+
+  // 1. recurrents: paid this month and still due (PRM-02)
+  const used = new Set<string>();
+  for (const r of o.recurring) {
+    const s = recSection(r, spaceId, accounts);
+    if (!s) continue;
+    const txs = monthTxs.filter((x) => x.recurring_id === r.id && txSection(x, spaceId, accounts) === s);
+    const due = dueDates(r, from, to);
+    if (!txs.length && !due.length) continue;
+    txs.forEach((x) => used.add(x.id));
+    const paid = txs.reduce((a, x) => a + txValue(x, s), 0);
+    const each = toCrc(r.amount, r.currency, fx);
+    groupOf(s, r.category_id).recs.push({ r, txs, paid, due, each, total: paid + each * due.length });
+  }
+
+  // 2. open plans (PRM-04): one category (and its subcategories); movements of a recurrent don't count, it has its own row
+  const plans: OpenPlan[] = [];
+  for (const line of o.lines.filter((l) => l.active && !l.is_rest && l.kind === 'cap' && l.amount != null).sort((a, b) => a.sort - b.sort)) {
+    const catIds = o.links.filter((l) => l.envelope_id === line.id).map((l) => l.category_id);
+    const fam = new Set<string>();
+    catIds.forEach((c) => familyIds(categories, c).forEach((x) => fam.add(x)));
+    const txs = monthTxs.filter((x) => !used.has(x.id) && x.category_id && fam.has(x.category_id) && txSection(x, spaceId, accounts) === 'out' && spend(x) !== 0);
+    txs.forEach((x) => used.add(x.id));
     const amount = toCrc(line.amount!, line.currency, fx);
-    const marked = o.marks.some((m) => m.envelope_id === line.id && m.month === mKey);
-    const base = { line, amount, recs: [] as RecState[], cats: [] as Category[], txs: [] as Tx[], marked, left: null as number | null };
-    if (line.kind === 'fixed') {
-      const fam = line.group_category_id ? familyIds(categories, line.group_category_id) : null;
-      const rs = line.recurring_id
-        ? o.recurring.filter((r) => r.id === line.recurring_id)
-        : fam ? o.recurring.filter((r) => r.kind === 'expense' && r.category_id && fam.has(r.category_id)) : [];
-      const recs = rs.map((r) => recState(r, monthTxs, from, to)).filter(Boolean) as RecState[];
-      const actual = recs.reduce((a, s) => a + s.paid, 0);
-      // PPT-09: the month's recurrents set the amount (what was paid, or what's expected for the ones still due)
-      const auto = line.amount_auto && !!line.group_category_id ? recurringMonth(recs, fx) : null;
-      return { ...base, amount: auto ?? amount, recs, actual, done: recs.length > 0 && recs.every((s) => s.paidOn && !s.dueOn) };
-    }
-    if (line.kind === 'cap') {
-      const ids = new Set<string>();
-      o.links.filter((l) => l.envelope_id === line.id).forEach((l) => familyIds(categories, l.category_id).forEach((c) => ids.add(c)));
-      const txs = monthTxs.filter((x) => x.category_id && ids.has(x.category_id) && spend(x) !== 0);
-      const actual = txs.reduce((a, x) => a + spend(x), 0);
-      const cats = categories.filter((c) => o.links.some((l) => l.envelope_id === line.id && l.category_id === c.id));
-      return { ...base, cats, txs, actual, left: amount - actual, done: false };
-    }
-    // saving: money that came into its account this month, or "Aparté"
-    const moved = line.account_id
-      ? monthTxs.filter((x) => !x.hold && ((x.kind === 'transfer' && x.to_account_id === line.account_id && x.account_id !== line.account_id) || (x.kind === 'income' && x.account_id === line.account_id)))
-          .reduce((a, x) => a + Number(x.amount_crc), 0)
-      : 0;
-    const actual = marked ? Math.max(amount, moved) : moved;
-    return { ...base, actual, done: actual >= amount - 0.5 };
-  });
+    const spent = txs.reduce((a, x) => a + spend(x), 0);
+    const plan: OpenPlan = { line, amount, spent, left: amount - spent, cats: categories.filter((c) => catIds.includes(c.id)), txs };
+    plans.push(plan);
+    const g = catIds.length ? outGroup(catIds[0]) : make(`p:${line.id}`, 'out', null, line.name);
+    g.plans.push(plan);
+  }
 
-  const byKind = { fixed: lines.filter((l) => l.line.kind === 'fixed'), cap: lines.filter((l) => l.line.kind === 'cap'), saving: lines.filter((l) => l.line.kind === 'saving') };
-  const sum = (ls: LineStat[]) => ls.reduce((a, l) => a + l.amount, 0);
-  const total = { fixed: sum(byKind.fixed), cap: sum(byKind.cap), saving: sum(byKind.saving) };
-  const budgeted = total.fixed + total.cap + total.saving;
-  const income = o.settings?.income != null ? toCrc(o.settings.income, o.settings.currency, fx) : null;
-  const caps = byKind.cap;
+  // 3. everything else that came in or went out this month
+  for (const x of monthTxs) {
+    if (used.has(x.id)) continue;
+    const s = txSection(x, spaceId, accounts);
+    if (!s) continue;
+    const v = txValue(x, s);
+    if (v === 0) continue;
+    const g = groupOf(s, x.category_id);
+    g.loose.push(x);
+    g.looseAmt += v;
+  }
+
+  for (const g of groups.values()) {
+    const recReal = g.recs.reduce((a, s) => a + s.paid, 0);
+    const recDue = g.recs.reduce((a, s) => a + s.each * s.due.length, 0);
+    const planReal = g.plans.reduce((a, p) => a + p.spent, 0);
+    const planLeft = g.plans.reduce((a, p) => a + Math.max(0, p.left), 0);
+    g.real = recReal + planReal + g.looseAmt;
+    g.pending = recDue + planLeft;
+    g.total = g.real + g.pending;
+    g.recs.sort((a, b) => (a.due[0] || '9999').localeCompare(b.due[0] || '9999') || b.total - a.total);
+  }
+
+  const out = [...groups.values()].filter((g) => g.section === 'out' && (g.recs.length || g.plans.length || g.loose.length)).sort((a, b) => b.total - a.total);
+  const entra = income.total, aparta = save.total;
+  const sale = out.reduce((a, g) => a + g.total, 0);
   return {
-    lines, byKind, total, budgeted, income,
-    free: income != null ? income - budgeted : null,
-    toSpend: caps.length ? { left: caps.reduce((a, l) => a + l.left!, 0), total: total.cap, count: caps.length } : null,
+    income, groups: out, save, plans, entra, sale, aparta,
+    free: entra - sale - aparta,
+    hasIncome: entra > 0,
+    toSpend: plans.length ? { left: plans.reduce((a, p) => a + p.left, 0), total: plans.reduce((a, p) => a + p.amount, 0), count: plans.length } : null,
   };
 }
 
-/** Lines, cap categories, recurrents, salary and this month's "Aparté" marks of a space. */
+/** Open plans, their categories and the recurrents of a space (plus those of other spaces that send money here). */
 export function useBudgetData(spaceId: string | null | undefined) {
-  const { version } = useApp();
-  const [d, setD] = useState<{ lines: Line[]; links: LineLink[]; recurring: Recurring[]; settings: Settings | null; marks: { envelope_id: string; month: string }[] } | null>(null);
+  const { version, accounts } = useApp();
+  const [d, setD] = useState<{ lines: Line[]; links: LineLink[]; recurring: Recurring[] } | null>(null);
+  const mine = accounts.filter((a) => a.space_id === spaceId).map((a) => a.id).sort().join(',');
   useEffect(() => {
     if (!spaceId) return;
     let alive = true;
     const safe = <T,>(p: PromiseLike<T[]>) => Promise.resolve(p).catch(() => [] as T[]);
+    const ids = mine ? mine.split(',') : [];
     Promise.all([
       safe(db.from<Line>('envelopes').eq('space_id', spaceId).order('sort')),
       safe(db.from<LineLink & { envelopes?: unknown }>('envelope_categories', 'category_id,envelope_id,envelopes!inner(space_id)').eq('envelopes.space_id', spaceId)),
       safe(db.from<Recurring>('recurring').eq('space_id', spaceId)),
-      safe(db.from<Settings>('budget_settings').eq('space_id', spaceId)),
-      safe(db.from<{ envelope_id: string; month: string }>('envelope_marks', 'envelope_id,month,envelopes!inner(space_id)').eq('envelopes.space_id', spaceId).eq('month', monthKeyNow())),
-    ]).then(([lines, links, recurring, settings, marks]) => {
-      if (alive) setD({ lines, links: links.map((l) => ({ category_id: l.category_id, envelope_id: l.envelope_id })), recurring, settings: settings[0] || null, marks: marks.map((m) => ({ envelope_id: m.envelope_id, month: m.month })) });
+      ids.length ? safe(db.from<Recurring>('recurring').eq('kind', 'transfer').eq('active', true).in('to_account_id', ids)) : Promise.resolve([] as Recurring[]),
+    ]).then(([lines, links, recurring, incoming]) => {
+      if (!alive) return;
+      const extra = incoming.filter((r) => r.space_id !== spaceId);
+      setD({ lines, links: links.map((l) => ({ category_id: l.category_id, envelope_id: l.envelope_id })), recurring: [...recurring, ...extra] });
     });
     return () => {
       alive = false;
     };
-  }, [spaceId, version]);
+  }, [spaceId, version, mine]);
   return d;
 }
 
-/** Next date with this day of the month, today included (clamped to the month's length). */
-export function nextDueForDay(day: number) {
+/** Average monthly spending of a category (and its subcategories) over the last 3 full months, without recurrents (PRM-04). */
+export function categoryAverage(txs: Tx[], categories: Category[], categoryId: string) {
   const t = todayCR();
-  const make = (y: number, m: number) => {
-    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    const d = new Date(Date.UTC(y, m, Math.min(day, last)));
-    return d.toISOString().slice(0, 10);
-  };
-  const thisMonth = make(t.y, t.m);
-  const today = `${t.y}-${String(t.m + 1).padStart(2, '0')}-${String(t.d).padStart(2, '0')}`;
-  return thisMonth >= today ? thisMonth : make(t.y, t.m + 1);
+  const from = monthRange(t.y, t.m - 3).from, to = monthRange(t.y, t.m).from;
+  const fam = familyIds(categories, categoryId);
+  const total = txs.filter((x) => x.occurred_at >= from && x.occurred_at < to && x.category_id && fam.has(x.category_id) && !x.recurring_id && x.hold !== 'void')
+    .reduce((a, x) => a + spend(x), 0);
+  return Math.max(0, total / 3);
 }

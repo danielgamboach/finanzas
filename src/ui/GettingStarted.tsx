@@ -53,7 +53,7 @@ export function GettingStarted({ variant }: { variant: 'sheet' | 'card' }) {
     { key: 'tx', icon: 'pencil', title: 'Anotá tu primer gasto', sub: 'Tocá + arriba y listo, toma segundos.', done: st.tx, run: () => go('/agregar') },
     { key: 'acc', icon: 'cards', title: 'Agregá una cuenta', sub: 'La tarjeta o el efectivo con que pagás.', done: st.acc, run: () => go('/cuenta/nueva') },
     { key: 'rec', icon: 'repeat', title: 'Agregá tus pagos fijos', sub: 'Alquiler, servicios, suscripciones. Te avisamos antes.', done: st.rec, run: () => go('/recurrentes') },
-    { key: 'lim', icon: 'list', title: 'Armá tu presupuesto', sub: 'Alquiler, restaurantes, ahorro: cuánto va para cada cosa.', done: st.lim, run: () => go('/partida/nueva') },
+    { key: 'lim', icon: 'list', title: 'Armá tu presupuesto', sub: 'Lo que entra, lo que pagás y cuánto querés gastar en el mes.', done: st.lim, run: () => go('/partida/nueva') },
   ];
   if (ownShared) {
     items.push({
