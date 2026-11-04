@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
+import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, ProgressRing, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
 import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
@@ -118,6 +118,7 @@ function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: b
   const t = todayCR();
   const month = monthName(t.m);
   const plan = g.plans[0];
+  const daysLeft = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
   const pending = s.late.concat(s.coming).reduce((a, x) => a + Number(x.amount_crc), 0) + g.plans.reduce((a, p) => a + Math.max(0, p.left), 0);
 
   async function removeLimit() {
@@ -167,15 +168,28 @@ function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: b
           </span>
         )} />
       <div className="page-hero">
-        <BalanceSummary
-          label={`${g.title} en ${month}`}
-          value={m.fmt(g.total)}
-          unit={m.u}
-          meta={s.limit > 0
-            ? (s.used > s.limit ? `Te pasaste por ${m.fmt(s.used - s.limit)} de un límite de ${m.fmt(s.limit)} ${m.u}` : `Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u} de límite`)
-            : pending > 0 ? `Ya pasó ${m.fmt(g.real)} · falta ${m.fmt(pending)} ${m.u}` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
-        />
-        {s.limit > 0 && <Progress size="md" className="plan-hero-bar" value={Math.min(s.pct, 100) / 100} tone={tone(s.pct)} label={`${s.pct}% del límite`} />}
+        {s.limit > 0 ? (
+          // with a limit, what matters is what's left of it (PRM-09)
+          <div className="plan-hero">
+            <ProgressRing className="plan-hero-ring" size={144} thickness={10} value={s.used / s.limit} tone={tone(s.pct)} label={`${s.pct}% del límite`}>
+              {g.category ? g.category.emoji : <Icon name="envelope" size={32} />}
+            </ProgressRing>
+            <BalanceSummary
+              label={s.used > s.limit ? 'Te pasaste por' : `Quedan en ${month}`}
+              value={m.fmt(Math.abs(s.limit - s.used))}
+              unit={m.u}
+              negative={s.used > s.limit}
+              meta={`Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u}${s.used < s.limit && daysLeft > 1 ? ` · ${m.fmt((s.limit - s.used) / daysLeft)} por día` : ''}`}
+            />
+          </div>
+        ) : (
+          <BalanceSummary
+            label={`${g.title} en ${month}`}
+            value={m.fmt(g.total)}
+            unit={m.u}
+            meta={pending > 0 ? `Ya pasó ${m.fmt(g.real)} · falta ${m.fmt(pending)} ${m.u}` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
+          />
+        )}
       </div>
       <div className="page-body">
         {list('Atrasados', s.late)}

@@ -204,7 +204,7 @@ Sin gastos variables, la fila no aparece. Uno sin categoría sale con el anillo 
 
 Tocar una tarjeta de Presupuesto abre su página (`#/rubro/<grupo>`) con la flecha atrás y ⋯ arriba:
 
-1. Arriba, "Casita en noviembre" con el monto del mes y debajo "Ya pasó ¢X · falta ¢Y"; si tiene límite, "Gastado X de Y de límite" y la barra.
+1. Arriba, "Casita en noviembre" con el monto del mes y debajo "Ya pasó ¢X · falta ¢Y". Si tiene límite, lo destacado es **lo que queda**: un círculo de progreso grande con el emoji de la categoría (mismos colores que PRM-08) y debajo "Quedan en noviembre ¢176.550", con "Gastado ¢23.450 de ¢200.000 · ¢6.539 por día"; si se pasó, "Te pasaste por …" en rojo.
 2. Los movimientos del mes en tres grupos: **Atrasados** (planeados que ya vencieron), **Vienen** (planeados que faltan, por fecha) y **Este mes** (los reales, del más nuevo al más viejo). Todos son movimientos y abren su detalle.
 
 El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar límite** y **Quitar límite** (con deshacer), **Planear un movimiento** y **Ver la categoría**.
