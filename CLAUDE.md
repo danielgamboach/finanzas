@@ -178,7 +178,7 @@ La marcó el rediseño de Cuentas y ahora la siguen todas las pantallas:
 
 - Figma: los `Icon/<nombre>` locales todavía tienen los íconos de trazo anteriores (y no existen `deltaUp`, `deltaDown` ni `spinner`), pero ya ningún componente los usa: todos usan la biblioteca UIcons. Dani decide si los borra o los actualiza a mano.
 - Espacio personal de Dani: no tiene categoría Transporte, así que sus viajes de Uber quedan sin categoría.
-- "Dinero Simbiótico" tiene `last_paid_on` en noviembre por un movimiento con fecha futura. Es un gasto mensual del espacio personal de Dani: con Mover dinero entre espacios conviene convertirlo en un recurrente de Mover dinero hacia la cuenta de Simbiosis.
+- El aporte mensual de Dani a Simbiosis es el recurrente "Dinero Simbiótico": Mover dinero de ¢830.000 de Débito dólares a "simbiosis legit" el día 2 (se convirtió el 4 nov; antes era un gasto y había un duplicado "Gastos de la casa", que quedó pausado).
 - Tabla `_contributions_backup` (copia de los 36 aportes antes de convertirlos, RLS sin acceso); se puede borrar cuando ya no haga falta.
 - Préstamos y CDP sin sus datos (tasa, cuota, intereses): `docs/comportamiento/cuentas-y-saldos.md`, PRE y CDP.
 - Pendientes manuales de Dani: activar la protección de contraseñas filtradas en Supabase Auth, confirmar que la confirmación de correo está activa, poner un límite de gasto en Anthropic y borrar la rama `logo-import` en GitHub.
