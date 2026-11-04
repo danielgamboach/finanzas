@@ -1194,10 +1194,10 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .env-sug { align-items: center; padding-right: 4px; }
 
 /* Presupuesto (PRM): movements without a plan unfold under their group */
-.plan-chev { display: inline-flex; transition: transform 160ms ease; }
+.plan-chev { display: inline-flex; color: var(--muted-foreground); pointer-events: none; transition: transform 160ms ease; }
 .plan-chev.is-open { transform: rotate(180deg); }
 .plan-moves { padding: 4px 0; }
-.plan-moves + .plan-moves, .ds-row + .plan-moves { border-top: 1px solid var(--border); }
+.plan-cat.is-open .plan-moves { border-top: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .plan-chev { transition: none; } }
 /* PRM-08: the limits as rings under the summary; on the phone the row runs edge to edge */
 .page-hero .plan-rings { margin: 24px -24px 0; padding: 0 24px; scroll-padding: 0 24px; }

@@ -40,10 +40,19 @@ Reemplaza las **partidas** (PPT-01 a PPT-09, descartadas el 4 nov 2026 por no se
 Presupuesto (`#/categorias`) muestra el mes actual:
 
 1. Arriba, "Libre en noviembre" (PRM-05) con "Entra … · sale … · apartás …" debajo.
-2. **Entra**: los ingresos del mes y lo que llega de otro espacio (un Mover dinero hacia este espacio), reales y planeados.
-3. Un grupo por **categoría principal**, con su total a la derecha, ordenados de mayor a menor. Adentro: los planeados abiertos (PRM-04) y después los movimientos del grupo por fecha: los pagos de los recurrentes, reales y planeados (PRM-02), y los gastos reales que ningún plan cubre. Si estos últimos son más de 3, van plegados en una fila ("8 gastos sin planear") que se despliega con un toque.
-4. **Apartar**: lo que se mueve a una cuenta de ahorro, inversión o CDP, o a otro espacio.
-5. "Planear algo más" al final (y el + de la cabecera).
+2. Una tarjeta por grupo, **plegada**: **Entra** (ingresos y lo que llega de otro espacio), una por **categoría principal** ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
+3. "Planear algo más" al final (y el + de la cabecera).
+
+Cada tarjeta plegada muestra la cara de la categoría, su nombre, el monto del mes (real más lo planeado que falta) y una flecha hacia abajo. Debajo del nombre, lo más importante:
+
+| Caso | Detalle |
+|---|---|
+| Algún pago atrasado | "1 atrasado" en advertencia |
+| Tiene límite (PRM-04) | "Gastado 23.450", y la barra del límite debajo; "Te pasaste por …" en rojo |
+| Pagos que se repiten | "1 de 2 pagados" (en Entra "recibidos", en Apartar "movidos") |
+| Solo gastos sueltos | "3 movimientos" |
+
+Tocar cualquier parte de la tarjeta la abre (la flecha gira). Abierta muestra, si tiene límite, la fila "Límite de Súper · Quedan … de …" que lleva a su detalle, y después todos los movimientos del mes de esa categoría por fecha: los pagados, los atrasados ("Venció el 2 nov" en advertencia) y los que vienen ("Vence el 13 nov"), junto con los gastos reales sin plan. Se cierra tocando la tarjeta otra vez.
 
 Lo planeado (lo que todavía no pasó) va con el monto atenuado; lo real, normal.
 

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
-import { monthRange, spend } from '../lib/calc';
-import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type OpenPlan, type PlanGroup } from '../lib/budget';
+import { monthRange } from '../lib/calc';
+import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
 import { pickerOrder } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Currency, Tx } from '../lib/types';
@@ -33,63 +33,78 @@ function useMoney() {
   return { u, fmt: (v: number) => amount(v, cur, fx), node: (v: number, approx = false) => <>{approx ? '≈ ' : ''}{amount(v, cur, fx)}<span className="amt-unit"> {u}</span></> };
 }
 
-/** An open plan: what's left of it this month, with its bar (PRM-04). */
-function PlanRow({ p }: { p: OpenPlan }) {
-  const m = useMoney();
-  const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
-  const over = p.left < 0;
-  const c = p.cats[0];
-  return (
-    <ListRow
-      leading={c ? <Emo e={c.emoji} color={c.color} size={40} /> : <Emo icon="envelope" size={40} />}
-      title={c ? c.name : p.line.name}
-      detail={!c ? 'Elegí la categoría' : over ? `Te pasaste por ${m.fmt(-p.left)}` : p.spent > 0 ? `Gastado ${m.fmt(p.spent)}` : 'Sin gastos todavía'}
-      detailTone={!c ? 'warning' : over ? 'destructive' : 'muted'}
-      value={m.node(Math.max(p.amount, p.spent))}
-      valueTone={p.left > 0 ? 'muted' : 'default'}
-      href={c ? `#/partida/${p.line.id}` : `#/partida/${p.line.id}/editar`}
-      chevron
-      label={`${c ? c.name : p.line.name}: ${m.fmt(p.spent)} de ${m.fmt(p.amount)} ${m.u}`}
-      below={<Progress size="sm" value={Math.min(pct, 100) / 100} tone={tone(pct)} label={`${pct}% usado`} />}
-    />
-  );
-}
-
-/** Real movements no plan covers, when there are many: one row that unfolds into them. */
-function LooseFold({ g, txs }: { g: PlanGroup; txs: Tx[] }) {
-  const m = useMoney();
-  const [open, setOpen] = useState(false);
-  const n = txs.length;
-  const planned = g.recs.length + g.plans.length > 0;
-  const what = g.section === 'in' ? (n === 1 ? 'ingreso' : 'ingresos') : g.section === 'save' ? (n === 1 ? 'movimiento' : 'movimientos') : n === 1 ? 'gasto' : 'gastos';
-  return (
-    <>
-      <ListRow
-        leading={<span className={`plan-chev${open ? ' is-open' : ''}`}><ListRow.Icon name="chevDown" /></span>}
-        title={`${n} ${what}${planned ? ' sin planear' : ''}`}
-        value={m.node(txs.reduce((a, x) => a + (g.section === 'out' ? spend(x) : Number(x.amount_crc)), 0))}
-        onClick={() => setOpen(!open)}
-        label={`${open ? 'Esconder' : 'Ver'} ${n} ${what}`}
-      />
-      {open && <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate />)}</div>}
-    </>
-  );
-}
-
 const byDate = (a: Tx, b: Tx) => a.occurred_at.localeCompare(b.occurred_at);
-const FOLD = 3;
+const today = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 
+/**
+ * One category of the month, folded (PRM-01): its face, name, what's budgeted and a caret; with a limit, its bar.
+ * Tapping anywhere on it unfolds its movements: paid, coming and late ones, by date.
+ */
 function Group({ g }: { g: PlanGroup }) {
   const m = useMoney();
-  const title = g.category ? `${g.category.emoji} ${g.title}` : g.title;
-  // every payment of a recurrent is a movement: the real ones and the ones still due (PRM-02); a few unplanned ones show too
-  const fold = g.loose.length > FOLD ? g.loose : [];
-  const moves = [...g.recs.flatMap((s) => [...s.txs, ...s.planned]), ...(fold.length ? [] : g.loose)].sort(byDate);
+  const [open, setOpen] = useState(false);
+  const moves = [...g.recs.flatMap((s) => [...s.txs, ...s.planned]), ...g.plans.flatMap((p) => p.txs), ...g.loose].sort(byDate);
+  const planned = g.recs.flatMap((s) => s.planned);
+  const late = planned.filter((x) => x.occurred_at.slice(0, 10) < today()).length;
+  const done = g.recs.reduce((a, s) => a + s.txs.length, 0);
+  const verb = g.section === 'in' ? 'recibidos' : g.section === 'save' ? 'movidos' : 'pagados';
+
+  // the limits of this group, summed: what's been spent of them
+  const limit = g.plans.reduce((a, p) => a + p.amount, 0);
+  const used = g.plans.reduce((a, p) => a + p.spent, 0);
+  const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+  const noCat = g.plans.some((p) => !p.cats[0]);
+
+  let detail: string;
+  let detailTone: 'muted' | 'warning' | 'destructive' = 'muted';
+  if (late) {
+    detail = `${late} ${late === 1 ? 'atrasado' : 'atrasados'}`;
+    detailTone = 'warning';
+  } else if (noCat) {
+    detail = 'Elegí la categoría';
+    detailTone = 'warning';
+  } else if (limit > 0) {
+    detail = used > limit ? `Te pasaste por ${m.fmt(used - limit)}` : `Gastado ${m.fmt(used)}`;
+    if (used > limit) detailTone = 'destructive';
+  } else if (planned.length) {
+    detail = `${done} de ${done + planned.length} ${verb}`;
+  } else {
+    detail = `${moves.length} ${moves.length === 1 ? 'movimiento' : 'movimientos'}`;
+  }
+
+  const face = g.category ? <Emo e={g.category.emoji} color={g.category.color} size={40} />
+    : g.section === 'in' ? <Emo icon="arrowDownLeft" color="mint" size={40} />
+      : g.section === 'save' ? <Emo icon="piggy" color="mint" size={40} />
+        : <Emo icon="envelope" size={40} />;
+
   return (
-    <ListGroup title={title} action={<span className="plan-total">{m.fmt(g.total)} {m.u}</span>}>
-      {g.plans.map((p) => <PlanRow key={p.line.id} p={p} />)}
-      {moves.length > 0 && <div className="plan-moves">{moves.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>}
-      {fold.length > 0 && <LooseFold g={g} txs={fold} />}
+    <ListGroup className={open ? 'plan-cat is-open' : 'plan-cat'}>
+      <ListRow
+        leading={face}
+        title={g.title}
+        detail={detail}
+        detailTone={detailTone}
+        value={m.node(g.total)}
+        actions={<span className={`plan-chev${open ? ' is-open' : ''}`} aria-hidden="true"><Icon name="chevDown" size={16} /></span>}
+        onClick={() => setOpen(!open)}
+        label={`${g.title}: ${m.fmt(g.total)} ${m.u}. ${open ? 'Cerrar' : 'Ver movimientos'}`}
+        below={limit > 0 ? <Progress size="sm" value={Math.min(pct, 100) / 100} tone={tone(pct)} label={`${g.title}: ${pct}% usado`} /> : undefined}
+      />
+      {open && (
+        <>
+          {g.plans.map((p) => (
+            <ListRow key={p.line.id} quiet leading={<ListRow.Icon name="envelope" />}
+              title={p.cats[0] ? `Límite de ${p.cats[0].name}` : `Límite: ${p.line.name}`}
+              detail={!p.cats[0] ? 'Elegí la categoría' : p.left < 0 ? `Te pasaste por ${m.fmt(-p.left)}` : `Quedan ${m.fmt(p.left)} de ${m.fmt(p.amount)}`}
+              href={p.cats[0] ? `#/partida/${p.line.id}` : `#/partida/${p.line.id}/editar`} chevron />
+          ))}
+          {moves.length > 0 ? (
+            <div className="plan-moves">{moves.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
+          ) : (
+            <p className="group-pad page-text">Sin movimientos este mes.</p>
+          )}
+        </>
+      )}
     </ListGroup>
   );
 }
