@@ -164,7 +164,7 @@ export function Recurrentes() {
         title="Recurrentes"
         onBack={menu ? undefined : navigateBack}
         onMenu={menu?.open}
-        actions={<Button variant="secondary" size="xs" iconOnly href="#/recurrente/nueva" aria-label="Nuevo recurrente"><Icon name="plus" size={16} solid /></Button>}
+        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go('/agregar?planear=1')} aria-label="Nuevo recurrente"><Icon name="plus" size={16} solid /></Button>}
       />
       <div className="page-hero">
         {loading && items.length === 0 ? <Loader><SummarySkeleton /></Loader> : <BalanceSummary
@@ -220,7 +220,7 @@ export function Recurrentes() {
             {loading && items.length === 0 ? (
               <Loader><GroupSkeleton rows={4} /></Loader>
             ) : rest.length === 0 && toConfirm.length === 0 ? (
-              <EmptyState icon={<Icon name="repeat" size={24} />} title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" href="#/recurrente/nueva" leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
+              <EmptyState icon={<Icon name="repeat" size={24} />} title="Agregá tus pagos fijos" action={<Button variant="primary" size="sm" onClick={() => go('/agregar?planear=1')} leading={<Icon name="plus" size={16} solid />}>Nuevo recurrente</Button>}>
                 Alquiler, internet, Netflix… Los de tarjeta se marcan solos cuando llega el voucher.
               </EmptyState>
             ) : rest.length > 0 ? (

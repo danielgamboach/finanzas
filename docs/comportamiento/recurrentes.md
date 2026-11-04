@@ -37,6 +37,8 @@ Cada recurrente aparece una sola vez, con su próxima fecha. Netflix muestra el 
 
 Muestra el total al mes y los recurrentes agrupados: pagos manuales pendientes (vencidos o de hoy), próximos y pausados.
 
+El + (y "Nuevo recurrente" cuando no hay ninguno) abre **el formulario de movimiento de siempre** con Recurrente prendido (`#/agregar?planear=1`, PRM-03): no hay un formulario aparte para crear recurrentes. Con la primera vez hoy o antes, registra el movimiento y lo repite; con una fecha que viene, solo lo deja planeado. Tocar un recurrente abre su edición (frecuencia, monto, pausar).
+
 ### REC-05 · Inicio muestra lo que toca hoy
 
 **Estado:** Hecho

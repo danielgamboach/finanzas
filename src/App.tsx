@@ -171,6 +171,11 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
     case 'rubro':
       return <GroupView key={b} gkey={b || ''} />;
     case 'recurrente':
+      // a new recurrent is made with the usual movement form, repeating (PRM-03)
+      if (b === 'nueva' || b === 'nuevo') {
+        location.replace(`#/agregar?planear=1${c === 'ingreso' ? '&tipo=ingreso' : c === 'ahorro' ? '&tipo=transferir' : ''}`);
+        return null;
+      }
       return <RecurringEdit key={`${b}/${c || ''}`} id={b} preset={c} />;
     case 'saldos':
       return <Saldos />;
