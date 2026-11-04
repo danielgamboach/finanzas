@@ -1200,7 +1200,7 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .plan-cat.is-open .plan-moves { border-top: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .plan-chev { transition: none; } }
 /* PRM-08: the limits as rings under the summary; on the phone the row runs edge to edge */
-.page-hero .plan-rings { margin: 24px -24px 0; padding: 0 24px; scroll-padding: 0 24px; }
+.page-hero .plan-rings { margin: 24px -24px 0; padding: 0 24px; scroll-padding: 0 24px; width: calc(100% + 48px); max-width: none; box-sizing: border-box; align-self: stretch; }
 /* PRM-09: a category's page, its ⋯ menu and the bar of its limit */
 .plan-menu-wrap { position: relative; display: inline-flex; }
 .plan-menu-scrim { position: fixed; inset: 0; z-index: 40; }
