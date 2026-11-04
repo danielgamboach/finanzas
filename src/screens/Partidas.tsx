@@ -116,8 +116,10 @@ export function Presupuesto() {
   );
 
   // PRM-08: the categories with a limit, as rings that scroll sideways
-  const ringItems = (b?.plans || []).filter((p) => p.cats[0]).map((p) => {
+  const ringItems = (b?.plans || []).map((p) => {
     const c = p.cats[0];
+    // a limit without a category can't count anything yet: an empty ring that opens its editor
+    if (!c) return { key: p.line.id, name: p.line.name, face: <Icon name="envelope" size={20} />, value: 0, tone: 'muted' as const, href: `#/partida/${p.line.id}/editar`, label: `${p.line.name}: elegí la categoría` };
     const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
     return {
       key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/partida/${p.line.id}`,

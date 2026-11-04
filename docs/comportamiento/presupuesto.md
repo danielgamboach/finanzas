@@ -177,7 +177,7 @@ Debajo de "Libre en noviembre", cada gasto variable (PRM-04) es un círculo de p
 | Del 80% al 99% | Advertencia |
 | 100% o más | Rojo y lleno |
 
-Sin gastos variables, la fila no aparece. Uno sin categoría tampoco.
+Sin gastos variables, la fila no aparece. Uno sin categoría sale con el anillo vacío y un ícono de sobre; tocarlo abre su edición para elegirla.
 
 <sub>Dónde vive: átomo `ProgressRing` y molécula `RingRail` en `src/ds/`.</sub>
 
