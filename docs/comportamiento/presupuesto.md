@@ -40,10 +40,10 @@ Reemplaza las **partidas** (PPT-01 a PPT-09, descartadas el 4 nov 2026 por no se
 Presupuesto (`#/categorias`) muestra el mes actual:
 
 1. Arriba, "Libre en noviembre" (PRM-05) con "Entra … · sale … · apartás …" debajo.
-2. Una tarjeta por grupo, **plegada**: **Entra** (ingresos y lo que llega de otro espacio), una por **categoría principal** ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
+2. Una tarjeta por grupo: **Entra** (ingresos y lo que llega de otro espacio), una por **categoría principal** ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
 3. Al final, "Planear un movimiento" (igual que el + de la cabecera, PRM-03) y "Poner un límite" (PRM-04).
 
-Cada tarjeta plegada muestra la cara de la categoría, su nombre, el monto del mes (real más lo planeado que falta) y una flecha hacia abajo. Debajo del nombre, lo más importante:
+Cada tarjeta muestra la cara de la categoría, su nombre, el monto del mes (real más lo planeado que falta) y una flecha. Debajo del nombre, lo más importante:
 
 | Caso | Detalle |
 |---|---|
@@ -52,7 +52,7 @@ Cada tarjeta plegada muestra la cara de la categoría, su nombre, el monto del m
 | Pagos que se repiten | "1 de 2 pagados" (en Entra "recibidos", en Apartar "movidos") |
 | Solo gastos sueltos | "3 movimientos" |
 
-Tocar cualquier parte de la tarjeta la abre (la flecha gira). Abierta muestra, si tiene límite, la fila "Límite de Súper · Quedan … de …" que lleva a su detalle, y después todos los movimientos del mes de esa categoría por fecha: los pagados, los atrasados ("Venció el 2 nov" en advertencia) y los que vienen ("Vence el 13 nov"), junto con los gastos reales sin plan. Se cierra tocando la tarjeta otra vez.
+Tocarla abre la página de esa categoría (PRM-09). Tocar un círculo de arriba (PRM-08) abre la misma página.
 
 Lo planeado (lo que todavía no pasó) va con el monto atenuado; lo real, normal.
 
@@ -197,6 +197,23 @@ Debajo de "Libre en noviembre", cada gasto variable (PRM-04) es un círculo de p
 Sin gastos variables, la fila no aparece. Uno sin categoría sale con el anillo vacío y un ícono de sobre; tocarlo abre su edición para elegirla.
 
 <sub>Dónde vive: átomo `ProgressRing` y molécula `RingRail` en `src/ds/`.</sub>
+
+### PRM-09 · La página de una categoría
+
+**Estado:** Hecho
+
+Tocar una tarjeta de Presupuesto abre su página (`#/rubro/<grupo>`) con la flecha atrás y ⋯ arriba:
+
+1. Arriba, "Casita en noviembre" con el monto del mes y debajo "Ya pasó ¢X · falta ¢Y"; si tiene límite, "Gastado X de Y de límite" y la barra.
+2. Los movimientos del mes en tres grupos: **Atrasados** (planeados que ya vencieron), **Vienen** (planeados que faltan, por fecha) y **Este mes** (los reales, del más nuevo al más viejo). Todos son movimientos y abren su detalle.
+
+El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar límite** y **Quitar límite** (con deshacer), **Planear un movimiento** y **Ver la categoría**.
+
+### PRM-10 · Pagado con check
+
+**Estado:** Hecho
+
+Un movimiento real ligado a un recurrente lleva un check verde pequeño abajo a la derecha de su cara, igual que el logo de Apple en los cobros de Apple, en todas las listas y en el detalle. Si es un cobro de Apple, gana el logo de Apple. Los planeados no lo llevan.
 
 ---
 

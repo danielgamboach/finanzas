@@ -58,7 +58,8 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
   const neutral = t.kind === 'transfer' && !incoming && !way;
   const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : way === 'out' ? '−' : '' });
   const unit = unitOf(cur);
-  const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t) };
+  // a paid recurring payment carries a check, like the Apple logo on Apple charges (that one wins when both apply)
+  const face = { emoji, color, img: txPhoto(merchants, t), badge: txBadge(merchants, t), badgeIcon: t.recurring_id && !t.planned ? 'check' : null };
   const context = size ?? (showDate ? 'sheet' : 'list');
   const amountTone = amtTone(t, inflow, neutral);
   // selecting several: the whole row toggles
@@ -144,7 +145,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
     <div className={cls} role="row" tabIndex={0} aria-selected={pick ? pick.selected : undefined} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}>
       <span role="cell" className="tt-date">{pick && <Checkbox checked={pick.selected} />}{dateFmt.format(new Date(t.occurred_at))}</span>
       <span role="cell" className="tt-merchant">
-        <Emo e={emoji} color={color} img={photo} badge={badge} size={32} />
+        <Emo e={emoji} color={color} img={photo} badge={badge} badgeIcon={t.recurring_id ? 'check' : null} size={32} />
         <span className="tt-name">{t.merchant || KIND_LABEL[t.kind] || 'Movimiento'}</span>
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>

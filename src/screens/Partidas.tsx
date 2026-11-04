@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
+import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
 import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
-import { pickerOrder } from '../lib/cats';
+import { pickerOrder, rootId } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Currency, Tx } from '../lib/types';
 import { go, navigateBack, useApp, useTxs } from '../store';
@@ -36,20 +36,16 @@ function useMoney() {
 const byDate = (a: Tx, b: Tx) => a.occurred_at.localeCompare(b.occurred_at);
 const today = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 
-/**
- * One category of the month, folded (PRM-01): its face, name, what's budgeted and a caret; with a limit, its bar.
- * Tapping anywhere on it unfolds its movements: paid, coming and late ones, by date.
- */
-function Group({ g }: { g: PlanGroup }) {
+/** What a group of the month says under its name, and its limit (PRM-01). */
+function useGroupSummary(g: PlanGroup) {
   const m = useMoney();
-  const [open, setOpen] = useState(false);
   const moves = [...g.recs.flatMap((s) => [...s.txs, ...s.planned]), ...g.plans.flatMap((p) => p.txs), ...g.loose].sort(byDate);
   const planned = g.recs.flatMap((s) => s.planned);
-  const late = planned.filter((x) => x.occurred_at.slice(0, 10) < today()).length;
+  const late = planned.filter((x) => x.occurred_at.slice(0, 10) < today());
+  const coming = planned.filter((x) => x.occurred_at.slice(0, 10) >= today());
+  const real = moves.filter((x) => !x.planned);
   const done = g.recs.reduce((a, s) => a + s.txs.length, 0);
   const verb = g.section === 'in' ? 'recibidos' : g.section === 'save' ? 'movidos' : 'pagados';
-
-  // the limits of this group, summed: what's been spent of them
   const limit = g.plans.reduce((a, p) => a + p.amount, 0);
   const used = g.plans.reduce((a, p) => a + p.spent, 0);
   const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
@@ -57,11 +53,11 @@ function Group({ g }: { g: PlanGroup }) {
 
   let detail: string;
   let detailTone: 'muted' | 'warning' | 'destructive' = 'muted';
-  if (late) {
-    detail = `${late} ${late === 1 ? 'atrasado' : 'atrasados'}`;
+  if (late.length) {
+    detail = `${late.length} ${late.length === 1 ? 'atrasado' : 'atrasados'}`;
     detailTone = 'warning';
   } else if (noCat) {
-    detail = 'Elegí la categoría';
+    detail = 'Elegí la categoría del límite';
     detailTone = 'warning';
   } else if (limit > 0) {
     detail = used > limit ? `Te pasaste por ${m.fmt(used - limit)}` : `Gastado ${m.fmt(used)}`;
@@ -71,50 +67,129 @@ function Group({ g }: { g: PlanGroup }) {
   } else {
     detail = `${moves.length} ${moves.length === 1 ? 'movimiento' : 'movimientos'}`;
   }
+  const face = (size: number) => g.category ? <Emo e={g.category.emoji} color={g.category.color} size={size} />
+    : g.section === 'in' ? <Emo icon="arrowDownLeft" color="mint" size={size} />
+      : g.section === 'save' ? <Emo icon="piggy" color="mint" size={size} />
+        : <Emo icon="envelope" size={size} />;
+  return { moves, late, coming, real, limit, used, pct, detail, detailTone, face };
+}
 
-  const face = g.category ? <Emo e={g.category.emoji} color={g.category.color} size={40} />
-    : g.section === 'in' ? <Emo icon="arrowDownLeft" color="mint" size={40} />
-      : g.section === 'save' ? <Emo icon="piggy" color="mint" size={40} />
-        : <Emo icon="envelope" size={40} />;
+const groupHref = (g: PlanGroup) => `#/rubro/${encodeURIComponent(g.key)}`;
+
+/** One category of the month (PRM-01): face, name, what's budgeted and, with a limit, its bar. It opens its own page. */
+function Group({ g }: { g: PlanGroup }) {
+  const m = useMoney();
+  const s = useGroupSummary(g);
+  return (
+    <ListGroup className="plan-cat">
+      <ListRow
+        leading={s.face(40)}
+        title={g.title}
+        detail={s.detail}
+        detailTone={s.detailTone}
+        value={m.node(g.total)}
+        href={groupHref(g)}
+        chevron
+        label={`${g.title}: ${m.fmt(g.total)} ${m.u}`}
+        below={s.limit > 0 ? <Progress size="sm" value={Math.min(s.pct, 100) / 100} tone={tone(s.pct)} label={`${g.title}: ${s.pct}% usado`} /> : undefined}
+      />
+    </ListGroup>
+  );
+}
+
+/**
+ * A category of the month on its own page (#/rubro/<key>, PRM-09): what it adds up to, its limit, and its movements
+ * of the month: late, coming and done. The ⋯ menu sets, edits or removes its limit.
+ */
+export function GroupView({ gkey }: { gkey: string }) {
+  const { space, toast, bump } = useApp();
+  const m = useMoney();
+  const { budget, first } = useBudget();
+  const [menu, setMenu] = useState(false);
+  const key = decodeURIComponent(gkey);
+  const g = budget && [budget.income, ...budget.groups, budget.save].find((x) => x.key === key);
+  if (!space || first) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
+  if (!g) return <div className="page no-nav"><PageHeader title="Presupuesto" onBack={navigateBack} /><EmptyState icon={<Icon name="list" size={24} />} title="No hay movimientos de esto este mes" /></div>;
+  return <GroupPage g={g} menu={menu} setMenu={setMenu} m={m} toast={toast} bump={bump} />;
+}
+
+function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: boolean; setMenu: (v: boolean) => void; m: ReturnType<typeof useMoney>; toast: (msg: string, undo?: () => unknown) => void; bump: () => void }) {
+  const s = useGroupSummary(g);
+  const t = todayCR();
+  const month = monthName(t.m);
+  const plan = g.plans[0];
+  const pending = s.late.concat(s.coming).reduce((a, x) => a + Number(x.amount_crc), 0) + g.plans.reduce((a, p) => a + Math.max(0, p.left), 0);
+
+  async function removeLimit() {
+    setMenu(false);
+    if (!plan) return;
+    try {
+      await db.update('envelopes', { id: plan.line.id }, { active: false });
+      toast(`${g.title} ya no tiene límite`, async () => {
+        await db.update('envelopes', { id: plan.line.id }, { active: true });
+        bump();
+      });
+      bump();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo guardar');
+    }
+  }
+
+  const canLimit = g.section === 'out' && (g.category || plan);
+  const items = [
+    canLimit && !plan && g.category && { label: 'Poner límite', icon: 'envelope', run: () => (location.hash = `#/partida/nueva?cat=${g.category!.id}`) },
+    plan && { label: 'Editar límite', icon: 'pencil', run: () => (location.hash = `#/partida/${plan.line.id}/editar`) },
+    plan && { label: 'Quitar límite', icon: 'trash', run: removeLimit },
+    { label: 'Planear un movimiento', icon: 'plus', run: () => go('/agregar?planear=1') },
+    g.category && { label: 'Ver la categoría', icon: 'list', run: () => (location.hash = `#/categoria/${g.category!.id}`) },
+  ].filter(Boolean) as { label: string; icon: string; run: () => void }[];
+
+  const list = (title: string, txs: Tx[], note?: string) => txs.length > 0 && (
+    <ListGroup title={title} note={note}>
+      <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
+    </ListGroup>
+  );
 
   return (
-    <ListGroup className={open ? 'plan-cat is-open' : 'plan-cat'}>
-      <ListRow
-        leading={face}
-        title={g.title}
-        detail={detail}
-        detailTone={detailTone}
-        value={m.node(g.total)}
-        actions={<span className={`plan-chev${open ? ' is-open' : ''}`} aria-hidden="true"><Icon name="chevDown" size={16} /></span>}
-        onClick={() => setOpen(!open)}
-        label={`${g.title}: ${m.fmt(g.total)} ${m.u}. ${open ? 'Cerrar' : 'Ver movimientos'}`}
-        below={limit > 0 ? <Progress size="sm" value={Math.min(pct, 100) / 100} tone={tone(pct)} label={`${g.title}: ${pct}% usado`} /> : undefined}
-      />
-      {open && (
-        <>
-          {g.plans.map((p) => (
-            <ListRow key={p.line.id} quiet leading={<ListRow.Icon name="envelope" />}
-              title={p.cats[0] ? `Límite de ${p.cats[0].name}` : `Límite: ${p.line.name}`}
-              detail={!p.cats[0] ? 'Elegí la categoría' : p.left < 0 ? `Te pasaste por ${m.fmt(-p.left)}` : `Quedan ${m.fmt(p.left)} de ${m.fmt(p.amount)}`}
-              href={p.cats[0] ? `#/partida/${p.line.id}` : `#/partida/${p.line.id}/editar`} chevron />
-          ))}
-          {g.section === 'out' && g.category && g.plans.length === 0 && (
-            <ListRow quiet leading={<ListRow.Icon name="envelope" />} title="Poner límite" detail={`Cuánto querés gastar en ${g.title} al mes`} href={`#/partida/nueva?cat=${g.category.id}`} chevron />
-          )}
-          {moves.length > 0 ? (
-            <div className="plan-moves">{moves.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
-          ) : (
-            <p className="group-pad page-text">Sin movimientos este mes.</p>
-          )}
-        </>
-      )}
-    </ListGroup>
+    <div className="page no-nav">
+      <PageHeader title={g.title} onBack={navigateBack}
+        actions={(
+          <span className="plan-menu-wrap">
+            <Button variant="secondary" size="xs" iconOnly onClick={() => setMenu(!menu)} aria-label="Más opciones" aria-expanded={menu}><Icon name="dots" size={14} /></Button>
+            {menu && (
+              <>
+                <span className="plan-menu-scrim" onClick={() => setMenu(false)} />
+                <Menu className="plan-menu" label={`Opciones de ${g.title}`}>
+                  {items.map((it) => <MenuItem key={it.label} icon={<Icon name={it.icon} size={18} />} onClick={() => { setMenu(false); it.run(); }}>{it.label}</MenuItem>)}
+                </Menu>
+              </>
+            )}
+          </span>
+        )} />
+      <div className="page-hero">
+        <BalanceSummary
+          label={`${g.title} en ${month}`}
+          value={m.fmt(g.total)}
+          unit={m.u}
+          meta={s.limit > 0
+            ? (s.used > s.limit ? `Te pasaste por ${m.fmt(s.used - s.limit)} de un límite de ${m.fmt(s.limit)} ${m.u}` : `Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u} de límite`)
+            : pending > 0 ? `Ya pasó ${m.fmt(g.real)} · falta ${m.fmt(pending)} ${m.u}` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
+        />
+        {s.limit > 0 && <Progress size="md" className="plan-hero-bar" value={Math.min(s.pct, 100) / 100} tone={tone(s.pct)} label={`${s.pct}% del límite`} />}
+      </div>
+      <div className="page-body">
+        {list('Atrasados', s.late)}
+        {list('Vienen', s.coming)}
+        {list('Este mes', [...s.real].reverse())}
+        {s.moves.length === 0 && <EmptyState icon={<Icon name="list" size={24} />} title={`Sin movimientos en ${month}`} />}
+      </div>
+    </div>
   );
 }
 
 /** Presupuesto (menu, route #/categorias): the month written ahead, real and planned movements by category (PRM-01). */
 export function Presupuesto() {
-  const { space } = useApp();
+  const { space, categories } = useApp();
   const desk = useDesktop();
   const menu = useMenu();
   const m = useMoney();
@@ -140,7 +215,7 @@ export function Presupuesto() {
     if (!c) return { key: p.line.id, name: p.line.name, face: <Icon name="envelope" size={20} />, value: 0, tone: 'muted' as const, href: `#/partida/${p.line.id}/editar`, label: `${p.line.name}: elegí la categoría` };
     const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
     return {
-      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/partida/${p.line.id}`,
+      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/rubro/${encodeURIComponent(`c:${rootId(categories, c.id)}`)}`,
       label: p.left < 0 ? `${c.name}: te pasaste por ${m.fmt(-p.left)} ${m.u}` : `${c.name}: ${pct}% usado, quedan ${m.fmt(p.left)} ${m.u}`,
     };
   });

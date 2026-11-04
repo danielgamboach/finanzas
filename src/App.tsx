@@ -15,7 +15,7 @@ import { NotifPrompt } from './screens/NotifPrompt';
 import { Onboarding, pendingInvite, setPendingInvite } from './screens/Onboarding';
 import { db } from './lib/api';
 import { Categorias, Tendencias } from './screens/Presupuesto';
-import { LineEdit, LineView } from './screens/Partidas';
+import { GroupView, LineEdit, LineView } from './screens/Partidas';
 import { Cuentas } from './screens/Patrimonio';
 import { DesktopHome, DesktopLayout, DesktopMovements } from './desktop/Desktop';
 import { useDesktop } from './lib/useDesktop';
@@ -166,6 +166,8 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
     case 'partida':
     case 'sobre':
       return b === 'nueva' || b === 'nuevo' || c === 'editar' ? <LineEdit key={`${b}/${c || ''}`} id={b === 'nuevo' ? 'nueva' : b!} sub={c} /> : <LineView key={b} id={b!} />;
+    case 'rubro':
+      return <GroupView key={b} gkey={b || ''} />;
     case 'recurrente':
       return <RecurringEdit key={`${b}/${c || ''}`} id={b} preset={c} />;
     case 'saldos':

@@ -1201,3 +1201,8 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 @media (prefers-reduced-motion: reduce) { .plan-chev { transition: none; } }
 /* PRM-08: the limits as rings under the summary; on the phone the row runs edge to edge */
 .page-hero .plan-rings { margin: 24px -24px 0; padding: 0 24px; scroll-padding: 0 24px; }
+/* PRM-09: a category's page, its ⋯ menu and the bar of its limit */
+.plan-menu-wrap { position: relative; display: inline-flex; }
+.plan-menu-scrim { position: fixed; inset: 0; z-index: 40; }
+.plan-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 41; }
+.plan-hero-bar { margin-top: 16px; }

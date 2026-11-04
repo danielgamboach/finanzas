@@ -171,7 +171,7 @@ function Body({ t, rec }: { t: Tx; rec?: Recurring | null }) {
   return (
     <>
       <header className="txd-hero">
-        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} size={56} />
+        <Emo e={cat?.emoji || KIND_EMOJI[t.kind] || '🛍️'} color={review ? 'butter' : cat?.color || 'gray'} img={photo} badge={txBadge(merchants, t)} badgeIcon={t.recurring_id && !t.planned ? 'check' : null} size={56} />
         <h2 className="txd-name">{name}</h2>
         <Money size="large" value={big} unit={bigUnit} tone={t.hold === 'void' || (t.kind === 'transfer' && !incoming) ? 'muted' : inflow ? 'positive' : 'default'} strike={t.hold === 'void'} className="txd-amt" />
         {conv && <span className="txd-conv">{conv}</span>}

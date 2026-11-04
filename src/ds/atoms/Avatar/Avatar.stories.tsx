@@ -28,3 +28,5 @@ export const Tipos: StoryObj = {
     </div>
   ),
 };
+
+export const ConCheck: StoryObj = { name: 'Con check (pagado)', render: () => <div className="ds-doc-row"><Avatar emoji="💡" color="cyan" badgeIcon="check" /><Avatar emoji="🎬" color="lilac" size="lg" badgeIcon="check" /></div> };

@@ -20,12 +20,15 @@ export interface AvatarProps {
   size?: keyof typeof SIZES | number;
   /** Small image at the bottom right (Apple subscriptions carry the Apple logo). */
   badge?: string | null;
+  /** A small icon at the bottom right instead of an image (a paid recurring payment carries a check). */
+  badgeIcon?: string | null;
   className?: string;
   style?: React.CSSProperties;
 }
 
 /** The face of a merchant, category, person or space: a rounded square with an emoji, a logo, an icon or an initial. */
-export function Avatar({ emoji, img, icon, initial, color, size = 'md', badge, className, style }: AvatarProps) {
+export function Avatar({ emoji, img, icon, initial, color, size = 'md', badge, badgeIcon, className, style }: AvatarProps) {
+  const marked = !!(badge || badgeIcon);
   const [broken, setBroken] = useState(false);
   const px = typeof size === 'number' ? size : SIZES[size];
   // radius follows the size: 32 and under xl, bigger 2xl, tiny ones lg
@@ -33,19 +36,23 @@ export function Avatar({ emoji, img, icon, initial, color, size = 'md', badge, c
   const photo = img && !broken;
   const face = (
     <span
-      className={['ds-avatar', `ds-avatar--r-${r}`, photo ? 'ds-avatar--photo' : initial && !emoji && !icon ? 'ds-avatar--initial' : '', !badge && className].filter(Boolean).join(' ')}
-      style={{ width: px, height: px, fontSize: Math.round(px * 0.46), ...(photo || !color ? null : { background: `var(--category-${color})` }), ...(badge ? null : style) }}
+      className={['ds-avatar', `ds-avatar--r-${r}`, photo ? 'ds-avatar--photo' : initial && !emoji && !icon ? 'ds-avatar--initial' : '', !marked && className].filter(Boolean).join(' ')}
+      style={{ width: px, height: px, fontSize: Math.round(px * 0.46), ...(photo || !color ? null : { background: `var(--category-${color})` }), ...(marked ? null : style) }}
       aria-hidden="true"
     >
       {photo ? <img src={img} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} /> : icon ? <Icon name={icon} size={Math.round(px * 0.45)} /> : emoji || initial}
     </span>
   );
-  if (!badge) return face;
+  if (!marked) return face;
   const b = Math.max(14, Math.round(px * 0.42));
   return (
     <span className={['ds-avatar-wrap', className].filter(Boolean).join(' ')} style={{ width: px, height: px, ...style }} aria-hidden="true">
       {face}
-      <span className="ds-avatar-badge" style={{ width: b, height: b }}><img src={badge} alt="" loading="lazy" decoding="async" /></span>
+      {badge ? (
+        <span className="ds-avatar-badge" style={{ width: b, height: b }}><img src={badge} alt="" loading="lazy" decoding="async" /></span>
+      ) : (
+        <span className="ds-avatar-badge ds-avatar-badge--icon" style={{ width: b, height: b }}><Icon name={badgeIcon!} size={Math.round(b * 0.6)} stroke={2.6} /></span>
+      )}
     </span>
   );
 }
