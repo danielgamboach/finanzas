@@ -1,0 +1,10 @@
+.ds-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.ds-ring svg { position: absolute; inset: 0; }
+.ds-ring__track { stroke: var(--muted); }
+.ds-ring__fill { stroke: var(--primary); transition: stroke-dashoffset .5s cubic-bezier(.2,.8,.2,1); }
+.ds-ring--muted .ds-ring__fill { stroke: var(--muted-foreground); }
+.ds-ring--success .ds-ring__fill { stroke: var(--success); }
+.ds-ring--warning .ds-ring__fill { stroke: var(--warning); }
+.ds-ring--destructive .ds-ring__fill { stroke: var(--destructive); }
+.ds-ring__center { position: relative; display: inline-flex; align-items: center; justify-content: center; font-size: var(--text-2xl); line-height: 1; }
+@media (prefers-reduced-motion: reduce) { .ds-ring__fill { transition: none; } }

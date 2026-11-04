@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
+import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange, spend } from '../lib/calc';
 import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type OpenPlan, type PlanGroup } from '../lib/budget';
@@ -115,6 +115,17 @@ export function Presupuesto() {
     />
   );
 
+  // PRM-08: the categories with a limit, as rings that scroll sideways
+  const ringItems = (b?.plans || []).filter((p) => p.cats[0]).map((p) => {
+    const c = p.cats[0];
+    const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
+    return {
+      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/partida/${p.line.id}`,
+      label: p.left < 0 ? `${c.name}: te pasaste por ${m.fmt(-p.left)} ${m.u}` : `${c.name}: ${pct}% usado, quedan ${m.fmt(p.left)} ${m.u}`,
+    };
+  });
+  const rings = ringItems.length > 0 && <RingRail className="plan-rings" label="Límites del mes" items={ringItems} />;
+
   const empty = b && !b.groups.length && !b.income.recs.length && !b.income.loose.length && !b.save.recs.length && !b.save.loose.length;
   const body = b && (
     <>
@@ -139,14 +150,14 @@ export function Presupuesto() {
     return (
       <div className="dpage">
         <header className="dpage-head"><h1 className="dtitle">Presupuesto</h1><span className="muted">{month}</span></header>
-        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{summary}{body}</div>}
+        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{summary}{rings}{body}</div>}
       </div>
     );
   }
   return (
     <div className="page">
       <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = '#/partida/nueva')} aria-label="Planear"><Icon name="plus" size={14} /></Button>} />
-      <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : summary}</div>
+      <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : <>{summary}{rings}</>}</div>
       <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : body}</div>
     </div>
   );

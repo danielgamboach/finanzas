@@ -162,6 +162,25 @@ Debajo del gasto del rango, Inicio dice "Libre en noviembre" con el mismo númer
 - Un ahorro con cuenta pasó a ser un recurrente mensual de Mover dinero, de la primera cuenta de débito del espacio a esa cuenta, el último día del mes.
 - El salario del espacio (`budget_settings`) ya no se usa: el salario es un ingreso recurrente.
 
+### PRM-08 · Los límites en círculos
+
+**Estado:** Hecho
+
+Debajo de "Libre en noviembre", cada gasto variable (PRM-04) es un círculo de progreso: el emoji de la categoría en el centro, el anillo lleno según lo gastado y el nombre debajo. Van uno tras otro en una fila que se desliza de lado (de borde a borde en el teléfono). Tocar uno abre su detalle.
+
+- **Dado** Súper con ¢200.000 y ¢23.450 gastados
+- **Entonces** su anillo va al 12%
+
+| Uso | Anillo |
+|---|---|
+| Menos del 80% | Normal |
+| Del 80% al 99% | Advertencia |
+| 100% o más | Rojo y lleno |
+
+Sin gastos variables, la fila no aparece. Uno sin categoría tampoco.
+
+<sub>Dónde vive: átomo `ProgressRing` y molécula `RingRail` en `src/ds/`.</sub>
+
 ---
 
 ## Preguntas abiertas

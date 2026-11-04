@@ -1,0 +1,7 @@
+.ds-ringrail { display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ds-ringrail::-webkit-scrollbar { display: none; }
+.ds-ringrail__cell { flex: none; scroll-snap-align: start; }
+.ds-ringrail__item { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: none; cursor: pointer; border-radius: var(--radius-xl); }
+span.ds-ringrail__item { cursor: default; }
+.ds-ringrail__item:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ds-ringrail__name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); }
