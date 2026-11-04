@@ -102,6 +102,8 @@ El día del cargo, Inicio avisa "Hoy se cobra Netflix, 7,99 USD".
 
 Si el voucher no llega, al día siguiente el app registra el gasto con el monto esperado y una advertencia: mientras tanto Inicio dice "No llegó el voucher: se registra con el monto esperado", y después la fila del gasto dice "Sin voucher" y el detalle explica que no llegó el aviso del banco. El gasto cuenta como cualquier otro: actualiza el saldo y el gasto del mes. Si el voucher llega después, reemplaza ese gasto en vez de duplicarlo.
 
+El voucher se reconoce por el nombre del recurrente aunque el banco lo escriba con puntos u otros signos: "CNFL" agarra "C.N.F.L.PAGUELO" (se comparan solo letras y números).
+
 Solo cuentan los cargos de los últimos dos días: un cargo automático vencido hace más tiempo no se registra solo, para no inventar cobros viejos.
 
 <sub>Dónde vive: `run_auto_recurring` en la base (cada hora), `transactions.auto_flag = 'no_voucher'` y `match_recurring`, que borra el gasto sin voucher cuando llega el real.</sub>
