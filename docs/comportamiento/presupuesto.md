@@ -181,11 +181,11 @@ Debajo del gasto del rango, Inicio dice "Libre en noviembre" con el mismo númer
 - Un ahorro con cuenta pasó a ser un recurrente mensual de Mover dinero, de la primera cuenta de débito del espacio a esa cuenta, el último día del mes.
 - El salario del espacio (`budget_settings`) ya no se usa: el salario es un ingreso recurrente.
 
-### PRM-08 · Los límites en círculos
+### PRM-08 · Las categorías en círculos
 
 **Estado:** Hecho
 
-Debajo de "Libre en noviembre", cada gasto variable (PRM-04) es un círculo de progreso: el emoji de la categoría en el centro, el anillo lleno según lo gastado y el nombre debajo. Van uno tras otro en una fila que se desliza de lado (de borde a borde en el teléfono). Tocar uno abre su detalle.
+Debajo de "Libre en noviembre", **todas las categorías de gasto, también las subcategorías** (cada principal seguida de las suyas), son círculos de progreso: el emoji de la categoría en el centro y el nombre debajo. Con límite (PRM-04), el anillo se llena según lo gastado del límite. Sin límite, según lo ya pagado de lo planeado del mes (vacío si no tiene planeados). Van uno tras otro en una fila que se desliza de lado (de borde a borde en el teléfono). Tocar uno abre la página de esa categoría (PRM-09).
 
 - **Dado** Súper con ¢200.000 y ¢23.450 gastados
 - **Entonces** su anillo va al 12%

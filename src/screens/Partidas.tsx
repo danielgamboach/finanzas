@@ -3,7 +3,7 @@ import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
 import { buildBudget, categoryAverage, narrowGroup, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
-import { pickerOrder, rootId } from '../lib/cats';
+import { familyIds, pickerOrder, rootId } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Category, Currency, Tx } from '../lib/types';
 import { go, navigateBack, useApp, useTxs } from '../store';
@@ -259,18 +259,31 @@ export function Presupuesto() {
     />
   );
 
-  // PRM-08: the categories with a limit, as rings that scroll sideways
-  const ringItems = (b?.plans || []).map((p) => {
-    const c = p.cats[0];
+  // PRM-08: every expense category and subcategory as a ring, sideways. With a limit, how much of it is used;
+  // without one, how much of the month's planned is already paid
+  const ringItems = !b ? [] : [
+    ...pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived && c.space_id === space.id)).map((c) => {
+      const root = b.groups.find((x) => x.key === `c:${rootId(categories, c.id)}`);
+      const g = root ? narrowGroup(root, familyIds(categories, c.id)) : null;
+      const p = b.plans.find((x) => x.cats.some((k) => k.id === c.id));
+      const href = `#/categoria/${c.id}`;
+      if (p) {
+        const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
+        return {
+          key: c.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href,
+          label: p.left < 0 ? `${c.name}: te pasaste por ${m.fmt(-p.left)} ${m.u}` : `${c.name}: ${pct}% usado, quedan ${m.fmt(p.left)} ${m.u}`,
+        };
+      }
+      const total = g?.total || 0, real = g?.real || 0;
+      return {
+        key: c.id, name: c.name, face: c.emoji, value: g && g.pending > 0 && total > 0 ? real / total : 0, tone: 'default' as const, href,
+        label: `${c.name}: ${m.fmt(real)} ${m.u} este mes${g && g.pending > 0 ? `, faltan ${m.fmt(g.pending)}` : ''}`,
+      };
+    }),
     // a limit without a category can't count anything yet: an empty ring that opens its editor
-    if (!c) return { key: p.line.id, name: p.line.name, face: <Icon name="envelope" size={20} />, value: 0, tone: 'muted' as const, href: `#/partida/${p.line.id}/editar`, label: `${p.line.name}: elegí la categoría` };
-    const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
-    return {
-      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/categoria/${c.id}`,
-      label: p.left < 0 ? `${c.name}: te pasaste por ${m.fmt(-p.left)} ${m.u}` : `${c.name}: ${pct}% usado, quedan ${m.fmt(p.left)} ${m.u}`,
-    };
-  });
-  const rings = ringItems.length > 0 && <RingRail className="plan-rings" label="Límites del mes" items={ringItems} />;
+    ...b.plans.filter((p) => !p.cats[0]).map((p) => ({ key: p.line.id, name: p.line.name, face: <Icon name="envelope" size={20} />, value: 0, tone: 'muted' as const, href: `#/partida/${p.line.id}/editar`, label: `${p.line.name}: elegí la categoría` })),
+  ];
+  const rings = ringItems.length > 0 && <RingRail className="plan-rings" label="Categorías del mes" items={ringItems} />;
 
   const empty = b && !b.groups.length && !b.income.recs.length && !b.income.loose.length && !b.save.recs.length && !b.save.loose.length;
   const body = b && (
