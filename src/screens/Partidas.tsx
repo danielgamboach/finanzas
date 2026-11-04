@@ -254,11 +254,10 @@ export function Presupuesto() {
       {(b.income.recs.length > 0 || b.income.loose.length > 0) && <Group g={b.income} />}
       {b.groups.map((g) => <Group key={g.key} g={g} />)}
       {(b.save.recs.length > 0 || b.save.loose.length > 0) && <Group g={b.save} />}
-      {!empty && (
-        <ListGroup>
-          <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" onClick={() => go('/agregar?planear=1')} quiet />
-        </ListGroup>
-      )}
+      <ListGroup>
+        {!empty && <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" onClick={() => go('/agregar?planear=1')} quiet />}
+        <ListRow leading={<ListRow.Icon name="plus" />} title="Nueva categoría" href="#/categoria/nueva" quiet />
+      </ListGroup>
     </>
   );
 
