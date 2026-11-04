@@ -27,7 +27,7 @@ export function CategoryEdit({ id }: { id: string }) {
   const [name, setName] = useState(existing?.name || '');
   const [emoji, setEmoji] = useState(existing?.emoji || '✨');
   const [color, setColor] = useState(existing?.color || 'mint');
-  const [kind, setKind] = useState<Category['kind']>(existing?.kind || categories.find((c) => c.id === parentId)?.kind || 'expense');
+  const [kind, setKind] = useState<Category['kind']>(existing?.kind || categories.find((c) => c.id === parentId)?.kind || (hashParam('tipo') === 'ingreso' ? 'income' : 'expense'));
   const [moveTo, setMoveTo] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -302,6 +302,53 @@ export function CategoryView({ id }: { id: string }) {
               </section>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Every category of the space (Ajustes → Categorías, #/mis-categorias, CAT-05): gastos or ingresos, each main one with its
+ * subcategories below, and the archived ones at the end. A row opens the category; + makes a new one.
+ */
+export function CategoryList() {
+  const { categories, space } = useApp();
+  const [kind, setKind] = useState<Category['kind']>(hashParam('tipo') === 'ingreso' ? 'income' : 'expense');
+  if (!space) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
+  const mine = categories.filter((c) => c.kind === kind);
+  const roots = mine.filter((c) => !c.parent_id && !c.archived).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
+  const archived = mine.filter((c) => c.archived).sort((a, b) => a.name.localeCompare(b.name));
+  const newHref = `#/categoria/nueva${kind === 'income' ? '?tipo=ingreso' : ''}`;
+  return (
+    <div className="page no-nav">
+      <PageHeader title="Categorías" onBack={navigateBack}
+        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = newHref)} aria-label="Nueva categoría"><Icon name="plus" size={14} /></Button>} />
+      <div className="page-body">
+        <Segmented value={kind} onChange={(v: Category['kind']) => setKind(v)} options={[['expense', 'Gastos'], ['income', 'Ingresos']]} />
+        {roots.length === 0 ? (
+          <EmptyState icon={<Icon name="list" size={24} />} title={kind === 'income' ? 'Sin categorías de ingresos' : 'Sin categorías de gastos'}
+            action={<Button variant="primary" size="sm" onClick={() => (location.hash = newHref)}>Nueva categoría</Button>} />
+        ) : (
+          <ListGroup title={`${roots.length} ${roots.length === 1 ? 'categoría' : 'categorías'}`} action={<a href={newHref}>Nueva</a>}>
+            {roots.map((c) => {
+              const kids = childrenOf(categories, c.id);
+              return (
+                <div key={c.id}>
+                  <ListRow leading={<Emo e={c.emoji} color={c.color} size={40} />} title={c.name}
+                    detail={kids.length ? `${kids.length} ${kids.length === 1 ? 'subcategoría' : 'subcategorías'}` : undefined} chevron href={`#/categoria/${c.id}`} />
+                  {kids.map((k) => (
+                    <ListRow key={k.id} className="env-sub" leading={<Emo e={k.emoji} color={k.color} size={32} />} title={k.name} chevron href={`#/categoria/${k.id}`} />
+                  ))}
+                </div>
+              );
+            })}
+          </ListGroup>
+        )}
+        {archived.length > 0 && (
+          <ListGroup title="Archivadas" note="Ocultas en el app; su historial se conserva.">
+            {archived.map((c) => <ListRow key={c.id} quiet leading={<Emo e={c.emoji} color={c.color} size={32} />} title={c.name} chevron href={`#/categoria/${c.id}/editar`} />)}
+          </ListGroup>
         )}
       </div>
     </div>

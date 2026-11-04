@@ -3,7 +3,7 @@ import { AppSkeleton } from './ui/Skeletons';
 import { AppProvider, closeModal, go, useApp, useRoute } from './store';
 import { Loading, Toast } from './ui';
 import { Ajustes } from './screens/Ajustes';
-import { CategoryEdit, CategoryView } from './screens/CategoryEdit';
+import { CategoryEdit, CategoryList, CategoryView } from './screens/CategoryEdit';
 import { Login } from './screens/Login';
 import { AccountEdit, AccountView, GoalEdit, Saldos } from './screens/Patrimonio';
 import { isShellRoute, Shell } from './screens/Shell';
@@ -161,6 +161,8 @@ function Screen({ a, b, c }: { a?: string; b?: string; c?: string }) {
       return <TxForm key="new" />;
     case 'mov':
       return <TxForm key={b} id={b} />;
+    case 'mis-categorias':
+      return <CategoryList />;
     case 'categoria':
       return b === 'nueva' || c === 'editar' ? <CategoryEdit key={b} id={b} /> : <CategoryView key={b} id={b} />;
     case 'partida':

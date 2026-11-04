@@ -202,6 +202,7 @@ export function Ajustes() {
         </ListGroup>
 
         <ListGroup title="Más">
+          <ListRow leading={<ListRow.Icon name="list" />} title="Categorías" detail="Crear, editar y archivar" chevron href="#/mis-categorias" />
           <ListRow leading={<ListRow.Icon name="repeat" />} title="Recurrentes" detail="Pagos fijos y suscripciones" chevron href="#/recurrentes" />
           {isAdmin && <ListRow leading={<ListRow.Icon name="user" />} title="Bienvenida de usuarios nuevos" detail="Vista previa. No guarda nada." chevron href="#/bienvenida" />}
           {isAdmin && <ListRow leading={<ListRow.Icon name="camera" />} title="Comercios sin logo" detail="De todos los espacios" chevron href="#/sin-logo" />}

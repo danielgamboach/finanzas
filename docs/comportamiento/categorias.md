@@ -41,6 +41,17 @@ Una categoría marcada como fija (alquiler, servicios, suscripciones) no muestra
 
 ---
 
+### CAT-05 · La lista de categorías
+
+**Estado:** Hecho
+
+Ajustes → Más → **Categorías** (`#/mis-categorias`) muestra todas las categorías del espacio, también las que no tienen movimientos:
+
+- Arriba, Gastos o Ingresos.
+- Cada categoría principal con sus subcategorías debajo, un poco corridas. Tocar una abre la categoría (sus movimientos, y de ahí Editar).
+- **+** o "Nueva" crea una categoría del tipo que se está viendo.
+- Al final, las **archivadas**, que se pueden abrir para restaurarlas.
+
 ## Preguntas abiertas
 
 Ninguna por ahora: la pregunta sobre límites en subcategorías se resuelve con los topes (PPT-03).
