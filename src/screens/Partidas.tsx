@@ -64,8 +64,10 @@ function useGroupSummary(g: PlanGroup) {
     if (used > limit) detailTone = 'destructive';
   } else if (planned.length) {
     detail = `${done} de ${done + planned.length} ${verb}`;
-  } else {
+  } else if (moves.length) {
     detail = `${moves.length} ${moves.length === 1 ? 'movimiento' : 'movimientos'}`;
+  } else {
+    detail = 'Nada este mes';
   }
   const face = (size: number) => g.category ? <Emo e={g.category.emoji} color={g.category.color} size={size} />
     : g.section === 'in' ? <Emo icon="arrowDownLeft" color="mint" size={size} />
@@ -90,6 +92,7 @@ function Group({ g }: { g: PlanGroup }) {
         value={m.node(g.total)}
         href={groupHref(g)}
         chevron
+        quiet={g.total === 0 && s.moves.length === 0}
         label={`${g.title}: ${m.fmt(g.total)} ${m.u}`}
         below={s.limit > 0 ? <Progress size="sm" value={Math.min(s.pct, 100) / 100} tone={tone(s.pct)} label={`${g.title}: ${s.pct}% usado`} /> : undefined}
       />
@@ -137,12 +140,14 @@ function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: b
   }
 
   const canLimit = g.section === 'out' && (g.category || plan);
+  // the usual movement form, repeating, already in this category (PRM-03, PRM-09)
+  const addHref = `/agregar?planear=1${g.category ? `&cat=${g.category.id}` : ''}${g.section === 'in' ? '&tipo=ingreso' : g.section === 'save' ? '&tipo=transferir' : ''}`;
   const items = [
     canLimit && !plan && g.category && { label: 'Poner límite', icon: 'envelope', run: () => (location.hash = `#/partida/nueva?cat=${g.category!.id}`) },
     plan && { label: 'Editar límite', icon: 'pencil', run: () => (location.hash = `#/partida/${plan.line.id}/editar`) },
     plan && { label: 'Quitar límite', icon: 'trash', run: removeLimit },
-    { label: 'Planear un movimiento', icon: 'plus', run: () => go('/agregar?planear=1') },
-    g.category && { label: 'Ver la categoría', icon: 'list', run: () => (location.hash = `#/categoria/${g.category!.id}`) },
+    { label: 'Agregar un movimiento', icon: 'plus', run: () => go(addHref) },
+    g.category && { label: 'Editar la categoría', icon: 'list', run: () => (location.hash = `#/categoria/${g.category!.id}/editar`) },
   ].filter(Boolean) as { label: string; icon: string; run: () => void }[];
 
   const list = (title: string, txs: Tx[], note?: string) => txs.length > 0 && (
@@ -192,6 +197,9 @@ function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: b
         )}
       </div>
       <div className="page-body">
+        <ListGroup>
+          <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" detail="Fijo o variable, que se repite o de una vez" onClick={() => go(addHref)} />
+        </ListGroup>
         {list('Atrasados', s.late)}
         {list('Vienen', s.coming)}
         {list('Este mes', [...s.real].reverse())}
@@ -248,8 +256,7 @@ export function Presupuesto() {
       {(b.save.recs.length > 0 || b.save.loose.length > 0) && <Group g={b.save} />}
       {!empty && (
         <ListGroup>
-          <ListRow leading={<ListRow.Icon name="plus" />} title="Planear un movimiento" onClick={() => go('/agregar?planear=1')} quiet />
-          <ListRow leading={<ListRow.Icon name="envelope" />} title="Poner un límite" href="#/partida/nueva" quiet />
+          <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" onClick={() => go('/agregar?planear=1')} quiet />
         </ListGroup>
       )}
     </>
@@ -266,7 +273,7 @@ export function Presupuesto() {
   }
   return (
     <div className="page">
-      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go('/agregar?planear=1')} aria-label="Planear un movimiento"><Icon name="plus" size={14} /></Button>} />
+      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go('/agregar?planear=1')} aria-label="Agregar un movimiento"><Icon name="plus" size={14} /></Button>} />
       <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : <>{summary}{rings}</>}</div>
       <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : body}</div>
     </div>

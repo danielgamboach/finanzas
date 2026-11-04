@@ -40,8 +40,8 @@ Reemplaza las **partidas** (PPT-01 a PPT-09, descartadas el 4 nov 2026 por no se
 Presupuesto (`#/categorias`) muestra el mes actual:
 
 1. Arriba, "Libre en noviembre" (PRM-05) con "Entra … · sale … · apartás …" debajo.
-2. Una tarjeta por grupo: **Entra** (ingresos y lo que llega de otro espacio), una por **categoría principal** ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
-3. Al final, "Planear un movimiento" (igual que el + de la cabecera, PRM-03) y "Poner un límite" (PRM-04).
+2. Una tarjeta por grupo: **Entra** (ingresos y lo que llega de otro espacio), una por **cada categoría principal de gastos del espacio** (también las que no tienen nada este mes, al final, atenuadas y con "Nada este mes"), ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
+3. Al final, "Agregar un movimiento" (igual que el + de la cabecera, PRM-03).
 
 Cada tarjeta muestra la cara de la categoría, su nombre, el monto del mes (real más lo planeado que falta) y una flecha. Debajo del nombre, lo más importante:
 
@@ -207,7 +207,9 @@ Tocar una tarjeta de Presupuesto abre su página (`#/rubro/<grupo>`) con la flec
 1. Arriba, "Casita en noviembre" con el monto del mes y debajo "Ya pasó ¢X · falta ¢Y". Si tiene límite, lo destacado es **lo que queda**: un círculo de progreso grande con el emoji de la categoría (mismos colores que PRM-08) y debajo "Quedan en noviembre ¢176.550", con "Gastado ¢23.450 de ¢200.000 · ¢6.539 por día"; si se pasó, "Te pasaste por …" en rojo.
 2. Los movimientos del mes en tres grupos: **Atrasados** (planeados que ya vencieron), **Vienen** (planeados que faltan, por fecha) y **Este mes** (los reales, del más nuevo al más viejo). Todos son movimientos y abren su detalle.
 
-El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar límite** y **Quitar límite** (con deshacer), **Planear un movimiento** y **Ver la categoría**.
+Debajo del resumen, **Agregar un movimiento** abre el formulario de siempre con la categoría ya puesta y Recurrente prendido: ahí se elige si se repite y cada cuánto, si el monto es **siempre el mismo o varía** (luz, agua), si es pago manual o cargo automático, y la primera vez (PRM-03). Apagando Recurrente queda un movimiento de una vez.
+
+El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar límite** y **Quitar límite** (con deshacer), **Agregar un movimiento** y **Editar la categoría**.
 
 ### PRM-10 · Pagado con check
 

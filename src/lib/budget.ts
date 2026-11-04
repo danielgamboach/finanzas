@@ -251,7 +251,9 @@ export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Re
     g.recs.sort((a, b) => (a.due[0] || '9999').localeCompare(b.due[0] || '9999') || b.total - a.total);
   }
 
-  const out = [...groups.values()].filter((g) => g.section === 'out' && (g.recs.length || g.plans.length || g.loose.length)).sort((a, b) => b.total - a.total);
+  // every expense category is in the budget, even without movements this month (PRM-01)
+  for (const c of categories.filter((x) => x.kind === 'expense' && !x.parent_id && !x.archived && x.space_id === spaceId)) outGroup(c.id);
+  const out = [...groups.values()].filter((g) => g.section === 'out' && (g.recs.length || g.plans.length || g.loose.length || g.category)).sort((a, b) => b.total - a.total || a.title.localeCompare(b.title));
   const entra = income.total, aparta = save.total;
   const sale = out.reduce((a, g) => a + g.total, 0);
   return {

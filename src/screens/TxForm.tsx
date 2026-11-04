@@ -67,9 +67,11 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [spaceId, setSpaceId] = useState<string>(app.space?.id || spaces[0]?.id || '');
   const [cur, setCur] = useState<Currency>(app.cur || 'CRC');
   const [amount, setAmount] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  // from a category of Presupuesto: the movement starts in it (PRM-09)
+  const presetCat = params.get('cat');
+  const [categoryId, setCategoryId] = useState<string | null>(presetCat);
   // who set the category: a suggested merchant brings its own and the next one replaces it; one chosen by hand stays
-  const [catFrom, setCatFrom] = useState<'merchant' | 'user' | null>(null);
+  const [catFrom, setCatFrom] = useState<'merchant' | 'user' | null>(presetCat ? 'user' : null);
   // after a tap on the save (or Continuar) while something is missing, the bar says what
   const [askMissing, setAskMissing] = useState(false);
   // the catalog merchant picked from the suggestions (for its logo); typing again forgets it
@@ -90,6 +92,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [everyN, setEveryN] = useState(10);
   const [everyUnit, setEveryUnit] = useState<EveryUnit>('day');
   const [autoCharge, setAutoCharge] = useState(false);
+  // a repeating amount that changes every time (electricity, water): recognized by name and date, its amount is the average
+  const [varies, setVaries] = useState(false);
   const [remember, setRemember] = useState(true);
   const [applyAll, setApplyAll] = useState(true);
   const [siblings, setSiblings] = useState(0);
@@ -265,6 +269,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
           auto: autoCharge,
           method: autoCharge && (acc?.kind === 'credit_card' || acc?.kind === 'debit' || acc?.kind === 'savings') ? 'card' : acc?.kind === 'cash' ? 'cash' : 'transfer',
           match_pattern: patternFrom(row.merchant as string | null) || null,
+          variable: varies,
         });
         toast(`Planeado para el ${shortDay(firstDay)}`);
         bump();
@@ -297,6 +302,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
             auto: autoCharge,
             method: autoCharge && (acc?.kind === 'credit_card' || acc?.kind === 'debit' || acc?.kind === 'savings') ? 'card' : acc?.kind === 'cash' ? 'cash' : 'transfer',
             match_pattern: patternFrom(row.merchant) || null,
+            variable: varies,
             last_paid_on: day,
           });
           await db.update('transactions', { id: txId }, { recurring_id: rec.id });
@@ -621,6 +627,13 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                   <label className="field-row">
                     <span>Primera vez</span>
                     <input type="date" value={when.slice(0, 10)} onChange={(e) => e.target.value && setWhen(`${e.target.value}T${when.slice(11) || '12:00'}`)} aria-label="Primera vez" />
+                  </label>
+                  <label className="field-row">
+                    <span>Monto</span>
+                    <select value={varies ? 'varies' : 'fixed'} onChange={(e) => setVaries(e.target.value === 'varies')} aria-label="Monto fijo o variable">
+                      <option value="fixed">Siempre el mismo</option>
+                      <option value="varies">Varía (luz, agua)</option>
+                    </select>
                   </label>
                   <label className="field-row">
                     <span>Cómo se paga</span>
