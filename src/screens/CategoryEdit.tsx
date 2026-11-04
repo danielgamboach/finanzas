@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, Loader, PageHeader, Progress, Switch, TxListSkeleton, ActionBar } from '../ds';
+import { BalanceSummary, Button, Chip, EmptyState, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, Switch, TxListSkeleton, ActionBar } from '../ds';
+import { CategoryMenu, MonthHero, MonthLists, useCategoryMonth } from './Partidas';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { db } from '../lib/api';
 import { inRange, monthRange, sumSpend, weekRange } from '../lib/calc';
@@ -221,17 +222,17 @@ export function CategoryEdit({ id }: { id: string }) {
   );
 }
 
-/** Movements of one category, month by month. The pencil opens the editor. */
+/**
+ * A category (#/categoria/<id>, PRM-09). This month it's its budget: what's left of its limit, what's late, coming and
+ * done. Another period shows its movements by day. Subcategories filter both.
+ */
 export function CategoryView({ id }: { id: string }) {
   const { categories, space, cur, fx } = useApp();
   const cat = categories.find((c) => c.id === id);
-  const [pk, setPk] = usePeriod('cat');
+  const [pk, setPk] = useState<string>(() => hashParam('p') || 'month');
   const period = periodRange(pk, space?.week_start ?? 5);
   const isCurrent = pk === 'month';
-  const month = period;
-  const week = weekRange(space?.week_start ?? 5);
-  const range = useMemo(() => ({ from: [month.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [month.from, month.to, week.from, week.to]);
-  const { txs, loading } = useTxs(range);
+  const { txs, loading } = useTxs(useMemo(() => ({ from: period.from, to: period.to }), [period.from, period.to]));
   const [sub, setSub] = useState<string>(() => hashParam('sub') || 'all');
   useEffect(() => {
     const on = () => setSub(hashParam('sub') || 'all');
@@ -239,55 +240,72 @@ export function CategoryView({ id }: { id: string }) {
     return () => removeEventListener('hashchange', on);
   }, []);
   useEffect(() => {
-    document.querySelector('.sub-chips .pill.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    document.querySelector('.sub-chips .ds-chip[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [sub, txs.length]);
+
+  const fam = useMemo(() => (cat ? familyIds(categories, id) : new Set<string>()), [categories, id, cat]);
+  const shownFam = useMemo(() => (sub === 'all' ? fam : new Set([sub === 'none' ? id : sub])), [sub, fam, id]);
+  const budget = useCategoryMonth(cat, shownFam);
 
   if (!space || !cat) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
   const parent = parentOf(categories, cat);
   const kids = childrenOf(categories, cat.id);
-  const fam = familyIds(categories, id);
-  const mine = txs.filter((x) => x.category_id && fam.has(x.category_id));
-  const shown = sub === 'all' ? mine : mine.filter((x) => x.category_id === (sub === 'none' ? id : sub));
-  const inMonth = shown.filter((x) => inRange(x, month));
-  const famTotal = sumSpend(mine.filter((x) => inRange(x, month)));
+  const mine = txs.filter((x) => x.category_id && fam.has(x.category_id) && inRange(x, period));
+  const shown = mine.filter((x) => shownFam.has(x.category_id!));
   const subTotals = new Map<string, number>();
-  mine.filter((x) => inRange(x, month)).forEach((x) => subTotals.set(x.category_id!, (subTotals.get(x.category_id!) || 0) + (cat.kind === 'income' ? Number(x.amount_crc) : sumSpend([x]))));
-  const total = cat.kind === 'income' ? inMonth.reduce((a, x) => a + Number(x.amount_crc), 0) : sumSpend(inMonth);
-  const groups = groupByDay(inMonth);
+  mine.forEach((x) => subTotals.set(x.category_id!, (subTotals.get(x.category_id!) || 0) + (cat.kind === 'income' ? Number(x.amount_crc) : sumSpend([x]))));
+  const total = cat.kind === 'income' ? shown.reduce((a, x) => a + Number(x.amount_crc), 0) : sumSpend(shown);
+  const groups = groupByDay(shown);
+  const picker = <PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />;
+
+  const chips = kids.length > 0 && (
+    <div className="page-chips sub-chips" role="tablist" aria-label="Filtrar por subcategoría">
+      {[{ id: 'all', label: 'Todas', emoji: '' }, ...kids.map((k) => ({ id: k.id, label: k.name, emoji: k.emoji })), { id: 'none', label: 'Sin detalle', emoji: '' }]
+        .filter((o) => o.id !== 'none' || sub === 'none' || (subTotals.get(id) ?? 0) !== 0)
+        .map((o) => {
+          const v = o.id === 'all' ? null : subTotals.get(o.id === 'none' ? id : o.id) || 0;
+          return (
+            <Chip key={o.id} size="sm" role="tab" aria-selected={sub === o.id} selected={sub === o.id} onClick={() => setSub(o.id)} leading={o.emoji ? <span aria-hidden="true">{o.emoji}</span> : undefined}>
+              {o.label}{v ? <span className="ds-chip__count"> {shortK(v, cur, fx)}</span> : null}
+            </Chip>
+          );
+        })}
+    </div>
+  );
+
+  const header = <PageHeader title={<>{cat.emoji} {cat.name}</>} onBack={navigateBack} actions={<CategoryMenu cat={cat} g={budget.g} />} />;
+
+  if (isCurrent) {
+    return (
+      <div className="page no-nav">
+        {header}
+        {budget.first ? <div className="page-hero"><Loader><SummarySkeleton /></Loader></div> : budget.g ? <MonthHero g={budget.g} emoji={cat.emoji} action={picker} /> : (
+          <div className="page-hero"><BalanceSummary label={`Gastado en ${period.label.toLowerCase()}`} value={amount(total, cur, fx)} unit={unitOf(cur)} action={picker} /></div>
+        )}
+        {chips}
+        <div className="page-body">
+          {budget.first ? <Loader><TxListSkeleton /></Loader> : budget.g ? <MonthLists g={budget.g} addHref={budget.addHref} /> : (
+            <EmptyState icon={cat.emoji} title="Sin movimientos este mes" />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const subLabel = sub !== 'all' ? ` · ${sub === 'none' ? 'sin detalle' : kids.find((k) => k.id === sub)?.name || ''}` : '';
   return (
     <div className="page no-nav">
-      <PageHeader
-        title={<>{cat.emoji} {cat.name}</>}
-        onBack={navigateBack}
-        actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go(`/categoria/${id}/editar`)} aria-label="Editar categoría"><Icon name="pencil" size={14} /></Button>}
-      />
+      {header}
       <div className="page-hero">
         <BalanceSummary
-          label={`${cat.kind === 'income' ? 'Ingresos' : 'Gastado'}${subLabel}${parent ? ` · en ${parent.name}` : ''}`}
+          label={`${cat.kind === 'income' ? 'Ingresos' : 'Gastado'} · ${period.label}${subLabel}${parent ? ` · en ${parent.name}` : ''}`}
           value={amount(total, cur, fx)}
           unit={unitOf(cur)}
-          meta={inMonth.length === 1 ? '1 movimiento' : `${inMonth.length} movimientos`}
-          action={<PeriodPicker value={pk} onChange={setPk} weekStart={space?.week_start ?? 5} />}
+          meta={shown.length === 1 ? '1 movimiento' : `${shown.length} movimientos`}
+          action={picker}
         />
       </div>
-
-      {kids.length > 0 && (
-        <div className="page-chips sub-chips" role="tablist" aria-label="Filtrar por subcategoría">
-          {[{ id: 'all', label: 'Todas', emoji: '' }, ...kids.map((k) => ({ id: k.id, label: k.name, emoji: k.emoji })), { id: 'none', label: 'Sin detalle', emoji: '' }]
-            .filter((o) => o.id !== 'none' || sub === 'none' || (subTotals.get(id) ?? 0) !== 0)
-            .map((o) => {
-              const v = o.id === 'all' ? null : subTotals.get(o.id === 'none' ? id : o.id) || 0;
-              return (
-                <Chip key={o.id} size="sm" role="tab" aria-selected={sub === o.id} selected={sub === o.id} onClick={() => setSub(o.id)} leading={o.emoji ? <span aria-hidden="true">{o.emoji}</span> : undefined}>
-                  {o.label}{v ? <span className="ds-chip__count"> {shortK(v, cur, fx)}</span> : null}
-                </Chip>
-              );
-            })}
-        </div>
-      )}
-
+      {chips}
       <div className="page-body">
         {loading && txs.length === 0 ? (
           <Loader><TxListSkeleton /></Loader>
@@ -307,6 +325,7 @@ export function CategoryView({ id }: { id: string }) {
     </div>
   );
 }
+
 
 /**
  * Every category of the space (Ajustes → Categorías, #/mis-categorias, CAT-05): gastos or ingresos, each main one with its

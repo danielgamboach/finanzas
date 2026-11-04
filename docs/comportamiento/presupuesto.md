@@ -204,12 +204,14 @@ Sin gastos variables, la fila no aparece. Uno sin categoría sale con el anillo 
 
 **Estado:** Hecho
 
-Tocar una tarjeta de Presupuesto abre su página (`#/rubro/<grupo>`) con la flecha atrás y ⋯ arriba:
+Tocar una categoría en Presupuesto abre **la página de la categoría** (`#/categoria/<id>`, la misma que se abre desde un movimiento o desde Ajustes → Categorías; ya no hay páginas de rubro aparte), con la flecha atrás y ⋯ arriba. Entra y Apartar, que no son categorías, siguen en `#/rubro/in` y `#/rubro/save`.
 
-1. Arriba, "Casita en noviembre" con el monto del mes y debajo "Ya pasó ¢X · falta ¢Y". Si tiene límite, lo destacado es **lo que queda**: un círculo de progreso grande con el emoji de la categoría (mismos colores que PRM-08) y debajo "Quedan en noviembre ¢176.550", con "Gastado ¢23.450 de ¢200.000 · ¢6.539 por día"; si se pasó, "Te pasaste por …" en rojo.
+1. Arriba, "Gastado en noviembre ¢X" y debajo "Falta ¢Y · ¢Z en total". Si tiene límite, lo destacado es **lo disponible**: un círculo de progreso grande con el emoji de la categoría (mismos colores que PRM-08) y debajo "Disponible en noviembre ¢176.550", con "Gastado ¢23.450 de ¢200.000 · ¢6.539 por día"; si se pasó, "Te pasaste por …" en rojo.
 2. Los movimientos del mes en tres grupos: **Atrasados** (planeados que ya vencieron), **Vienen** (planeados que faltan, por fecha) y **Este mes** (los reales, del más nuevo al más viejo). Todos son movimientos y abren su detalle.
 
-Debajo del resumen, **Agregar un movimiento** abre el formulario de siempre con la categoría ya puesta y Recurrente prendido: ahí se elige si se repite y cada cuánto, si el monto es **siempre el mismo o varía** (luz, agua), si es pago manual o cargo automático, y la primera vez (PRM-03). Apagando Recurrente queda un movimiento de una vez.
+3. Debajo del resumen, el período (‹ Noviembre ›): otro mes o período muestra los movimientos de la categoría por día, sin planeados. Si tiene subcategorías, chips para ver una sola (también filtran el mes actual).
+
+Al final, **Agregar un movimiento** abre el formulario de siempre con la categoría ya puesta y Recurrente prendido: ahí se elige si se repite y cada cuánto, si el monto es **siempre el mismo o varía** (luz, agua), si es pago manual o cargo automático, y la primera vez (PRM-03). Apagando Recurrente queda un movimiento de una vez.
 
 El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar límite** y **Quitar límite** (con deshacer), **Agregar un movimiento** y **Editar la categoría**.
 

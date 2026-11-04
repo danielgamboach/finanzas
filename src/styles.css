@@ -1206,7 +1206,8 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .plan-menu-scrim { position: fixed; inset: 0; z-index: 40; }
 .plan-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 41; }
 .plan-hero-bar { margin-top: 16px; }
-.plan-hero { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+.plan-hero { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; width: 100%; }
+.plan-hero .ds-balance { align-items: center; width: 100%; }
 .plan-hero .ds-balance, .plan-hero .ds-balance * { justify-content: center; text-align: center; }
 .plan-hero > :first-child { min-width: 0; }
 .plan-hero-ring .ds-ring__center { font-size: var(--text-5xl); }

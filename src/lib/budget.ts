@@ -310,3 +310,22 @@ export function categoryAverage(txs: Tx[], categories: Category[], categoryId: s
     .reduce((a, x) => a + spend(x), 0);
   return Math.max(0, total / 3);
 }
+
+/** A budget group seen from one category (and its subcategories): only its movements, plans and totals (PRM-09). */
+export function narrowGroup(g: PlanGroup, fam: Set<string>): PlanGroup {
+  const inFam = (x: Tx) => !!x.category_id && fam.has(x.category_id);
+  const recs = g.recs
+    .map((r) => {
+      const txs = r.txs.filter(inFam);
+      const planned = r.planned.filter(inFam);
+      const paid = txs.reduce((a, x) => a + txValue(x, g.section), 0);
+      return { ...r, txs, planned, paid, due: planned.length ? r.due : [], total: paid + r.each * planned.length };
+    })
+    .filter((r) => r.txs.length || r.planned.length);
+  const plans = g.plans.filter((p) => p.cats.some((c) => fam.has(c.id)));
+  const loose = g.loose.filter(inFam);
+  const looseAmt = loose.reduce((a, x) => a + txValue(x, g.section), 0);
+  const real = recs.reduce((a, r) => a + r.paid, 0) + plans.reduce((a, p) => a + p.spent, 0) + looseAmt;
+  const pending = recs.reduce((a, r) => a + r.each * r.planned.length, 0) + plans.reduce((a, p) => a + Math.max(0, p.left), 0);
+  return { ...g, recs, plans, loose, looseAmt, real, pending, total: real + pending };
+}

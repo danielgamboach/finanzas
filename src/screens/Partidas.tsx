@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, ProgressRing, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
-import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
+import { buildBudget, categoryAverage, narrowGroup, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
 import { pickerOrder, rootId } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
-import type { Currency, Tx } from '../lib/types';
+import type { Category, Currency, Tx } from '../lib/types';
 import { go, navigateBack, useApp, useTxs } from '../store';
 import { Emo, Icon } from '../ui';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
@@ -76,7 +76,7 @@ function useGroupSummary(g: PlanGroup) {
   return { moves, late, coming, real, limit, used, pct, detail, detailTone, face };
 }
 
-const groupHref = (g: PlanGroup) => `#/rubro/${encodeURIComponent(g.key)}`;
+const groupHref = (g: PlanGroup) => (g.category ? `#/categoria/${g.category.id}` : `#/rubro/${encodeURIComponent(g.key)}`);
 
 /** One category of the month (PRM-01): face, name, what's budgeted and, with a limit, its bar. It opens its own page. */
 function Group({ g }: { g: PlanGroup }) {
@@ -100,36 +100,112 @@ function Group({ g }: { g: PlanGroup }) {
   );
 }
 
-/**
- * A category of the month on its own page (#/rubro/<key>, PRM-09): what it adds up to, its limit, and its movements
- * of the month: late, coming and done. The ⋯ menu sets, edits or removes its limit.
- */
+/** Entra and Apartar on their own page (#/rubro/<key>); a category opens its own page (#/categoria/<id>, PRM-09). */
 export function GroupView({ gkey }: { gkey: string }) {
-  const { space, toast, bump } = useApp();
-  const m = useMoney();
+  const { space } = useApp();
   const { budget, first } = useBudget();
-  const [menu, setMenu] = useState(false);
   const key = decodeURIComponent(gkey);
+  if (key.startsWith('c:')) {
+    location.replace(`#/categoria/${key.slice(2)}`);
+    return null;
+  }
   const g = budget && [budget.income, ...budget.groups, budget.save].find((x) => x.key === key);
   if (!space || first) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
   if (!g) return <div className="page no-nav"><PageHeader title="Presupuesto" onBack={navigateBack} /><EmptyState icon={<Icon name="list" size={24} />} title="No hay movimientos de esto este mes" /></div>;
-  return <GroupPage g={g} menu={menu} setMenu={setMenu} m={m} toast={toast} bump={bump} />;
+  const addHref = `/agregar?planear=1${g.section === 'in' ? '&tipo=ingreso' : g.section === 'save' ? '&tipo=transferir' : ''}`;
+  return (
+    <div className="page no-nav">
+      <PageHeader title={g.title} onBack={navigateBack} />
+      <MonthHero g={g} />
+      <div className="page-body"><MonthLists g={g} addHref={addHref} /></div>
+    </div>
+  );
 }
 
-function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: boolean; setMenu: (v: boolean) => void; m: ReturnType<typeof useMoney>; toast: (msg: string, undo?: () => unknown) => void; bump: () => void }) {
+const addHrefFor = (g: PlanGroup, catId?: string) => `/agregar?planear=1${catId ? `&cat=${catId}` : ''}${g.section === 'in' ? '&tipo=ingreso' : g.section === 'save' ? '&tipo=transferir' : ''}`;
+
+/** This month in a category or group: with a limit, what's left of it in a big ring; without, what it adds up to (PRM-09). */
+export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; action?: ReactNode }) {
+  const m = useMoney();
   const s = useGroupSummary(g);
   const t = todayCR();
   const month = monthName(t.m);
-  const plan = g.plans[0];
   const daysLeft = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
-  const pending = s.late.concat(s.coming).reduce((a, x) => a + Number(x.amount_crc), 0) + g.plans.reduce((a, p) => a + Math.max(0, p.left), 0);
+  const pending = g.pending;
+  return (
+    <div className="page-hero">
+      {s.limit > 0 ? (
+        <div className="plan-hero">
+          <ProgressRing className="plan-hero-ring" size={144} thickness={10} value={s.used / s.limit} tone={tone(s.pct)} label={`${s.pct}% del límite`}>
+            {emoji || <Icon name="envelope" size={32} />}
+          </ProgressRing>
+          <BalanceSummary
+            label={s.used > s.limit ? 'Te pasaste por' : `Disponible en ${month}`}
+            value={m.fmt(Math.abs(s.limit - s.used))}
+            unit={m.u}
+            negative={s.used > s.limit}
+            meta={`Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u}${s.used < s.limit && daysLeft > 1 ? ` · ${m.fmt((s.limit - s.used) / daysLeft)} por día` : ''}`}
+            action={action}
+          />
+        </div>
+      ) : (
+        <BalanceSummary
+          label={g.section === 'in' ? `Entra en ${month}` : `Gastado en ${month}`}
+          value={m.fmt(g.real)}
+          unit={m.u}
+          meta={pending > 0 ? `Falta ${m.fmt(pending)} ${m.u} · ${m.fmt(g.total)} en total` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
+          action={action}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Late, coming and done this month, and adding a movement (PRM-09). */
+export function MonthLists({ g, addHref }: { g: PlanGroup; addHref: string }) {
+  const s = useGroupSummary(g);
+  const month = monthName(todayCR().m);
+  const list = (title: string, txs: Tx[]) => txs.length > 0 && (
+    <ListGroup title={title}>
+      <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
+    </ListGroup>
+  );
+  return (
+    <>
+      {list('Atrasados', s.late)}
+      {list('Vienen', s.coming)}
+      {list('Este mes', [...s.real].reverse())}
+      {s.moves.length === 0 && <EmptyState icon={<Icon name="list" size={24} />} title={`Sin movimientos en ${month}`} />}
+      <ListGroup>
+        <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" detail="Fijo o variable, que se repite o de una vez" onClick={() => go(addHref)} quiet />
+      </ListGroup>
+    </>
+  );
+}
+
+/** A category's budget this month, seen from that category and its subcategories (PRM-09). */
+export function useCategoryMonth(cat: Category | undefined, fam: Set<string>) {
+  const { categories } = useApp();
+  const { budget, first } = useBudget();
+  let g: PlanGroup | null = null;
+  if (budget && cat) {
+    const base = cat.kind === 'income' ? budget.income : budget.groups.find((x) => x.key === `c:${rootId(categories, cat.id)}`);
+    if (base) g = narrowGroup(base, fam);
+  }
+  return { g, first, addHref: g && cat ? addHrefFor(g, cat.id) : '' };
+}
+
+/** The ⋯ of a category: its limit, adding a movement and editing it (PRM-09). */
+export function CategoryMenu({ cat, g }: { cat: Category; g: PlanGroup | null }) {
+  const { toast, bump } = useApp();
+  const [open, setOpen] = useState(false);
+  const plan = g?.plans.find((p) => p.cats.some((c) => c.id === cat.id));
 
   async function removeLimit() {
-    setMenu(false);
     if (!plan) return;
     try {
       await db.update('envelopes', { id: plan.line.id }, { active: false });
-      toast(`${g.title} ya no tiene límite`, async () => {
+      toast(`${cat.name} ya no tiene límite`, async () => {
         await db.update('envelopes', { id: plan.line.id }, { active: true });
         bump();
       });
@@ -139,73 +215,26 @@ function GroupPage({ g, menu, setMenu, m, toast, bump }: { g: PlanGroup; menu: b
     }
   }
 
-  const canLimit = g.section === 'out' && (g.category || plan);
-  // the usual movement form, repeating, already in this category (PRM-03, PRM-09)
-  const addHref = `/agregar?planear=1${g.category ? `&cat=${g.category.id}` : ''}${g.section === 'in' ? '&tipo=ingreso' : g.section === 'save' ? '&tipo=transferir' : ''}`;
   const items = [
-    canLimit && !plan && g.category && { label: 'Poner límite', icon: 'envelope', run: () => (location.hash = `#/partida/nueva?cat=${g.category!.id}`) },
+    cat.kind === 'expense' && !plan && { label: 'Poner límite', icon: 'envelope', run: () => (location.hash = `#/partida/nueva?cat=${cat.id}`) },
     plan && { label: 'Editar límite', icon: 'pencil', run: () => (location.hash = `#/partida/${plan.line.id}/editar`) },
     plan && { label: 'Quitar límite', icon: 'trash', run: removeLimit },
-    { label: 'Agregar un movimiento', icon: 'plus', run: () => go(addHref) },
-    g.category && { label: 'Editar la categoría', icon: 'list', run: () => (location.hash = `#/categoria/${g.category!.id}/editar`) },
+    g && { label: 'Agregar un movimiento', icon: 'plus', run: () => go(addHrefFor(g, cat.id)) },
+    { label: 'Editar la categoría', icon: 'list', run: () => go(`/categoria/${cat.id}/editar`) },
   ].filter(Boolean) as { label: string; icon: string; run: () => void }[];
 
-  const list = (title: string, txs: Tx[], note?: string) => txs.length > 0 && (
-    <ListGroup title={title} note={note}>
-      <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
-    </ListGroup>
-  );
-
   return (
-    <div className="page no-nav">
-      <PageHeader title={g.title} onBack={navigateBack}
-        actions={(
-          <span className="plan-menu-wrap">
-            <Button variant="secondary" size="xs" iconOnly onClick={() => setMenu(!menu)} aria-label="Más opciones" aria-expanded={menu}><Icon name="dots" size={14} /></Button>
-            {menu && (
-              <>
-                <span className="plan-menu-scrim" onClick={() => setMenu(false)} />
-                <Menu className="plan-menu" label={`Opciones de ${g.title}`}>
-                  {items.map((it) => <MenuItem key={it.label} icon={<Icon name={it.icon} size={18} />} onClick={() => { setMenu(false); it.run(); }}>{it.label}</MenuItem>)}
-                </Menu>
-              </>
-            )}
-          </span>
-        )} />
-      <div className="page-hero">
-        {s.limit > 0 ? (
-          // with a limit, what matters is what's left of it (PRM-09)
-          <div className="plan-hero">
-            <ProgressRing className="plan-hero-ring" size={144} thickness={10} value={s.used / s.limit} tone={tone(s.pct)} label={`${s.pct}% del límite`}>
-              {g.category ? g.category.emoji : <Icon name="envelope" size={32} />}
-            </ProgressRing>
-            <BalanceSummary
-              label={s.used > s.limit ? 'Te pasaste por' : `Quedan en ${month}`}
-              value={m.fmt(Math.abs(s.limit - s.used))}
-              unit={m.u}
-              negative={s.used > s.limit}
-              meta={`Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u}${s.used < s.limit && daysLeft > 1 ? ` · ${m.fmt((s.limit - s.used) / daysLeft)} por día` : ''}`}
-            />
-          </div>
-        ) : (
-          <BalanceSummary
-            label={`${g.title} en ${month}`}
-            value={m.fmt(g.total)}
-            unit={m.u}
-            meta={pending > 0 ? `Ya pasó ${m.fmt(g.real)} · falta ${m.fmt(pending)} ${m.u}` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
-          />
-        )}
-      </div>
-      <div className="page-body">
-        <ListGroup>
-          <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" detail="Fijo o variable, que se repite o de una vez" onClick={() => go(addHref)} />
-        </ListGroup>
-        {list('Atrasados', s.late)}
-        {list('Vienen', s.coming)}
-        {list('Este mes', [...s.real].reverse())}
-        {s.moves.length === 0 && <EmptyState icon={<Icon name="list" size={24} />} title={`Sin movimientos en ${month}`} />}
-      </div>
-    </div>
+    <span className="plan-menu-wrap">
+      <Button variant="secondary" size="xs" iconOnly onClick={() => setOpen(!open)} aria-label="Más opciones" aria-expanded={open}><Icon name="dots" size={14} /></Button>
+      {open && (
+        <>
+          <span className="plan-menu-scrim" onClick={() => setOpen(false)} />
+          <Menu className="plan-menu" label={`Opciones de ${cat.name}`}>
+            {items.map((it) => <MenuItem key={it.label} icon={<Icon name={it.icon} size={18} />} onClick={() => { setOpen(false); it.run(); }}>{it.label}</MenuItem>)}
+          </Menu>
+        </>
+      )}
+    </span>
   );
 }
 
@@ -237,7 +266,7 @@ export function Presupuesto() {
     if (!c) return { key: p.line.id, name: p.line.name, face: <Icon name="envelope" size={20} />, value: 0, tone: 'muted' as const, href: `#/partida/${p.line.id}/editar`, label: `${p.line.name}: elegí la categoría` };
     const pct = p.amount > 0 ? Math.round((p.spent / p.amount) * 100) : 0;
     return {
-      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/rubro/${encodeURIComponent(`c:${rootId(categories, c.id)}`)}`,
+      key: p.line.id, name: c.name, face: c.emoji, value: p.amount > 0 ? p.spent / p.amount : 0, tone: tone(pct), href: `#/categoria/${c.id}`,
       label: p.left < 0 ? `${c.name}: te pasaste por ${m.fmt(-p.left)} ${m.u}` : `${c.name}: ${pct}% usado, quedan ${m.fmt(p.left)} ${m.u}`,
     };
   });
