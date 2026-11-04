@@ -17,6 +17,22 @@ import { MergeSheet } from './Merchant';
 import { useDragToClose } from './useDragToClose';
 import { setHold, settlesIn } from '../lib/holds';
 import { incomingFrom, isIncoming, transferLabel } from '../lib/transfers';
+import { isPlannedId, parsePlannedId, plannedTx } from '../lib/budget';
+import { addPeriod, daysUntil, freqLabel } from '../lib/recurring';
+import type { Recurring } from '../lib/types';
+import { PaySheet } from './PaySheet';
+
+/** A planned date is still due when it is the recurrent's next due date or one of the ones after it. */
+function isPlannedLate(r: Recurring, date: string) {
+  let d = r.next_due;
+  for (let i = 0; i < 60 && d <= date; i++) {
+    if (d === date) return true;
+    const n = addPeriod(d, r.frequency, r.every_n, r.every_unit);
+    if (n <= d) break;
+    d = n;
+  }
+  return false;
+}
 
 const KIND_LABEL: Record<string, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Mover dinero', refund: 'Devolución' };
 const KIND_EMOJI: Record<string, string> = { income: '💰', transfer: '🔄', refund: '↩️' };
@@ -37,14 +53,39 @@ function close() {
 /** A movement, read-only: every detail, then the other movements of the same merchant. */
 export function TxDetail({ id }: { id: string }) {
   const desk = useDesktop();
-  const { version, members, userId } = useApp();
+  const { version, members, userId, fx } = useApp();
   const [t, setT] = useState<Tx | null>(null);
   const [missing, setMissing] = useState(false);
   const dragRef = useDragToClose<HTMLDivElement>(close, 'self');
   const panel = useRef<HTMLDivElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
+  // a payment still due (PRM-02): built from its recurrent, the same way the budget shows it
+  const plan = parsePlannedId(id);
+  const [rec, setRec] = useState<Recurring | null>(null);
+  const [paying, setPaying] = useState(false);
   useEffect(() => {
+    if (!plan) return;
+    let alive = true;
+    db.from<Recurring>('recurring').eq('id', plan.recurringId).then((rows) => {
+      if (!alive) return;
+      const r = rows[0];
+      // gone, or already paid (its next payment moved past this date): nothing planned to show
+      if (!r || !r.active || !(r.snooze_until === plan.date || isPlannedLate(r, plan.date))) {
+        setMissing(true);
+        return;
+      }
+      setRec(r);
+      setT(plannedTx(r, plan.date, fx));
+    }).catch(() => alive && setMissing(true));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, version]);
+
+  useEffect(() => {
+    if (plan) return;
     let alive = true;
     db.from<Tx>('transactions', TX_SELECT).eq('id', id).then((rows) => {
       if (!alive) return;
@@ -64,7 +105,7 @@ export function TxDetail({ id }: { id: string }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !document.querySelector('.sheet-backdrop')) close();
-      if ((e.key === 'e' || e.key === 'E') && !(e.target as HTMLElement).closest('input, textarea, select')) go(`/mov/${id}/editar`);
+      if ((e.key === 'e' || e.key === 'E') && !isPlannedId(id) && !(e.target as HTMLElement).closest('input, textarea, select')) go(`/mov/${id}/editar`);
     };
     addEventListener('keydown', k);
     return () => removeEventListener('keydown', k);
@@ -86,18 +127,24 @@ export function TxDetail({ id }: { id: string }) {
         <div className={scrolled ? 'txd-bar scrolled' : 'txd-bar'}>
           {!desk && <div className="grabber" />}
           <Button variant="secondary" size="xs" iconOnly onClick={close} aria-label="Cerrar"><Icon name="close" size={14} stroke={2.4} /></Button>
-          {(!t || members.some((m) => m.space_id === t.space_id && m.user_id === userId)) && (
+          {plan ? (
+            <span className="row gap8">
+              <Button variant="secondary" size="xs" disabled={!rec} onClick={() => rec && (location.hash = `#/recurrente/${rec.id}`)} leading={<Icon name="pencil" size={14} />}>Editar</Button>
+              <Button variant="primary" size="xs" disabled={!rec} onClick={() => setPaying(true)}>{t?.kind === 'income' ? 'Cobré' : t?.kind === 'transfer' ? 'Lo moví' : 'Pagué'}</Button>
+            </span>
+          ) : (!t || members.some((m) => m.space_id === t.space_id && m.user_id === userId)) && (
             <Button variant="primary" size="xs" onClick={() => go(`/mov/${id}/editar`)} disabled={!t} leading={<Icon name="pencil" size={14} />} trailing={desk ? <kbd>E</kbd> : undefined}>Editar</Button>
           )}
         </div>
-        {t ? <Body t={t} /> : <DetailSkeleton />}
+        {t ? <Body t={t} rec={rec} /> : <DetailSkeleton />}
+        {paying && rec && <PaySheet r={rec} onClose={() => setPaying(false)} onPaid={(txId) => txId ? location.replace(`#/mov/${txId}`) : close()} />}
       </div>
     </div>,
     document.body,
   );
 }
 
-function Body({ t }: { t: Tx }) {
+function Body({ t, rec }: { t: Tx; rec?: Recurring | null }) {
   const { categories, accounts, cur, fx, profiles, merchants, space, spaces } = useApp();
   const cat = categories.find((c) => c.id === t.category_id);
   const suggested = t.suggested_category_id ? categories.find((c) => c.id === t.suggested_category_id) : null;
@@ -133,6 +180,7 @@ function Body({ t }: { t: Tx }) {
           {t.auto_flag === 'no_voucher' && <Tag tone="warning" size="sm"><Icon name="warning" size={12} />Sin voucher</Tag>}
               {review && !suggested && <Tag tone="warning" size="sm">Por revisar</Tag>}
           {review && suggested && <Tag tone="ai" size="sm"><Icon name="wand" size={12} />¿{suggested.emoji} {catLabel(categories, suggested)}?</Tag>}
+          {t.planned && <Tag tone="warning" size="sm"><Icon name="clock" size={12} />Planeado</Tag>}
           {t.recurring_id && <Tag size="sm"><Icon name="repeat" size={12} />Recurrente</Tag>}
           {tags.map((g) => <Tag key={g} size="sm">{g}</Tag>)}
         </span>
@@ -146,7 +194,8 @@ function Body({ t }: { t: Tx }) {
       )}
 
       <section className="field-card txd-fields" aria-label="Detalles">
-        <Row label="Fecha">{cap(fullDate.format(d).replace(/\./g, '').replace(/,/g, ''))} · {timeFmt.format(d)}</Row>
+        <Row label={t.planned ? (daysUntil(t.occurred_at.slice(0, 10)) < 0 ? 'Venció' : t.kind === 'income' ? 'Llega' : 'Vence') : 'Fecha'}>{cap(fullDate.format(d).replace(/\./g, '').replace(/,/g, ''))}{t.planned ? '' : ` · ${timeFmt.format(d)}`}</Row>
+        {t.planned && rec?.variable && <Row label="Monto">Varía: es el promedio de los últimos pagos</Row>}
         <Row label="Tipo">{KIND_LABEL[t.kind] || t.kind}</Row>
         {t.installments && (
           <Row label="A cuotas">{t.installments} meses de {moneyRaw(installmentPart(Number(t.amount), t.installments, 0), t.currency)}</Row>
@@ -164,7 +213,7 @@ function Body({ t }: { t: Tx }) {
             )}
           </Row>
         )}
-        {t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <MerchantRow t={t} merchant={merchant} />}
+        {!t.planned && t.kind !== 'transfer' && (t.merchant || t.raw_merchant) && <MerchantRow t={t} merchant={merchant} />}
         <Row label={t.kind === 'transfer' ? 'Desde' : 'Cuenta'}>
           {acc ? (
             <a className="txd-link" href={`#/cuenta/${acc.id}`}>{acc.name}{acc.last4 ? ` ••${acc.last4}` : ''}</a>
@@ -192,14 +241,14 @@ function Body({ t }: { t: Tx }) {
           </>
         )}
         {t.raw_merchant && normWords(t.raw_merchant) !== normWords(t.merchant || '') && <Row label="Como sale en el banco"><span className="txd-mono">{t.raw_merchant}</span></Row>}
-        {/^APPLE\.COM/i.test(t.raw_merchant || '') && <AppleRow id={t.id} />}
+        {!t.planned && /^APPLE\.COM/i.test(t.raw_merchant || '') && <AppleRow id={t.id} />}
         {auth && <Row label="Autorización"><span className="txd-mono">{auth}</span></Row>}
         {t.recurring_id && (
-          <Row label="Recurrente">
+          <Row label={t.planned && rec ? freqLabel(rec) : 'Recurrente'}>
             <a className="txd-link" href={`#/recurrente/${t.recurring_id}`}>Ver pago recurrente</a>
           </Row>
         )}
-        <Row label="Origen">{SOURCE_LABEL[t.source] || t.source}{by ? ` · ${by}` : ''}</Row>
+        <Row label="Origen">{t.planned ? 'Planeado: todavía no pasó' : `${SOURCE_LABEL[t.source] || t.source}${by ? ` · ${by}` : ''}`}</Row>
       </section>
 
       {note && (

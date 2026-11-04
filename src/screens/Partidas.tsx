@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, PageHeader, Progress, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
-import { monthRange } from '../lib/calc';
-import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type OpenPlan, type PlanGroup, type RecMonth } from '../lib/budget';
+import { monthRange, spend } from '../lib/calc';
+import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type OpenPlan, type PlanGroup } from '../lib/budget';
 import { pickerOrder } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
-import { daysUntil, shortDay } from '../lib/recurring';
-import type { Currency } from '../lib/types';
+import type { Currency, Tx } from '../lib/types';
 import { navigateBack, useApp, useTxs } from '../store';
 import { Emo, Icon } from '../ui';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
@@ -34,40 +33,6 @@ function useMoney() {
   return { u, fmt: (v: number) => amount(v, cur, fx), node: (v: number, approx = false) => <>{approx ? '≈ ' : ''}{amount(v, cur, fx)}<span className="amt-unit"> {u}</span></> };
 }
 
-/** A recurrent in the month: paid (real) or still due (planned) (PRM-02). */
-function RecRow({ s }: { s: RecMonth }) {
-  const { categories } = useApp();
-  const m = useMoney();
-  const c = categories.find((x) => x.id === s.r.category_id);
-  const n = s.txs.length + s.due.length;
-  const late = s.due[0] && daysUntil(s.due[0]) < 0;
-  const verb = s.r.kind === 'income' ? 'Llega' : s.r.kind === 'transfer' ? 'Se mueve' : 'Vence';
-  const done = s.r.kind === 'income' ? 'Llegó' : s.r.kind === 'transfer' ? 'Movido' : 'Pagado';
-  let detail: string;
-  let detailTone: 'muted' | 'success' | 'warning' = 'muted';
-  if (!s.due.length) {
-    const last = s.txs.map((x) => x.occurred_at).sort().at(-1);
-    detail = n > 1 ? `${n} de ${n} pagos` : last ? `${done} el ${shortDay(last.slice(0, 10))}` : done;
-    detailTone = 'success';
-  } else {
-    const when = late ? `Venció el ${shortDay(s.due[0])}` : `${verb} el ${shortDay(s.due[0])}`;
-    detail = n > 1 ? `${s.txs.length} de ${n} pagos · ${when.toLowerCase()}` : when;
-    if (late) detailTone = 'warning';
-  }
-  return (
-    <ListRow
-      leading={c ? <Emo e={c.emoji} color={c.color} size={40} /> : <Emo icon={s.r.kind === 'transfer' ? 'piggy' : 'calendar'} color={s.r.kind === 'transfer' ? 'mint' : undefined} size={40} />}
-      title={s.r.merchant}
-      detail={detail}
-      detailTone={detailTone}
-      value={m.node(s.total, !!s.r.variable && s.due.length > 0)}
-      valueTone={s.due.length ? 'muted' : 'default'}
-      href={`#/recurrente/${s.r.id}`}
-      chevron
-    />
-  );
-}
-
 /** An open plan: what's left of it this month, with its bar (PRM-04). */
 function PlanRow({ p }: { p: OpenPlan }) {
   const m = useMoney();
@@ -90,12 +55,11 @@ function PlanRow({ p }: { p: OpenPlan }) {
   );
 }
 
-/** Real movements no plan covers: one row that unfolds into the movements. */
-function LooseRows({ g }: { g: PlanGroup }) {
+/** Real movements no plan covers, when there are many: one row that unfolds into them. */
+function LooseFold({ g, txs }: { g: PlanGroup; txs: Tx[] }) {
   const m = useMoney();
   const [open, setOpen] = useState(false);
-  if (!g.loose.length) return null;
-  const n = g.loose.length;
+  const n = txs.length;
   const planned = g.recs.length + g.plans.length > 0;
   const what = g.section === 'in' ? (n === 1 ? 'ingreso' : 'ingresos') : g.section === 'save' ? (n === 1 ? 'movimiento' : 'movimientos') : n === 1 ? 'gasto' : 'gastos';
   return (
@@ -103,23 +67,29 @@ function LooseRows({ g }: { g: PlanGroup }) {
       <ListRow
         leading={<span className={`plan-chev${open ? ' is-open' : ''}`}><ListRow.Icon name="chevDown" /></span>}
         title={`${n} ${what}${planned ? ' sin planear' : ''}`}
-        value={m.node(g.looseAmt)}
+        value={m.node(txs.reduce((a, x) => a + (g.section === 'out' ? spend(x) : Number(x.amount_crc)), 0))}
         onClick={() => setOpen(!open)}
         label={`${open ? 'Esconder' : 'Ver'} ${n} ${what}`}
       />
-      {open && <div className="plan-loose">{g.loose.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate />)}</div>}
+      {open && <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate />)}</div>}
     </>
   );
 }
 
+const byDate = (a: Tx, b: Tx) => a.occurred_at.localeCompare(b.occurred_at);
+const FOLD = 3;
+
 function Group({ g }: { g: PlanGroup }) {
   const m = useMoney();
   const title = g.category ? `${g.category.emoji} ${g.title}` : g.title;
+  // every payment of a recurrent is a movement: the real ones and the ones still due (PRM-02); a few unplanned ones show too
+  const fold = g.loose.length > FOLD ? g.loose : [];
+  const moves = [...g.recs.flatMap((s) => [...s.txs, ...s.planned]), ...(fold.length ? [] : g.loose)].sort(byDate);
   return (
     <ListGroup title={title} action={<span className="plan-total">{m.fmt(g.total)} {m.u}</span>}>
       {g.plans.map((p) => <PlanRow key={p.line.id} p={p} />)}
-      {g.recs.map((s) => <RecRow key={s.r.id} s={s} />)}
-      <LooseRows g={g} />
+      {moves.length > 0 && <div className="plan-moves">{moves.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>}
+      {fold.length > 0 && <LooseFold g={g} txs={fold} />}
     </ListGroup>
   );
 }

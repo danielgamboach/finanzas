@@ -1196,5 +1196,6 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 /* Presupuesto (PRM): movements without a plan unfold under their group */
 .plan-chev { display: inline-flex; transition: transform 160ms ease; }
 .plan-chev.is-open { transform: rotate(180deg); }
-.plan-loose { border-top: 1px solid var(--border); padding: 4px 0; }
+.plan-moves { padding: 4px 0; }
+.plan-moves + .plan-moves, .ds-row + .plan-moves { border-top: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .plan-chev { transition: none; } }

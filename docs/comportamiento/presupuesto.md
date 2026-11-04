@@ -21,9 +21,9 @@ Entra                                     1.150.000
   CNFL                 Vence el 23 nov     ≈ 28.000
 
 🎬 Salidas                                   22.100
-  Netflix              Vence el 13 nov        7.900
-  Spotify              Pagado el 4 nov        5.900
-  ⌄ 1 gasto sin planear                       8.300
+  Netflix              Vence el 13 nov        7.900   (planeado, atenuado)
+  Spotify              Ayer · Salidas         5.900
+  Café Britt           Ayer · Salidas         8.300
 
 Apartar                                   2.000 USD
   Ahorros              Se mueve el 30 nov
@@ -41,7 +41,7 @@ Presupuesto (`#/categorias`) muestra el mes actual:
 
 1. Arriba, "Libre en noviembre" (PRM-05) con "Entra … · sale … · apartás …" debajo.
 2. **Entra**: los ingresos del mes y lo que llega de otro espacio (un Mover dinero hacia este espacio), reales y planeados.
-3. Un grupo por **categoría principal**, con su total a la derecha, ordenados de mayor a menor. Adentro: los planeados abiertos (PRM-04), los pagos que se repiten (PRM-02) y, plegados en una fila, los gastos reales que ningún plan cubre ("3 gastos sin planear"; se despliegan con un toque).
+3. Un grupo por **categoría principal**, con su total a la derecha, ordenados de mayor a menor. Adentro: los planeados abiertos (PRM-04) y después los movimientos del grupo por fecha: los pagos de los recurrentes, reales y planeados (PRM-02), y los gastos reales que ningún plan cubre. Si estos últimos son más de 3, van plegados en una fila ("8 gastos sin planear") que se despliega con un toque.
 4. **Apartar**: lo que se mueve a una cuenta de ahorro, inversión o CDP, o a otro espacio.
 5. "Planear algo más" al final (y el + de la cabecera).
 
@@ -74,7 +74,14 @@ Cada recurrente que cae en el mes es un movimiento planeado. Cuando se paga (con
 
 Ingreso: "Llega el 30 nov" / "Llegó el 30 nov". Ahorro: "Se mueve el 30 nov" / "Movido".
 
-Tocar la fila abre el recurrente.
+Un pago planeado **es un movimiento**: misma fila que cualquier movimiento (logo del comercio o emoji de la categoría, nombre, categoría, monto), con "Vence el 13 nov" en lugar del día y el monto atenuado. Cada pago del mes es su propia fila (un semanal tiene cuatro), ordenadas por fecha junto a los reales del grupo.
+
+Tocarlo abre el mismo detalle de un movimiento, con la etiqueta "Planeado", "Vence vie 13 nov 2026", la cuenta, la frecuencia y "Más de Netflix" abajo. Arriba, en lugar de Editar:
+
+- **Pagué** (Cobré, Lo moví): la hoja de pagar (cuenta, monto, fecha, Posponer, Ignorar, Dejar de repetir). Al pagar, el detalle pasa a ser el del movimiento real.
+- **Editar**: abre el recurrente.
+
+Un pago planeado no existe en la base: se arma desde su recurrente (`plannedTx`, id `plan_<recurrente>_<fecha>`).
 
 ### PRM-03 · Planear
 

@@ -37,6 +37,25 @@ export const toCrc = (amount: number, currency: Currency, fx: number) => (curren
 
 const dayKey = (iso: string) => crLocal(iso).toISOString().slice(0, 10);
 
+/** A payment still due, as a movement (PRM-02): same face, name and amount as the real one will have. Id: plan_<recurrent>_<date>. */
+export function plannedTx(r: Recurring, date: string, fx: number): Tx {
+  const each = toCrc(r.amount, r.currency, fx);
+  const accRate = r.currency === 'USD' ? fx : 1;
+  return {
+    id: `plan_${r.id}_${date}`, space_id: r.space_id, kind: r.kind === 'contribution' ? 'transfer' : r.kind,
+    amount: Number(r.amount), currency: r.currency, fx_rate: accRate, amount_crc: each,
+    occurred_at: `${date}T18:00:00.000Z`, // noon in Costa Rica
+    merchant: r.merchant, raw_merchant: null, note: null, category_id: r.category_id, account_id: r.account_id, to_account_id: r.to_account_id || null,
+    contributor_id: null, recurring_id: r.id, status: 'posted', source: 'recurring', external_id: null, planned: true,
+  };
+}
+
+export const isPlannedId = (id: string) => id.startsWith('plan_');
+export const parsePlannedId = (id: string) => {
+  const m = id.match(/^plan_(.+)_(\d{4}-\d{2}-\d{2})$/);
+  return m ? { recurringId: m[1], date: m[2] } : null;
+};
+
 /** One recurrent this month: what was paid (its linked movements) and the payments still due. */
 export interface RecMonth {
   r: Recurring;
@@ -49,6 +68,8 @@ export interface RecMonth {
   each: number;
   /** paid + what's still due. */
   total: number;
+  /** The payments still due, as movements. */
+  planned: Tx[];
 }
 
 /** An open plan: an amount for a category that this month's spending eats up (PRM-04). */
@@ -105,10 +126,13 @@ export interface Budget {
 function dueDates(r: Recurring, from: string, to: string) {
   const out: string[] = [];
   if (!r.active) return out;
-  let d = r.snooze_until && r.snooze_until > r.next_due ? r.snooze_until : r.next_due;
-  if (d < from) out.push(d); // overdue from before the month: counts once
-  for (let i = 0; i < 80 && d < to; i++) {
-    if (d >= from) out.push(d);
+  // the next payment can be postponed (only that one); the ones after keep their dates
+  const first = r.snooze_until && r.snooze_until > r.next_due ? r.snooze_until : r.next_due;
+  let d = r.next_due;
+  for (let i = 0; i < 80; i++) {
+    const at = i === 0 ? first : d;
+    if (at >= to) break;
+    if (at >= from || i === 0) out.push(at); // an overdue one from before the month counts once
     const n = addPeriod(d, r.frequency, r.every_n, r.every_unit);
     if (n <= d) break;
     d = n;
@@ -185,7 +209,7 @@ export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Re
     txs.forEach((x) => used.add(x.id));
     const paid = txs.reduce((a, x) => a + txValue(x, s), 0);
     const each = toCrc(r.amount, r.currency, fx);
-    groupOf(s, r.category_id).recs.push({ r, txs, paid, due, each, total: paid + each * due.length });
+    groupOf(s, r.category_id).recs.push({ r, txs, paid, due, each, total: paid + each * due.length, planned: due.map((d) => plannedTx(r, d, fx)) });
   }
 
   // 2. open plans (PRM-04): one category (and its subcategories); movements of a recurrent don't count, it has its own row

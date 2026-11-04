@@ -112,6 +112,8 @@ export interface Tx {
   /** A card purchase in N monthly installments (TAR-11): spent today, charged to the card one part per month. */
   installments?: number | null;
   transaction_tags?: { tags: { name: string } | null }[];
+  /** A movement that hasn't happened yet: a recurrent's payment still due this month (PRM-02). Not in the database. */
+  planned?: boolean;
 }
 
 export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'yearly' | 'custom';

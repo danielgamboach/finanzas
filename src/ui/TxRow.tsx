@@ -7,6 +7,7 @@ import { Emo } from '.';
 import { Checkbox, TxRow as TxRowView, type TxAmountTone } from '../ds';
 import { CatPick } from './CatPick';
 import { isIncoming, transferLabel } from '../lib/transfers';
+import { daysUntil, shortDay } from '../lib/recurring';
 
 /** The account whose movements are listed (its own view): money moved out of it reads as −, into it as + (MOV-03). */
 export const TxAccountScope = createContext<string | null>(null);
@@ -35,8 +36,9 @@ export const canCategorize = (t: Tx) => t.kind === 'expense' || t.kind === 'inco
 
 export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: boolean; pick?: Pick; /** sheet: the smaller rows of the home sheet (default when showDate). */ size?: 'sheet' | 'list' }) {
   const { categories, accounts, cur, fx, profiles, merchants, space } = useApp();
+  const scope = useContext(TxAccountScope);
   const cat = categories.find((c) => c.id === t.category_id);
-  const review = t.kind !== 'transfer' && (t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income')));
+  const review = !t.planned && t.kind !== 'transfer' && (t.status === 'review' || (!cat && (t.kind === 'expense' || t.kind === 'income')));
   const emoji = cat?.emoji || KIND_EMOJI[t.kind] || '❓';
   const color = review ? 'butter' : cat?.color || 'gray';
   // a transfer that came in from someone's personal space counts as money in here
@@ -49,7 +51,9 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
   if (t.hold === 'void') what = 'No se cobró';
   if (t.auto_flag === 'no_voucher') what = `${what} · Sin voucher`;
   if (t.installments) what = `${what} · ${t.installments} cuotas`;
-  const way = transferWay(t, useContext(TxAccountScope));
+  // a payment still due this month (PRM-02): looks like the movement it will be, quieter, with its date
+  if (t.planned) return <PlannedRow t={t} face={{ emoji, color: cat?.color || 'gray', img: txPhoto(merchants, t), badge: txBadge(merchants, t) }} name={name} what={what} context={size ?? (showDate ? 'sheet' : 'list')} />;
+  const way = transferWay(t, scope);
   const inflow = t.kind === 'income' || t.kind === 'refund' || incoming || way === 'in';
   const neutral = t.kind === 'transfer' && !incoming && !way;
   const main = amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : way === 'out' ? '−' : '' });
@@ -78,6 +82,29 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
   }
   const detail = showDate ? [relDay(t.occurred_at), what].filter(Boolean).join(' · ') : what;
   return <TxRowView context={context} face={face} name={name} detail={detail || undefined} detailTone={review || t.hold || t.auto_flag ? 'warning' : 'default'} amount={main} unit={unit} amountTone={amountTone} onClick={() => go(`/mov/${t.id}`)} />;
+}
+
+function PlannedRow({ t, face, name, what, context }: { t: Tx; face: { emoji: string; color: string; img: string | null; badge: string | null }; name: string; what: string; context: 'sheet' | 'list' }) {
+  const { cur, fx } = useApp();
+  const day = t.occurred_at.slice(0, 10);
+  const late = daysUntil(day) < 0;
+  const verb = t.kind === 'income' ? 'Llega' : t.kind === 'transfer' ? 'Se mueve' : 'Vence';
+  const when = late ? `Venció el ${shortDay(day)}` : `${verb} el ${shortDay(day)}`;
+  const inflow = t.kind === 'income';
+  return (
+    <TxRowView
+      context={context}
+      className="tx-planned"
+      face={face}
+      name={name}
+      detail={[when, what].filter(Boolean).join(' · ')}
+      detailTone={late ? 'warning' : 'default'}
+      amount={amount(Number(t.amount_crc), cur, fx, { sign: inflow ? '+' : '' })}
+      unit={unitOf(cur)}
+      amountTone="muted"
+      onClick={() => go(`/mov/${t.id}`)}
+    />
+  );
 }
 
 function amtTone(t: Tx, inflow: boolean, neutral: boolean): TxAmountTone {
