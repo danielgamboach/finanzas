@@ -285,7 +285,8 @@ function OpenPlanEdit({ id }: { id: string }) {
       else lineId = (await db.insert<Line>('envelopes', { ...row, space_id: space.id, sort: lines.length + 1 }))[0].id;
       const before = data!.links.filter((l) => l.envelope_id === lineId).map((l) => l.category_id);
       for (const c of before) if (c !== cat.id) await db.remove('envelope_categories', { category_id: c });
-      if (!before.includes(cat.id)) await db.insert('envelope_categories', [{ category_id: cat.id, envelope_id: lineId }]);
+      // a category is in one plan only; a plan removed earlier can still hold it, so this takes it over
+      if (!before.includes(cat.id)) await db.upsert('envelope_categories', { category_id: cat.id, envelope_id: lineId }, 'category_id');
       toast(isNew ? `${cat.name} planeado` : `${cat.name} guardado`);
       bump();
       history.back();
