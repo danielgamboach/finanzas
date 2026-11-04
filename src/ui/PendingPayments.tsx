@@ -36,7 +36,8 @@ function ManualPayments(_: { variant: 'sheet' | 'card' }) {
   const [undo, setUndo] = useState<Record<string, { before: Recurring; txId: string }>>({});
 
   const pending = items.filter((r) => needsConfirm(r, accounts)).sort((a, b) => dueDay(a).localeCompare(dueDay(b)));
-  const done = items.filter((r) => justPaid(r, accounts) && isManual(r));
+  // a payment confirmed here stays one moment, only to undo it; already paid ones don't show (REC-06)
+  const done = items.filter((r) => undo[r.id] && justPaid(r, accounts) && isManual(r));
   // automatic charges of today: only said, they register on their own (REC-08)
   const auto = items.filter(chargesToday);
   // credit cards whose statement is due within three days (or overdue) and isn't covered yet (TAR-04)
