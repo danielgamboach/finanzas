@@ -41,7 +41,7 @@ Presupuesto (`#/categorias`) muestra el mes actual:
 
 1. Arriba, "Libre en noviembre" (PRM-05) con "Entra … · sale … · apartás …" debajo.
 2. Una tarjeta por grupo, **plegada**: **Entra** (ingresos y lo que llega de otro espacio), una por **categoría principal** ordenadas de mayor a menor, y **Apartar** (lo que se mueve a ahorro, inversión, CDP u otro espacio).
-3. "Planear algo más" al final (y el + de la cabecera).
+3. Al final, "Planear un movimiento" (igual que el + de la cabecera, PRM-03) y "Poner un límite" (PRM-04).
 
 Cada tarjeta plegada muestra la cara de la categoría, su nombre, el monto del mes (real más lo planeado que falta) y una flecha hacia abajo. Debajo del nombre, lo más importante:
 
@@ -96,16 +96,23 @@ Un pago planeado no existe en la base: se arma desde su recurrente (`plannedTx`,
 
 **Estado:** Hecho
 
-"Planear" ofrece cuatro cosas:
+Un movimiento planeado se crea **con el mismo formulario de cualquier movimiento** (gasto, ingreso o mover dinero). El + de Presupuesto y "Planear un movimiento" lo abren con **Recurrente** ya prendido; desde Inicio se llega igual prendiendo Recurrente.
 
-| Opción | Crea |
-|---|---|
-| Gasto variable | Un planeado abierto (PRM-04) |
-| Pago que se repite | Un recurrente de gasto |
-| Ingreso | Un recurrente de ingreso, pago manual, nombre "Salario" para empezar |
-| Ahorro | Un recurrente de Mover dinero, pago manual |
+Con Recurrente prendido, el formulario pide cada cuánto, la **primera vez** (una fecha) y si es pago manual o cargo automático:
 
-Un movimiento con fecha futura (escrito en el formulario de siempre) también aparece en su grupo como algo que viene.
+| Primera vez | Qué pasa | Botón |
+|---|---|---|
+| Hoy o antes | Se registra el movimiento ese día y se repite desde ahí | Guardar gasto |
+| Un día que viene | No se registra nada todavía: queda planeado desde ese día (sale en Presupuesto y en Pagos pendientes cuando toca, y ahí se marca como pagado) | Planear |
+
+- **Dado** que el salario llega el 30 de cada mes
+- **Cuando** abro +, elijo Ingreso, ¢1.100.000, "Salario", y pongo la primera vez el 30 nov
+- **Entonces** el botón dice "Planear" y al guardarlo Entra muestra "Salario · Llega el 30 nov"
+- **Y** no aparece ningún ingreso real hasta que marque Cobré
+
+Un movimiento con fecha futura sin Recurrente se guarda como siempre y aparece en su grupo como algo que viene.
+
+Los **límites** (PRM-04) no son movimientos: se ponen desde "Poner un límite" al final de Presupuesto o desde "Poner límite" dentro de la tarjeta de una categoría.
 
 ### PRM-04 · Planeado abierto
 
@@ -128,6 +135,7 @@ Para gastos que no son un pago fijo (súper, restaurantes, gasolina): un monto a
 
 - Una categoría solo puede estar en un planeado abierto.
 - Los gastos ligados a un recurrente no lo usan: tienen su fila (PRM-02).
+- Se crean desde "Poner un límite" (al final) o "Poner límite" dentro de la tarjeta de la categoría, que ya trae la categoría elegida; se editan desde la fila "Límite de …" de la tarjeta.
 - Al elegir la categoría, sugiere el promedio de los últimos 3 meses completos (sin recurrentes), con "Usar".
 - Su detalle (`#/partida/<id>`) muestra lo que queda, los días, el ritmo por día y los gastos del mes.
 - Los avisos de "límites" (Ajustes → Notificaciones) llegan al 80% y al pasarse.

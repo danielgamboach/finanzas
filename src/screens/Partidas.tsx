@@ -6,7 +6,7 @@ import { buildBudget, categoryAverage, toCrc, useBudgetData, type Line, type Pla
 import { pickerOrder } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Currency, Tx } from '../lib/types';
-import { navigateBack, useApp, useTxs } from '../store';
+import { go, navigateBack, useApp, useTxs } from '../store';
 import { Emo, Icon } from '../ui';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { TxRow } from '../ui/TxRow';
@@ -98,6 +98,9 @@ function Group({ g }: { g: PlanGroup }) {
               detail={!p.cats[0] ? 'Elegí la categoría' : p.left < 0 ? `Te pasaste por ${m.fmt(-p.left)}` : `Quedan ${m.fmt(p.left)} de ${m.fmt(p.amount)}`}
               href={p.cats[0] ? `#/partida/${p.line.id}` : `#/partida/${p.line.id}/editar`} chevron />
           ))}
+          {g.section === 'out' && g.category && g.plans.length === 0 && (
+            <ListRow quiet leading={<ListRow.Icon name="envelope" />} title="Poner límite" detail={`Cuánto querés gastar en ${g.title} al mes`} href={`#/partida/nueva?cat=${g.category.id}`} chevron />
+          )}
           {moves.length > 0 ? (
             <div className="plan-moves">{moves.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
           ) : (
@@ -147,7 +150,7 @@ export function Presupuesto() {
   const body = b && (
     <>
       {empty && (
-        <EmptyState icon={<Icon name="list" size={24} />} title={`Planeá ${month}`} action={<Button variant="primary" size="sm" onClick={() => (location.hash = '#/partida/nueva')}>Planear</Button>}>
+        <EmptyState icon={<Icon name="list" size={24} />} title={`Planeá ${month}`} action={<Button variant="primary" size="sm" onClick={() => go('/agregar?planear=1')}>Planear</Button>}>
           Lo que entra, lo que pagás cada mes y cuánto querés gastar en súper o restaurantes.
         </EmptyState>
       )}
@@ -156,7 +159,8 @@ export function Presupuesto() {
       {(b.save.recs.length > 0 || b.save.loose.length > 0) && <Group g={b.save} />}
       {!empty && (
         <ListGroup>
-          <ListRow leading={<ListRow.Icon name="plus" />} title="Planear algo más" href="#/partida/nueva" quiet />
+          <ListRow leading={<ListRow.Icon name="plus" />} title="Planear un movimiento" onClick={() => go('/agregar?planear=1')} quiet />
+          <ListRow leading={<ListRow.Icon name="envelope" />} title="Poner un límite" href="#/partida/nueva" quiet />
         </ListGroup>
       )}
     </>
@@ -173,7 +177,7 @@ export function Presupuesto() {
   }
   return (
     <div className="page">
-      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = '#/partida/nueva')} aria-label="Planear"><Icon name="plus" size={14} /></Button>} />
+      <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go('/agregar?planear=1')} aria-label="Planear un movimiento"><Icon name="plus" size={14} /></Button>} />
       <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : <>{summary}{rings}</>}</div>
       <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : body}</div>
     </div>
@@ -224,26 +228,8 @@ export function LineView({ id }: { id: string }) {
   );
 }
 
-/** What to plan (#/partida/nueva): a variable expense opens the plan editor; the rest are recurrents (PRM-03). */
-function PlanChooser() {
-  return (
-    <div className="page no-nav">
-      <PageHeader title="Planear" onBack={navigateBack} />
-      <div className="page-body">
-        <ListGroup>
-          <ListRow leading={<Emo icon="envelope" size={40} />} title="Gasto variable" detail="Súper, restaurantes, gasolina" href="#/partida/nueva/abierto" chevron />
-          <ListRow leading={<Emo icon="calendar" size={40} />} title="Pago que se repite" detail="Alquiler, luz, suscripciones" href="#/recurrente/nueva" chevron />
-          <ListRow leading={<Emo icon="arrowDownLeft" size={40} />} title="Ingreso" detail="Salario, lo que te depositan cada mes" href="#/recurrente/nueva/ingreso" chevron />
-          <ListRow leading={<Emo icon="piggy" color="mint" size={40} />} title="Ahorro" detail="Plata que movés a otra cuenta cada mes" href="#/recurrente/nueva/ahorro" chevron />
-        </ListGroup>
-      </div>
-    </div>
-  );
-}
-
-/** Add or edit an open plan (#/partida/nueva/abierto, #/partida/<id>/editar): a category and an amount for the month (PRM-04). */
-export function LineEdit({ id, sub }: { id: string; sub?: string }) {
-  if (id === 'nueva' && sub !== 'abierto') return <PlanChooser />;
+/** Add or edit an open plan (#/partida/nueva?cat=<categoría>, #/partida/<id>/editar): a category and an amount for the month (PRM-04). */
+export function LineEdit({ id }: { id: string; sub?: string }) {
   return <OpenPlanEdit id={id} />;
 }
 
@@ -257,11 +243,11 @@ function OpenPlanEdit({ id }: { id: string }) {
   const existing = data?.lines.find((l) => l.id === id) || null;
   const [form, setForm] = useState<null | { catId: string; amt: string; currency: Currency }>(null);
   const [busy, setBusy] = useState(false);
-  if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Gasto variable' : 'Editar plan'} />;
+  if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Nuevo límite' : 'Editar límite'} />;
 
   const lines = data.lines.filter((l) => l.active && !l.is_rest && l.kind === 'cap');
   const f = form || {
-    catId: data.links.find((l) => l.envelope_id === existing?.id)?.category_id || '',
+    catId: data.links.find((l) => l.envelope_id === existing?.id)?.category_id || new URLSearchParams(location.hash.split('?')[1] || '').get('cat') || '',
     amt: existing?.amount ? typed(Number(existing.amount)) : '',
     currency: existing?.currency || cur,
   };
@@ -311,7 +297,7 @@ function OpenPlanEdit({ id }: { id: string }) {
 
   return (
     <div className="page no-nav">
-      <PageHeader title={isNew ? 'Gasto variable' : 'Editar plan'} onBack={navigateBack} />
+      <PageHeader title={isNew ? 'Nuevo límite' : 'Editar límite'} onBack={navigateBack} />
       <div className="page-body">
         <p className="page-text">Cuánto querés gastar al mes en una categoría. Cada gasto de esa categoría lo va usando, y se repite cada mes.</p>
         <div className="field-card">

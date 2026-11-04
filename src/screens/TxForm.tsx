@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionBar, AmountInput, Avatar, Bone, Button, FormSkeleton, Loader, Menu, MenuItem, SelectPill, Switch } from '../ds';
 import { db } from '../lib/api';
 import { catLabel, pickerOrder } from '../lib/cats';
-import { addPeriod, FREQ_LABEL, patternFrom } from '../lib/recurring';
+import { addPeriod, FREQ_LABEL, patternFrom, shortDay } from '../lib/recurring';
+
+/** Today in Costa Rica, as 2026-11-04. */
+const todayIso = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 import { canPay, canReceiveIncome, canSendMoney } from '../lib/transfers';
 import { useDesktop } from '../lib/useDesktop';
 import { MerchantPhotoField } from '../ui/Merchant';
@@ -71,6 +74,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [askMissing, setAskMissing] = useState(false);
   // the catalog merchant picked from the suggestions (for its logo); typing again forgets it
   const [pickedId, setPickedId] = useState<string | null>(null);
+  // from Presupuesto → Planear: the same form, already repeating (PRM-03)
+  const planning = params.get('planear') === '1';
   const [more, setMore] = useState(false);
   const [spaceMenu, setSpaceMenu] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -80,7 +85,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   const [note, setNote] = useState('');
   // a card purchase in installments (TAR-11): null = paid at once
   const [installments, setInstallments] = useState<number | null>(null);
-  const [repeat, setRepeat] = useState(false);
+  const [repeat, setRepeat] = useState(planning);
   const [freq, setFreq] = useState<Frequency>('monthly');
   const [everyN, setEveryN] = useState(10);
   const [everyUnit, setEveryUnit] = useState<EveryUnit>('day');
@@ -97,6 +102,8 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   // on the phone the bottom button follows the keyboard: amount → add the merchant, any other field → close the
   // keyboard, nothing focused → save
   const phone = !useDesktop();
+  // repeating and starting on a later day: it's a plan, not something that already happened
+  const repeatFuture = !id && repeat && when.slice(0, 10) > todayIso();
   // amount and merchant are the top of the form; while one of them has the keyboard, the rest steps aside
   const [field, setField] = useState<'amount' | 'merchant' | 'text' | null>(null);
   const onFocusIn = (e: React.FocusEvent) => {
@@ -237,6 +244,34 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         if (categoryId) row.suggested_category_id = null;
       }
       let txId = id;
+      const firstDay = new Date(new Date(occurred_at).getTime() - 6 * 3600000).toISOString().slice(0, 10);
+      if (!id && repeat && firstDay > todayIso()) {
+        // a repeating movement that starts later hasn't happened yet: only its recurrent, planned from that day (PRM-03)
+        const acc = accs.find((a) => a.id === accountId);
+        const custom = freq === 'custom';
+        await db.insert('recurring', {
+          space_id: spaceId,
+          kind: row.kind === 'refund' ? 'expense' : row.kind,
+          amount: row.amount,
+          currency: cur,
+          category_id: row.category_id,
+          account_id: accountId,
+          to_account_id: row.to_account_id,
+          merchant: row.merchant || (type === 'transferir' ? 'Mover dinero' : 'Recurrente'),
+          frequency: freq,
+          every_n: custom ? everyN : null,
+          every_unit: custom ? everyUnit : null,
+          next_due: firstDay,
+          auto: autoCharge,
+          method: autoCharge && (acc?.kind === 'credit_card' || acc?.kind === 'debit' || acc?.kind === 'savings') ? 'card' : acc?.kind === 'cash' ? 'cash' : 'transfer',
+          match_pattern: patternFrom(row.merchant as string | null) || null,
+        });
+        toast(`Planeado para el ${shortDay(firstDay)}`);
+        bump();
+        await app.reloadMeta();
+        closeModal();
+        return;
+      }
       if (id) {
         await db.update('transactions', { id }, row);
       } else {
@@ -584,6 +619,10 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                     </label>
                   )}
                   <label className="field-row">
+                    <span>Primera vez</span>
+                    <input type="date" value={when.slice(0, 10)} onChange={(e) => e.target.value && setWhen(`${e.target.value}T${when.slice(11) || '12:00'}`)} aria-label="Primera vez" />
+                  </label>
+                  <label className="field-row">
                     <span>Cómo se paga</span>
                     <select value={autoCharge ? 'auto' : 'manual'} onChange={(e) => setAutoCharge(e.target.value === 'auto')}>
                       <option value="manual">Pago manual</option>
@@ -591,6 +630,9 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                     </select>
                   </label>
                 </div>
+              )}
+              {!id && repeat && (
+                <span className="hint">{repeatFuture ? 'Queda planeado: aparece en Presupuesto y en Pagos pendientes cuando toca, y ahí lo marcás como pagado.' : 'Se registra hoy y se repite desde ahí.'}</span>
               )}
               {type === 'transferir' && <span className="hint">Mover no cuenta como gasto ni ingreso, pero sí cambia el saldo de las dos cuentas.</span>}
 
@@ -654,7 +696,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
             <Button variant="primary" size="xl" block onPointerDown={keep} onMouseDown={keep} onClick={doneTyping}>Continuar</Button>
           ) : (
             <Button variant="primary" size="xl" block aria-disabled={!canSave} disabled={busy} onClick={() => (canSave ? save() : flagMissing())}>
-              {busy ? 'Guardando…' : id ? 'Guardar cambios' : meta.save}
+              {busy ? 'Guardando…' : id ? 'Guardar cambios' : repeatFuture ? 'Planear' : meta.save}
             </Button>
           )}
         </ActionBar>
