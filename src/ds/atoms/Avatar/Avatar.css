@@ -2,7 +2,9 @@
 .ds-avatar--r-lg { border-radius: var(--radius-lg); }
 .ds-avatar--r-xl { border-radius: var(--radius-xl); }
 .ds-avatar--r-2xl { border-radius: var(--radius-2xl); }
-.ds-avatar--photo { background: var(--color-white); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-black) 10%, transparent); }
+.ds-avatar--photo { position: relative; background: var(--color-white); }
+/* a 1px line of the surface's color inside the edge hides the light fringe the photo leaves on the rounded corners */
+.ds-avatar--photo::after, .ds-avatar-badge::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--badge-ring, var(--background)); pointer-events: none; }
 .ds-avatar--photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ds-avatar--initial { background: var(--muted); color: var(--foreground); font-weight: var(--font-weight-semibold); }
 .ds-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
