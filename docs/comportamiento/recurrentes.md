@@ -89,7 +89,7 @@ Están en la misma hoja de Pagar. Posponer solo mueve este pago: los siguientes 
 
 **Estado:** Hecho
 
-El día del cargo, Inicio avisa "Hoy se cobra Netflix, 7,99 USD".
+El día del cargo, Inicio avisa "Hoy se cobra Netflix, 7,99 USD". En cuanto se registra (con el voucher o solo), sale de Pagos pendientes.
 
 - **Sin vouchers** en la cuenta del recurrente: el app crea el gasto solo ese día, en esa cuenta, y la persona no tiene que hacer nada.
 - **Con vouchers**: el app espera el voucher del banco; cuando llega, se liga al recurrente y el aviso desaparece.

@@ -118,9 +118,9 @@ export const dueDay = (r: Pick<Recurring, 'next_due' | 'snooze_until'>) =>
 export const needsConfirm = (r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[]) =>
   r.active && isManual(r, accounts) && daysUntil(dueDay(r)) <= 1;
 
-/** An automatic charge for today (or still waiting for the bank's voucher): Inicio only says it (REC-08). */
+/** An automatic charge for today (or still waiting for the bank's voucher): Inicio only says it (REC-08). Once it's registered it leaves. */
 export const chargesToday = (r: Recurring) =>
-  r.active && !isManual(r) && ((daysUntil(dueDay(r)) <= 0 && daysUntil(r.next_due) >= -1) || (!!r.last_paid_on && daysUntil(r.last_paid_on) === 0));
+  r.active && !isManual(r) && daysUntil(dueDay(r)) <= 0 && daysUntil(r.next_due) >= -1;
 
 /** A manual payment confirmed in the last few days: shown as completed for a little while. */
 export function justPaid(r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[], days = 3) {

@@ -123,12 +123,11 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
   );
 }
 
-/** An automatic charge of today: "Hoy se cobra", or "Se registró hoy" once it's in. */
+/** An automatic charge of today: "Hoy se cobra" (or waiting for the voucher). Once registered it leaves the list. */
 function AutoRow({ r }: { r: Recurring }) {
   const { categories, merchants, cur, fx } = useApp();
   const photo = namePhoto(merchants, r.merchant, r.match_pattern);
-  const registered = !!r.last_paid_on && daysUntil(r.last_paid_on) === 0 && daysUntil(r.next_due) > 0;
-  const when = registered ? 'Se registró hoy' : daysUntil(r.next_due) < 0 ? 'No llegó el voucher: se registra con el monto esperado' : r.kind === 'income' ? 'Hoy entra' : 'Hoy se cobra';
+  const when = daysUntil(r.next_due) < 0 ? 'No llegó el voucher: se registra con el monto esperado' : r.kind === 'income' ? 'Hoy entra' : 'Hoy se cobra';
   return (
     <PendingPaymentRow
       state="info"
