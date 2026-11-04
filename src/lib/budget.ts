@@ -203,9 +203,19 @@ export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Re
   for (const r of o.recurring) {
     const s = recSection(r, spaceId, accounts);
     if (!s) continue;
-    const txs = monthTxs.filter((x) => x.recurring_id === r.id && txSection(x, spaceId, accounts) === s);
+    const all = monthTxs.filter((x) => x.recurring_id === r.id && txSection(x, spaceId, accounts) === s);
+    // a payment moved to another category goes with that category, not with its recurrent's (PRM-02)
+    const home = s === 'out' ? outGroup(r.category_id) : groupOf(s, r.category_id);
+    const txs = s === 'out' ? all.filter((x) => outGroup(x.category_id) === home) : all;
+    for (const x of all) {
+      if (txs.includes(x)) continue;
+      used.add(x.id);
+      const g = outGroup(x.category_id);
+      g.loose.push(x);
+      g.looseAmt += txValue(x, s);
+    }
     const due = dueDates(r, from, to);
-    if (!txs.length && !due.length) continue;
+    if (!txs.length && !due.length) continue; // nothing left of it here (none due, its payments went elsewhere)
     txs.forEach((x) => used.add(x.id));
     const paid = txs.reduce((a, x) => a + txValue(x, s), 0);
     const each = toCrc(r.amount, r.currency, fx);

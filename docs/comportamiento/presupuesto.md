@@ -90,6 +90,8 @@ Tocarlo abre el mismo detalle de un movimiento, con la etiqueta "Planeado", "Ven
 - **Pagué** (Cobré, Lo moví): la hoja de pagar (cuenta, monto, fecha, Posponer, Ignorar, Dejar de repetir). Al pagar, el detalle pasa a ser el del movimiento real.
 - **Editar**: abre el recurrente.
 
+Un pago real va en la categoría que tiene él, no en la de su recurrente: si se cambia la categoría de un pago, en Presupuesto se mueve a la nueva. Y al cambiarla desde Editar movimiento, el recurrente se va con él: los pagos que vienen también quedan en la categoría nueva.
+
 Un pago planeado no existe en la base: se arma desde su recurrente (`plannedTx`, id `plan_<recurrente>_<fecha>`).
 
 ### PRM-03 · Planear

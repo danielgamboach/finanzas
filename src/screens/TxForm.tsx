@@ -279,6 +279,10 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
       }
       if (id) {
         await db.update('transactions', { id }, row);
+        // a payment of a recurrent moved to another category takes its recurrent along: the next ones go there too
+        if (orig?.recurring_id && isSpend && categoryId && categoryId !== orig.category_id) {
+          await db.update('recurring', { id: orig.recurring_id }, { category_id: categoryId });
+        }
       } else {
         const [created] = await db.insert<Tx>('transactions', { ...row, source: 'manual', created_by: userId });
         txId = created.id;
