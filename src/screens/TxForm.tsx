@@ -235,7 +235,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
         occurred_at,
         merchant: merchant.trim() || (type === 'transferir' ? null : selectedCat?.name || null),
         note: cleanNote,
-        category_id: isSpend ? categoryId : null,
+        category_id: isSpend || type === 'transferir' ? categoryId : null,
         account_id: accountId,
         to_account_id: type === 'transferir' ? toAccountId : null,
         installments: onCard && type === 'gasto' && installments ? installments : null,
@@ -462,7 +462,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
   // the faces after the merchant: its logo and its category's emoji, tilted against each other
   const pickedMerchant = pickedId ? app.merchants.find((m) => m.id === pickedId) : null;
   const logo = isSpend && merchant.trim() ? (pickedMerchant ? photoUrl(pickedMerchant) : namePhoto(app.merchants, merchant)) : null;
-  const faceCat = isSpend ? selectedCat : null;
+  const faceCat = isSpend || type === 'transferir' ? selectedCat : null;
   const faces = merchant.trim() && (logo || faceCat) ? (
     <span className="txf-faces" aria-hidden="true">
       {logo && <Avatar img={logo} size={40} className="txf-face txf-face--logo" />}
@@ -562,12 +562,12 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
 
         {!typing && (
           <div className="txf-rest">
-            {isSpend && (
+            {(isSpend || type === 'transferir') && (
               <div className="txf-cat">
                 <span className="txf-conn">Categoría</span>
                 <SelectPill
                   emoji={selectedCat?.emoji}
-                  label={selectedCat ? selectedCat.name : 'Elegir'}
+                  label={selectedCat ? selectedCat.name : isSpend ? 'Elegir' : 'Ninguna'}
                   value={categoryId || ''}
                   onChange={(v) => {
                     setCategoryId(v || null);
@@ -575,7 +575,7 @@ export function TxForm({ id, autoFocusAmount = !id }: { id?: string; autoFocusAm
                   }}
                   ariaLabel="Categoría"
                 >
-                  {!categoryId && <option value="" disabled>Elegir categoría</option>}
+                  {isSpend ? !categoryId && <option value="" disabled>Elegir categoría</option> : <option value="">Sin categoría</option>}
                   {visibleCats.map((c) => (
                     <option key={c.id} value={c.id}>{c.parent_id ? '   ' : ''}{c.emoji} {c.name}</option>
                   ))}

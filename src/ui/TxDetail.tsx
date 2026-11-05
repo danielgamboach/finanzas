@@ -200,8 +200,8 @@ function Body({ t, rec }: { t: Tx; rec?: Recurring | null }) {
         {t.installments && (
           <Row label="A cuotas">{t.installments} meses de {moneyRaw(installmentPart(Number(t.amount), t.installments, 0), t.currency)}</Row>
         )}
-        {t.kind === 'transfer' && <Row label="Categoría">{incoming ? 'Entró de otro espacio' : transferLabel(t, accounts)}</Row>}
-        {(t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund') && (
+        {t.kind === 'transfer' && !cat && <Row label="Categoría">{incoming ? 'Entró de otro espacio' : transferLabel(t, accounts)}</Row>}
+        {(t.kind === 'expense' || t.kind === 'income' || t.kind === 'refund' || (t.kind === 'transfer' && cat)) && (
           <Row label="Categoría">
             {cat ? (
               <a className="txd-link" href={`#/categoria/${cat.id}`}>

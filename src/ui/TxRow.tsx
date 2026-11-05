@@ -45,7 +45,7 @@ export function TxRow({ t, showDate = false, pick, size }: { t: Tx; showDate?: b
   const incoming = isIncoming(t, space?.id);
   const who = incoming ? profiles[t.contributor_id || t.created_by || '']?.name : null;
   const name = t.merchant || KIND_LABEL[t.kind] || 'Movimiento';
-  let what = review ? 'Por revisar' : t.kind === 'transfer' ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || '';
+  let what = review ? 'Por revisar' : t.kind === 'transfer' && !cat ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || '';
   if (what === name) what = KIND_LABEL[t.kind] || '';
   if (t.hold === 'pending') what = 'Por confirmar';
   if (t.hold === 'void') what = 'No se cobró';
@@ -150,7 +150,7 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
         {t.hold && <span className="tt-hold">{t.hold === 'pending' ? 'Por confirmar' : 'No se cobró'}</span>}
       </span>
       <span role="cell" className={review ? 'tt-cat' : 'tt-cat muted'}>
-        {review && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'transfer' ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || ''}
+        {review && !pick ? <CatPick t={t} /> : review ? <span className="tt-review">{reviewLabel(t, categories)}</span> : t.kind === 'transfer' && !cat ? (incoming ? `De ${who || 'otro espacio'}` : transferLabel(t, accounts)) : cat ? cat.name : KIND_LABEL[t.kind] || ''}
       </span>
       {!hideAccount && <span role="cell" className="tt-acc muted">{acc ? acc.name : ''}</span>}
       <span role="cell" className={amtClass('tt-amt', t, inflow, neutral)}>{main}<span className="tt-unit">{unitOf(cur)}</span></span>
