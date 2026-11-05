@@ -227,6 +227,19 @@ El menú ⋯ ofrece, según el caso: **Poner límite** (si no tiene), **Editar l
 
 Un movimiento real ligado a un recurrente lleva un check verde pequeño abajo a la derecha de su cara, igual que el logo de Apple en los cobros de Apple, en todas las listas y en el detalle. Si es un cobro de Apple, gana el logo de Apple. Los planeados no lo llevan.
 
+
+### PRM-11 · Aviso semanal de un límite
+
+**Estado:** Hecho
+
+En el editor del límite, "Avisarme por semana" (apagado por defecto). Cada semana le toca el límite entre 4,3, y lo que no se gastó pasa a la siguiente: hasta la semana k se puede llevar k × límite / 4,3 (nunca más que el límite). Las semanas son las del espacio ("La semana empieza el"); la del día 1 cuenta sola si tiene 4 días o más del mes, si no se junta con la siguiente. Si lo gastado del mes pasa lo que tocaba hasta esta semana, llega un aviso (uno por semana, `check_limit_alert`). La página de la categoría dice "Esta semana te quedan ¢X" o "Esta semana te pasaste por ¢X", con la semana y hasta cuánto tocaba. Los avisos de 80% y de pasarse del mes siguen igual.
+
+- **Dado** Bares con ¢52.000 al mes y el aviso semanal, semanas de viernes a jueves
+- **Cuando** en la semana 1 se gastan ¢15.000
+- **Entonces** llega "Te pasaste esta semana en Bares" (tocaban ¢12.093)
+- **Dado** en la semana 1 se gastaron ¢8.000
+- **Entonces** en la semana 2 tocan hasta ¢24.186 en total (sobraron ¢4.093 de la primera)
+
 ---
 
 ## Preguntas abiertas

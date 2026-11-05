@@ -1211,3 +1211,9 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .plan-hero .ds-balance, .plan-hero .ds-balance * { justify-content: center; text-align: center; }
 .plan-hero > :first-child { min-width: 0; }
 .plan-hero-ring .ds-ring__center { font-size: var(--text-5xl); }
+
+.plan-week { margin: -12px 0 0; font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--foreground); }
+.plan-week span { color: var(--muted-foreground); }
+.plan-week.is-over { color: var(--destructive); }
+.plan-week-row { padding-top: 12px; padding-bottom: 12px; }
+.plan-week-row small { color: var(--muted-foreground); font-weight: var(--font-weight-normal); }

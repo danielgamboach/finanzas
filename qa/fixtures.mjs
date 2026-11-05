@@ -130,7 +130,7 @@ export const tables = {
   envelopes: [
     { id: 'e-alq', space_id: SPACE, name: 'Alquiler de la casa', amount: 350000, currency: 'CRC', period: 'monthly', kind: 'fixed', recurring_id: 'r-alq', group_category_id: null, account_id: null, active: true, is_rest: false, sort: 1 },
     { id: 'e-subs', space_id: SPACE, name: 'Suscripciones', amount: 20000, currency: 'CRC', period: 'monthly', kind: 'fixed', recurring_id: null, group_category_id: 'c-ocio', account_id: null, amount_auto: true, active: true, is_rest: false, sort: 2 },
-    { id: 'e-super', space_id: SPACE, name: 'Súper', amount: 200000, currency: 'CRC', period: 'monthly', kind: 'cap', recurring_id: null, group_category_id: null, account_id: null, active: true, is_rest: false, sort: 3 },
+    { id: 'e-super', space_id: SPACE, name: 'Súper', amount: 200000, currency: 'CRC', period: 'monthly', kind: 'cap', recurring_id: null, group_category_id: null, account_id: null, active: true, is_rest: false, sort: 3, weekly_alert: true },
     { id: 'e-serv', space_id: SPACE, name: 'Servicios', amount: 80000, currency: 'CRC', period: 'monthly', kind: 'cap', recurring_id: null, group_category_id: null, account_id: null, active: true, is_rest: false, sort: 4 },
     { id: 'e-emerg', space_id: SPACE, name: 'Emergencias', amount: 100000, currency: 'CRC', period: 'monthly', kind: 'saving', recurring_id: null, group_category_id: null, account_id: null, active: true, is_rest: false, sort: 5 },
     { id: 'e-casa', space_id: SPACE, name: 'Casa propia', amount: 150000, currency: 'CRC', period: 'monthly', kind: 'saving', recurring_id: null, group_category_id: null, account_id: 'a-ahorro', active: true, is_rest: false, sort: 6 },

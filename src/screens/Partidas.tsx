@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ActionBar, BalanceSummary, Button, EmptyState, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, ProgressRing, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
+import { ActionBar, BalanceSummary, Button, EmptyState, Switch, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, ProgressRing, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
-import { buildBudget, categoryAverage, narrowGroup, toCrc, useBudgetData, type Line, type PlanGroup } from '../lib/budget';
+import { buildBudget, categoryAverage, narrowGroup, toCrc, useBudgetData, weekAllowance, type Line, type PlanGroup } from '../lib/budget';
 import { familyIds, pickerOrder, rootId } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Category, Currency, Tx } from '../lib/types';
@@ -132,6 +132,15 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
   const month = monthName(t.m);
   const daysLeft = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
   const pending = g.pending;
+  const { space } = useApp();
+  // PRM-11: with the weekly alert, what's left of this week's share (unspent weeks roll forward)
+  const weekly = g.plans.filter((p) => p.line.weekly_alert);
+  const week = weekly.length ? (() => {
+    const limit = weekly.reduce((a, p) => a + p.amount, 0);
+    const spent = weekly.reduce((a, p) => a + p.spent, 0);
+    const w = weekAllowance(limit, space?.week_start ?? 1);
+    return { ...w, left: w.allowed - spent };
+  })() : null;
   return (
     <div className="page-hero">
       {s.limit > 0 ? (
@@ -147,6 +156,12 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
             meta={`Gastado ${m.fmt(s.used)} de ${m.fmt(s.limit)} ${m.u}${s.used < s.limit && daysLeft > 1 ? ` · ${m.fmt((s.limit - s.used) / daysLeft)} por día` : ''}`}
             action={action}
           />
+          {week && (
+            <p className={week.left < 0 ? 'plan-week is-over' : 'plan-week'}>
+              {week.left < 0 ? `Esta semana te pasaste por ${m.fmt(-week.left)} ${m.u}` : `Esta semana te quedan ${m.fmt(week.left)} ${m.u}`}
+              <span> · semana {week.week}, hasta {m.fmt(week.allowed)} {m.u}</span>
+            </p>
+          )}
         </div>
       ) : (
         <BalanceSummary
@@ -379,7 +394,7 @@ function OpenPlanEdit({ id }: { id: string }) {
   const { txs: past } = useTxs(hist);
   const isNew = id === 'nueva';
   const existing = data?.lines.find((l) => l.id === id) || null;
-  const [form, setForm] = useState<null | { catId: string; amt: string; currency: Currency }>(null);
+  const [form, setForm] = useState<null | { catId: string; amt: string; currency: Currency; weekly: boolean }>(null);
   const [busy, setBusy] = useState(false);
   if (!space || !data || (!isNew && !existing)) return <FormPageSkeleton title={isNew ? 'Nuevo límite' : 'Editar límite'} />;
 
@@ -388,6 +403,7 @@ function OpenPlanEdit({ id }: { id: string }) {
     catId: data.links.find((l) => l.envelope_id === existing?.id)?.category_id || new URLSearchParams(location.hash.split('?')[1] || '').get('cat') || '',
     amt: existing?.amount ? typed(Number(existing.amount)) : '',
     currency: existing?.currency || cur,
+    weekly: !!existing?.weekly_alert,
   };
   const set = (p: Partial<typeof f>) => setForm({ ...f, ...p });
   const num = parseAmount(f.amt);
@@ -403,7 +419,7 @@ function OpenPlanEdit({ id }: { id: string }) {
     if (!space || !valid || !cat) return;
     setBusy(true);
     try {
-      const row = { name: cat.name, amount: Math.round(num * 100) / 100, currency: f.currency, kind: 'cap', period: 'monthly', recurring_id: null, group_category_id: null, amount_auto: false, account_id: null };
+      const row = { name: cat.name, amount: Math.round(num * 100) / 100, currency: f.currency, weekly_alert: f.weekly, kind: 'cap', period: 'monthly', recurring_id: null, group_category_id: null, amount_auto: false, account_id: null };
       let lineId = existing?.id;
       if (lineId) await db.update('envelopes', { id: lineId }, row);
       else lineId = (await db.insert<Line>('envelopes', { ...row, space_id: space.id, sort: lines.length + 1 }))[0].id;
@@ -464,7 +480,18 @@ function OpenPlanEdit({ id }: { id: string }) {
             <Button variant="secondary" size="xs" onClick={() => set({ amt: typed(Math.round(inCur(avg))) })}>Usar</Button>
           </div>
         )}
-        <p className="page-text">Te avisamos al llegar al 80% y si te pasás.</p>
+        <div className="field-card">
+          <div className="field-row plan-week-row">
+            <span className="col gap4">
+              <span>Avisarme por semana</span>
+              <small>{num > 0
+                ? `Cada semana te tocan ${amount(num / 4.3, f.currency, 1)} ${unitOf(f.currency)} (el límite entre 4,3). Lo que no gastés una semana pasa a la siguiente. Te avisamos si te pasás.`
+                : 'Cada semana te toca el límite entre 4,3, y lo que no gastés pasa a la siguiente.'}</small>
+            </span>
+            <Switch checked={f.weekly} label="Avisarme por semana" onChange={() => set({ weekly: !f.weekly })} />
+          </div>
+        </div>
+        <p className="page-text">Te avisamos al llegar al 80% del mes y si te pasás.</p>
         {existing && (
           <div className="page-actions">
             <Button variant="ghost" size="md" block className="danger" onClick={remove} leading={<Icon name="trash" size={16} />}>Quitar del presupuesto</Button>

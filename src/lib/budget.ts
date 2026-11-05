@@ -27,6 +27,8 @@ export interface Line {
   account_id: string | null;
   active: boolean;
   amount_auto?: boolean;
+  /** Also warn by week: each week gets amount / 4.3, and what's left rolls into the next (PRM-11). */
+  weekly_alert?: boolean;
   is_rest: boolean;
   sort: number;
 }
@@ -331,4 +333,20 @@ export function narrowGroup(g: PlanGroup, fam: Set<string>): PlanGroup {
   const real = recs.reduce((a, r) => a + r.paid, 0) + plans.reduce((a, p) => a + p.spent, 0) + looseAmt;
   const pending = recs.reduce((a, r) => a + r.each * r.planned.length, 0) + plans.reduce((a, p) => a + Math.max(0, p.left), 0);
   return { ...g, recs, plans, loose, looseAmt, real, pending, total: real + pending };
+}
+
+/**
+ * How much of a monthly limit may be spent by the current week (PRM-11): each week of the space that touches the
+ * month gets limit / 4.3, and what isn't spent rolls into the next. Also the week's own share.
+ */
+export function weekAllowance(limit: number, weekStart: number, ref = todayCR()) {
+  const dowOf = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d)).getUTCDay();
+  const back = (dow: number) => (dow - weekStart + 7) % 7;
+  const ws = Date.UTC(ref.y, ref.m, ref.d - back(dowOf(ref.y, ref.m, ref.d)));
+  // the week of the 1st counts on its own only with 4 or more days of the month; a shorter one joins the next
+  const b1 = back(dowOf(ref.y, ref.m, 1));
+  const w0 = Date.UTC(ref.y, ref.m, 1 - b1 + (7 - b1 < 4 ? 7 : 0));
+  const k = Math.max(1, Math.round((ws - w0) / (7 * 86400000)) + 1);
+  const share = limit / 4.3;
+  return { week: k, share, allowed: Math.min(limit, share * k) };
 }
