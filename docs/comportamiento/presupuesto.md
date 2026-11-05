@@ -94,6 +94,12 @@ Un pago real va en la categoría que tiene él, no en la de su recurrente: si se
 
 Un pago planeado no existe en la base: se arma desde su recurrente (`plannedTx`, id `plan_<recurrente>_<fecha>`).
 
+
+Un Mover dinero con categoría (o un recurrente de Mover dinero con categoría) va en el grupo de esa categoría y cuenta ahí como lo que sale, no en Apartar. Sin categoría sigue la regla de siempre (Apartar si va a ahorro, inversión, CDP u otro espacio).
+
+- **Dado** Dinero Simbiótico, Mover ¢830.000 a Simbiosis, con categoría Responsabilidades
+- **Entonces** aparece en Responsabilidades con ¢830.000 y no en Apartar
+
 ### PRM-03 · Planear
 
 **Estado:** Hecho

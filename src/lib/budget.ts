@@ -149,6 +149,7 @@ function recSection(r: Recurring, spaceId: string, accounts: Account[]): Section
   if (r.kind === 'transfer') {
     const to = accounts.find((a) => a.id === r.to_account_id);
     if (r.space_id !== spaceId) return to && to.space_id === spaceId ? 'in' : null; // money another space plans to send here
+    if (r.category_id) return 'out'; // a move with a category goes with that category (PRM-02)
     if (!to) return null;
     if (to.space_id !== spaceId || SAVE_KINDS.has(to.kind)) return 'save';
     return null;
@@ -161,6 +162,7 @@ function txSection(x: Tx, spaceId: string, accounts: Account[]): Section | null 
   if (x.hold === 'void' || x.hold === 'pending') return null;
   if (x.kind === 'transfer') {
     if (x.space_id !== spaceId) return x.to_space_id === spaceId ? 'in' : null;
+    if (x.category_id) return 'out'; // a move with a category goes with that category (PRM-02)
     if (x.to_space_id && x.to_space_id !== spaceId) return 'save';
     const to = accounts.find((a) => a.id === x.to_account_id);
     return to && SAVE_KINDS.has(to.kind) ? 'save' : null;
@@ -171,7 +173,8 @@ function txSection(x: Tx, spaceId: string, accounts: Account[]): Section | null 
   return null;
 }
 
-const txValue = (x: Tx, s: Section) => (s === 'out' ? spend(x) : Number(x.amount_crc));
+// a move with a category counts in it like a payment
+const txValue = (x: Tx, s: Section) => (s === 'out' ? (x.kind === 'transfer' ? Number(x.amount_crc) : spend(x)) : Number(x.amount_crc));
 
 export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Recurring[]; categories: Category[]; accounts: Account[]; txs: Tx[]; spaceId: string; fx: number }): Budget {
   const { categories, fx, spaceId, accounts } = o;
@@ -228,10 +231,10 @@ export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Re
     const catIds = o.links.filter((l) => l.envelope_id === line.id).map((l) => l.category_id);
     const fam = new Set<string>();
     catIds.forEach((c) => familyIds(categories, c).forEach((x) => fam.add(x)));
-    const txs = monthTxs.filter((x) => !used.has(x.id) && x.category_id && fam.has(x.category_id) && txSection(x, spaceId, accounts) === 'out' && spend(x) !== 0);
+    const txs = monthTxs.filter((x) => !used.has(x.id) && x.category_id && fam.has(x.category_id) && txSection(x, spaceId, accounts) === 'out' && txValue(x, 'out') !== 0);
     txs.forEach((x) => used.add(x.id));
     const amount = toCrc(line.amount!, line.currency, fx);
-    const spent = txs.reduce((a, x) => a + spend(x), 0);
+    const spent = txs.reduce((a, x) => a + txValue(x, 'out'), 0);
     const plan: OpenPlan = { line, amount, spent, left: amount - spent, cats: categories.filter((c) => catIds.includes(c.id)), txs };
     plans.push(plan);
     const g = catIds.length ? outGroup(catIds[0]) : make(`p:${line.id}`, 'out', null, line.name);

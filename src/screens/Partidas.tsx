@@ -150,7 +150,7 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
         </div>
       ) : (
         <BalanceSummary
-          label={g.section === 'in' ? `Entra en ${month}` : `Gastado en ${month}`}
+          label={g.section === 'in' ? `Entra en ${month}` : g.section === 'save' ? `Apartado en ${month}` : `Gastado en ${month}`}
           value={m.fmt(g.real)}
           unit={m.u}
           meta={pending > 0 ? `Falta ${m.fmt(pending)} ${m.u} · ${m.fmt(g.total)} en total` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
@@ -191,14 +191,6 @@ export function useCategoryMonth(cat: Category | undefined, fam: Set<string>) {
   if (budget && cat) {
     const base = cat.kind === 'income' ? budget.income : budget.groups.find((x) => x.key === `c:${rootId(categories, cat.id)}`);
     if (base) g = narrowGroup(base, fam);
-    // a Mover dinero with this category shows here too, without counting as spent (it's in Apartar or Entra)
-    if (g && cat.kind === 'expense') {
-      const inFam = (x: Tx) => x.kind === 'transfer' && !!x.category_id && fam.has(x.category_id);
-      const others = [budget.save, budget.income];
-      const loose = others.flatMap((o) => o.loose.filter(inFam));
-      const recs = others.flatMap((o) => o.recs).map((r) => ({ ...r, txs: r.txs.filter(inFam), planned: r.planned.filter(inFam) })).filter((r) => r.txs.length || r.planned.length);
-      if (loose.length || recs.length) g = { ...g, loose: [...g.loose, ...loose], recs: [...g.recs, ...recs] };
-    }
   }
   return { g, first, addHref: g && cat ? addHrefFor(g, cat.id) : '' };
 }
