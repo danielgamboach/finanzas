@@ -526,7 +526,7 @@ html:has(.pager), html:has(.pager) body { overflow: hidden; height: 100%; }
 .dmenu-item:hover, .dmenu-item.on { background: var(--accent); }
 .dmenu-sep { height: 1px; background: var(--border); margin: 6px 2px; }
 .dnew { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: var(--radius-xl); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-sm); font-weight: var(--font-weight-medium); text-decoration: none; transition: background .15s; }
-.dnew:hover { background: var(--color-white); }
+.dnew:hover { background: color-mix(in srgb, var(--primary) 85%, var(--primary-foreground)); }
 kbd { font: inherit; font-size: var(--text-xs); line-height: 1; padding: 4px 6px; border-radius: var(--radius-md); border: 1px solid currentColor; opacity: .45; font-weight: var(--font-weight-normal); }
 .dnew kbd { margin-left: auto; }
 .link kbd { margin-left: 6px; }
