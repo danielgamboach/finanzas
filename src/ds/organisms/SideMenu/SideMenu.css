@@ -9,8 +9,8 @@
 /* SideMenuItem */
 .ds-side-item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 8px 12px; border: none; border-radius: var(--radius-xl); background: none; color: var(--sidebar-foreground); font: inherit; font-size: var(--text-base); line-height: var(--text-base--line-height); text-align: left; text-decoration: none; cursor: pointer; transition: background-color .15s ease, color .15s ease; -webkit-tap-highlight-color: transparent; }
 .ds-side-item.has-detail { min-height: 52px; }
-.ds-side-item:hover, .ds-side-item:active { background: color-mix(in srgb, var(--sidebar-accent) 60%, transparent); }
-.ds-side-item.is-active { background: var(--sidebar-accent); color: var(--foreground); font-weight: var(--font-weight-medium); }
+.ds-side-item:hover, .ds-side-item:active { background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+.ds-side-item.is-active, .ds-side-item.is-active:hover { background: var(--sidebar-accent); color: var(--foreground); font-weight: var(--font-weight-medium); }
 .ds-side-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .ds-side-item__icon { display: grid; place-items: center; flex-shrink: 0; width: 20px; height: 20px; color: var(--muted-foreground); }
 .ds-side-item.is-active .ds-side-item__icon { color: var(--foreground); }

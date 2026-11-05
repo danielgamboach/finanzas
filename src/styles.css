@@ -532,8 +532,8 @@ kbd { font: inherit; font-size: var(--text-xs); line-height: 1; padding: 4px 6px
 .link kbd { margin-left: 6px; }
 .dnav { display: flex; flex-direction: column; gap: 2px; }
 .dnav-item { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 10px; border-radius: var(--radius-xl); color: var(--sidebar-foreground); text-decoration: none; font-size: var(--text-sm); font-weight: var(--font-weight-medium); transition: background .15s, color .15s; }
-.dnav-item:hover { background: var(--sidebar-accent); color: var(--foreground); }
-.dnav-item.on { background: var(--secondary); color: var(--foreground); }
+.dnav-item:hover { background: color-mix(in srgb, var(--foreground) 7%, transparent); color: var(--foreground); }
+.dnav-item.on, .dnav-item.on:hover { background: var(--sidebar-accent); color: var(--foreground); }
 .dnav-item .count-badge { margin-left: auto; }
 .dnav-sep { height: 1px; background: var(--border); margin: 8px 4px; }
 .dside-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
