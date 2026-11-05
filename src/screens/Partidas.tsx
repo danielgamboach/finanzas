@@ -259,10 +259,11 @@ export function Presupuesto() {
     />
   );
 
-  // PRM-08: every expense category and subcategory as a ring, sideways. With a limit, how much of it is used;
-  // without one, how much of the month's planned is already paid
+  // PRM-08: every category or subcategory with a limit as a ring, sideways: how much of the limit is used
   const ringItems = !b ? [] : [
-    ...pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived && c.space_id === space.id)).map((c) => {
+    ...pickerOrder(categories.filter((c) => c.kind === 'expense' && !c.archived && c.space_id === space.id))
+      .filter((c) => b.plans.some((x) => x.cats.some((k) => k.id === c.id)))
+      .map((c) => {
       const root = b.groups.find((x) => x.key === `c:${rootId(categories, c.id)}`);
       const g = root ? narrowGroup(root, familyIds(categories, c.id)) : null;
       const p = b.plans.find((x) => x.cats.some((k) => k.id === c.id));
