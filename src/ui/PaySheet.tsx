@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { ActionBar, Button, ListGroup } from '../ds';
+import { useEffect, useState } from 'react';
+import { ActionBar, Button, ListGroup, ListRow } from '../ds';
+import { db } from '../lib/api';
 import { fromInputDateTime, moneyRaw, parseAmount, toInputDateTime } from '../lib/format';
-import { addPeriod, cancelRecurring, dueDay, freqLabel, payRecurring, shortDay, skipRecurring, snoozeRecurring } from '../lib/recurring';
+import { addPeriod, cancelRecurring, dueDay, missedCharge, freqLabel, payRecurring, shortDay, skipRecurring, snoozeRecurring } from '../lib/recurring';
 import { canPay, canReceiveIncome, canSendMoney } from '../lib/transfers';
-import type { Recurring } from '../lib/types';
-import { useApp } from '../store';
+import type { Recurring, Tx } from '../lib/types';
+import { TX_SELECT, useApp } from '../store';
+import { TxFace } from './TxRow';
 import { Icon, Sheet } from '.';
 import { CardPaySheet } from './CardPay';
 
@@ -31,11 +33,21 @@ function PlainPaySheet({ r, onClose, onPaid }: { r: Recurring; onClose: () => vo
     const [i, d] = Number(r.amount).toFixed(2).split('.');
     return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d !== '00' ? `,${d}` : '');
   });
-  const [when, setWhen] = useState(toInputDateTime(new Date().toISOString()));
+  // a missed automatic charge happened on its day, not now
+  const [when, setWhen] = useState(toInputDateTime(missedCharge(r) ? `${dueDay(r)}T18:00:00.000Z` : new Date().toISOString()));
   const [later, setLater] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const num = parseAmount(amt);
   const verb = r.kind === 'income' ? 'cobro' : 'pago';
+  // it may already be registered (a voucher with another name, or entered by hand): offer those to link (REC-06)
+  const [found, setFound] = useState<Tx[]>([]);
+  useEffect(() => {
+    const from = new Date(new Date(`${dueDay(r)}T12:00:00Z`).getTime() - 10 * 86400000).toISOString();
+    db.from<Tx>('transactions', TX_SELECT).eq('space_id', r.space_id).eq('kind', r.kind).eq('currency', r.currency).is('recurring_id', null).gte('occurred_at', from)
+      .order('occurred_at', false).limit(40)
+      .then((rows) => setFound(rows.filter((x) => (x as { visible?: boolean }).visible !== false && (r.variable || Math.abs(Number(x.amount) - Number(r.amount)) <= Number(r.amount) * 0.1)).slice(0, 4)))
+      .catch(() => setFound([]));
+  }, [r.id]);
 
   async function run(fn: () => Promise<void>, msg: string) {
     setBusy(true);
@@ -55,6 +67,10 @@ function PlainPaySheet({ r, onClose, onPaid }: { r: Recurring; onClose: () => vo
     const txId = await payRecurring(r, fx, userId, { accountId, amount: Math.round(num * 100) / 100, when: fromInputDateTime(when) });
     onPaid(txId);
   }, `${r.merchant}: ${r.kind === 'income' ? 'cobrado' : 'pagado'}`);
+  const link = (x: Tx) => run(async () => {
+    await db.update('transactions', { id: x.id }, { recurring_id: r.id });
+    onPaid(null);
+  }, `${r.merchant}: ${r.kind === 'income' ? 'cobrado' : 'pagado'} el ${shortDay(x.occurred_at.slice(0, 10))}`);
   const skip = () => run(() => skipRecurring(r), `Ignorado · próximo ${shortDay(addPeriod(r.next_due, r.frequency, r.every_n, r.every_unit))}`);
   const snooze = () => later && run(() => snoozeRecurring(r, later), `Pospuesto para el ${shortDay(later)}`);
   const cancel = () => confirm(`¿Dejar de repetir ${r.merchant}? Queda en pausados y lo podés reactivar.`) && run(() => cancelRecurring(r), `${r.merchant} ya no se repite`);
@@ -64,6 +80,16 @@ function PlainPaySheet({ r, onClose, onPaid }: { r: Recurring; onClose: () => vo
       <p className="page-text">
         {freqLabel(r)} · vence el {shortDay(dueDay(r))} · {r.variable ? '≈ ' : ''}{moneyRaw(Number(r.amount), r.currency)}
       </p>
+      {found.length > 0 && (
+        <ListGroup title="¿Ya está registrado?" note={`Si es uno de estos, se liga a ${r.merchant} y no se registra otro.`}>
+          {found.map((x) => (
+            <ListRow key={x.id} leading={<TxFace t={x} size={40} />} title={x.merchant || 'Movimiento'}
+              detail={`${shortDay(x.occurred_at.slice(0, 10))}${x.raw_merchant ? ` · ${x.raw_merchant}` : ''}`}
+              actions={<Button variant="secondary" size="xs" disabled={busy} onClick={() => link(x)}>Es este</Button>}
+              value={moneyRaw(Number(x.amount), x.currency)} />
+          ))}
+        </ListGroup>
+      )}
       <div className="field-card">
         <label className="field-row">
           <span>{r.kind === 'income' ? 'Entró a' : 'Desde'}</span>

@@ -157,3 +157,10 @@ export function TxTableRow({ t, hideAccount = false, pick }: { t: Tx; hideAccoun
     </div>
   );
 }
+
+/** A movement's face alone (its merchant's logo or its category's emoji), for rows that aren't a TxRow. */
+export function TxFace({ t, size = 40 }: { t: Tx; size?: number }) {
+  const { categories, merchants } = useApp();
+  const cat = categories.find((c) => c.id === t.category_id);
+  return <Emo e={cat?.emoji || '❓'} color={cat?.color || 'gray'} img={txPhoto(merchants, t)} badge={txBadge(merchants, t)} size={size} />;
+}

@@ -112,6 +112,11 @@ Solo cuentan los cargos de los últimos dos días: un cargo automático vencido 
 
 <sub>Dónde vive: `run_auto_recurring` en la base (cada hora), `transactions.auto_flag = 'no_voucher'` y `match_recurring`, que borra el gasto sin voucher cuando llega el real.</sub>
 
+Si un cargo automático pasó más de un día sin registrarse (no llegó el voucher o llegó con otro nombre), queda en **Pagos pendientes** con "¿Ya se cobró?" y "Sí, se cobró" (en Inicio, "Se cobró"). Abre la hoja de pago con la fecha del vencimiento, y arriba "¿Ya está registrado?": los movimientos sin recurrente del mismo tipo y moneda, desde 10 días antes del vencimiento, con un monto parecido (±10%; cualquiera si varía). "Es este" lo liga al recurrente (no se registra otro) y el próximo pago avanza. Esto también aplica a los pagos manuales.
+
+- **Dado** Framer, automático, venció el 28 oct y no se registró
+- **Entonces** el 4 nov aparece en Pagos pendientes con "Sí, se cobró"
+
 ### REC-09 · Recurrentes de monto variable
 
 **Estado:** Hecho

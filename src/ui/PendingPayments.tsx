@@ -115,7 +115,7 @@ function PendingRow({ r, onPaid }: { r: Recurring; onPaid: (txId: string | null)
         amount={amountOf(r, cur, fx)}
         onOpen={() => go(`/recurrente/${r.id}`)}
         onPay={() => setOpen(true)}
-        payText={r.kind === 'income' ? 'Cobré' : 'Pagar'}
+        payText={r.kind === 'income' ? 'Cobré' : isManual(r) ? 'Pagar' : 'Se cobró'}
         payLabel={`Pagar ${r.merchant}`}
       />
       {open && <PaySheet r={r} onClose={() => setOpen(false)} onPaid={onPaid} />}

@@ -56,8 +56,8 @@ export function RecRow({ r, compact = false }: { r: Recurring; compact?: boolean
         label={`${r.merchant}, ${when}`}
         below={ask ? (
           <div className="rec-ask">
-            <span>{r.kind === 'income' ? '¿Ya entró?' : '¿Ya se pagó?'}</span>
-            <Button variant="primary" size="xs" onClick={() => setPaying(true)}>{r.kind === 'income' ? 'Cobré' : 'Pagar'}</Button>
+            <span>{r.kind === 'income' ? '¿Ya entró?' : isManual(r) ? '¿Ya se pagó?' : '¿Ya se cobró?'}</span>
+            <Button variant="primary" size="xs" onClick={() => setPaying(true)}>{r.kind === 'income' ? 'Cobré' : isManual(r) ? 'Pagar' : 'Sí, se cobró'}</Button>
           </div>
         ) : undefined}
       />

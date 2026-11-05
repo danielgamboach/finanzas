@@ -116,7 +116,10 @@ export const dueDay = (r: Pick<Recurring, 'next_due' | 'snooze_until'>) =>
 
 /** A manual payment that hasn't been confirmed: asked from the day before it's due, and for as long as it's overdue. */
 export const needsConfirm = (r: Recurring, accounts: Pick<Account, 'id' | 'kind'>[]) =>
-  r.active && isManual(r, accounts) && daysUntil(dueDay(r)) <= 1;
+  r.active && (isManual(r, accounts) ? daysUntil(dueDay(r)) <= 1 : missedCharge(r));
+
+/** An automatic charge that's more than a day late and never got registered: it asks whether it was charged (REC-08). */
+export const missedCharge = (r: Recurring) => r.active && !isManual(r) && daysUntil(dueDay(r)) < -1;
 
 /** An automatic charge for today (or still waiting for the bank's voucher): Inicio only says it (REC-08). Once it's registered it leaves. */
 export const chargesToday = (r: Recurring) =>
@@ -168,7 +171,7 @@ export async function payRecurring(r: Recurring, fx: number, userId: string | nu
     fx_rate: r.currency === 'USD' ? fx : 1,
     occurred_at: opts.when || new Date().toISOString(),
     merchant: r.merchant,
-    category_id: r.kind === 'transfer' ? null : r.category_id,
+    category_id: r.category_id,
     account_id: opts.accountId !== undefined ? opts.accountId : r.account_id,
     to_account_id: r.kind === 'transfer' ? r.to_account_id ?? null : null,
     recurring_id: r.id,
