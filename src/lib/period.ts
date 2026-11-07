@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { monthRange, weekRange, type Range } from './calc';
 import { cap, crIso, monthName, todayCR } from './format';
+import { cycleRange } from './cycle';
 
 /** today | week | lastweek | month | lastmonth | 30d | 90d | year | m:YYYY-MM | c:YYYY-MM-DD:YYYY-MM-DD */
 export type PeriodKey = string;
@@ -24,6 +25,8 @@ export function periodRange(key: PeriodKey, weekStart: number): Range & { label:
   if (key === 'week') return { ...weekRange(weekStart), label: 'Esta semana' };
   if (key === 'lastweek') return { ...weekRange(weekStart, -1), label: 'Semana pasada' };
   if (key === 'lastmonth') {
+    const c = cycleRange(-1);
+    if (c.custom) return { from: c.from, to: c.to, label: 'Mes pasado' }; // PRM-12
     const r = monthRange(t.y, t.m - 1);
     return { ...r, label: cap(monthName((t.m + 11) % 12)) };
   }
@@ -40,6 +43,8 @@ export function periodRange(key: PeriodKey, weekStart: number): Range & { label:
     const [yb, mb, db] = b.split('-').map(Number);
     return { from: crIso(ya, ma - 1, da), to: crIso(yb, mb - 1, db + 1), label: `${da}/${ma} al ${db}/${mb}${yb !== t.y ? `/${yb}` : ''}` };
   }
+  const c = cycleRange(0);
+  if (c.custom) return { from: c.from, to: c.to, label: `Desde el ${c.startLabel}` }; // PRM-12
   return { ...monthRange(t.y, t.m), label: cap(monthName(t.m)) };
 }
 

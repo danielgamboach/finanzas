@@ -242,6 +242,18 @@ En el editor del límite, "Avisarme por semana" (apagado por defecto). Cada sema
 
 ---
 
+### PRM-12 · Empezar mes el día de pago
+
+El mes del presupuesto puede empezar el día que entra el salario, no el 1. En Presupuesto, la fila "Este mes" (o "Mes calendario") tiene **Empezar mes**: se elige el día (hoy por defecto, nunca futuro) y desde ahí cuenta el mes hasta que alguien empiece el siguiente. Cualquier miembro del espacio puede hacerlo. Se guarda en `budget_cycles` (`space_id`, `starts_on`), con deshacer.
+
+- Usan el mes así: Presupuesto (libre, límites, ritmo por día), Inicio ("Libre este mes", rango Mes del gráfico y la comparación contra el mes anterior) y los filtros "Este mes" y "Mes pasado" de Movimientos.
+- Los pagos fijos siguen venciendo por su fecha ("Vence el 5"): solo cuentan si caen dentro del mes.
+- Sin empezar: el mes dura un mes desde su inicio y, si nadie empieza otro, se alarga hasta hoy; pasados 35 días la fila avisa "¿Ya te pagaron?". Un inicio de hace más de dos meses se olvida y vuelve el mes calendario.
+- Sin ningún inicio, todo es el mes calendario como antes.
+- Mis finanzas todavía usa meses calendario.
+
+Dado que en Simbiosis el mes empezó el 30 oct, cuando se gasta ¢15.000 en Restaurantes el 31 oct, entonces cuenta en el límite de Restaurantes de este mes y no en octubre.
+
 ## Preguntas abiertas
 
 **1. Un gasto único planeado.** Hoy se planea escribiéndolo con fecha futura. Si después llega el voucher real, quedan los dos. ¿Hace falta ligarlos solos (como los recurrentes)?

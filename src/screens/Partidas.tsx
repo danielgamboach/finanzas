@@ -2,12 +2,14 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ActionBar, BalanceSummary, Button, EmptyState, Switch, GroupSkeleton, ListGroup, ListRow, Loader, Menu, MenuItem, PageHeader, Progress, ProgressRing, RingRail, SummarySkeleton, TxListSkeleton } from '../ds';
 import { db } from '../lib/api';
 import { monthRange } from '../lib/calc';
+import { cycleRange, cycleLength } from '../lib/cycle';
 import { buildBudget, categoryAverage, narrowGroup, toCrc, useBudgetData, weekAllowance, type Line, type PlanGroup } from '../lib/budget';
 import { familyIds, pickerOrder, rootId } from '../lib/cats';
 import { amount, monthName, parseAmount, todayCR, unitOf } from '../lib/format';
 import type { Category, Currency, Tx } from '../lib/types';
 import { go, navigateBack, useApp, useTxs } from '../store';
 import { Emo, Icon } from '../ui';
+import { CycleKickoff } from '../ui/CycleKickoff';
 import { FormPageSkeleton, PageSkeleton } from '../ui/Skeletons';
 import { TxRow } from '../ui/TxRow';
 import { groupByDay } from './Home';
@@ -16,9 +18,10 @@ import { useMenu } from '../lib/menu';
 
 /** This month's plan for the current space: real and planned movements (PRM). */
 export function useBudget() {
-  const { space, categories, accounts, fx } = useApp();
+  const { space, categories, accounts, fx, cycles } = useApp();
   const t = todayCR();
-  const range = useMemo(() => monthRange(t.y, t.m), [t.y, t.m]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const range = useMemo(() => cycleRange(0), [t.y, t.m, t.d, cycles.join()]);
   const { txs, loading } = useTxs(range);
   const data = useBudgetData(space?.id);
   const budget = data && space ? buildBudget({ ...data, categories, accounts, txs, spaceId: space.id, fx }) : null;
@@ -33,6 +36,7 @@ function useMoney() {
   return { u, fmt: (v: number) => amount(v, cur, fx), node: (v: number, approx = false) => <>{approx ? '≈ ' : ''}{amount(v, cur, fx)}<span className="amt-unit"> {u}</span></> };
 }
 
+const cap1 = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 const byDate = (a: Tx, b: Tx) => a.occurred_at.localeCompare(b.occurred_at);
 const today = () => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);
 
@@ -129,8 +133,10 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
   const m = useMoney();
   const s = useGroupSummary(g);
   const t = todayCR();
-  const month = monthName(t.m);
-  const daysLeft = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
+  const cyc = cycleRange(0);
+  const month = cyc.name;
+  const inM = cyc.custom ? 'este mes' : `en ${month}`;
+  const daysLeft = Math.max(1, cycleLength(cyc) - cyc.day + 1);
   const pending = g.pending;
   const { space } = useApp();
   // PRM-11: with the weekly alert, what's left of this week's share (unspent weeks roll forward)
@@ -149,7 +155,7 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
             {emoji || <Icon name="envelope" size={32} />}
           </ProgressRing>
           <BalanceSummary
-            label={s.used > s.limit ? 'Te pasaste por' : `Disponible en ${month}`}
+            label={s.used > s.limit ? 'Te pasaste por' : cap1(`disponible ${inM}`)}
             value={m.fmt(Math.abs(s.limit - s.used))}
             unit={m.u}
             negative={s.used > s.limit}
@@ -165,7 +171,7 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
         </div>
       ) : (
         <BalanceSummary
-          label={g.section === 'in' ? `Entra en ${month}` : g.section === 'save' ? `Apartado en ${month}` : `Gastado en ${month}`}
+          label={cap1(g.section === 'in' ? `entra ${inM}` : g.section === 'save' ? `apartado ${inM}` : `gastado ${inM}`)}
           value={m.fmt(g.real)}
           unit={m.u}
           meta={pending > 0 ? `Falta ${m.fmt(pending)} ${m.u} · ${m.fmt(g.total)} en total` : `${s.real.length} ${s.real.length === 1 ? 'movimiento' : 'movimientos'}`}
@@ -179,7 +185,8 @@ export function MonthHero({ g, emoji, action }: { g: PlanGroup; emoji?: string; 
 /** Late, coming and done this month, and adding a movement (PRM-09). */
 export function MonthLists({ g, addHref }: { g: PlanGroup; addHref: string }) {
   const s = useGroupSummary(g);
-  const month = monthName(todayCR().m);
+  const cyc = cycleRange(0);
+  const inM = cyc.custom ? 'este mes' : `en ${cyc.name}`;
   const list = (title: string, txs: Tx[]) => txs.length > 0 && (
     <ListGroup title={title}>
       <div className="plan-moves">{txs.map((x) => <TxRow key={x.id} t={x} size="sheet" showDate={!x.planned} />)}</div>
@@ -190,7 +197,7 @@ export function MonthLists({ g, addHref }: { g: PlanGroup; addHref: string }) {
       {list('Atrasados', s.late)}
       {list('Vienen', s.coming)}
       {list('Este mes', [...s.real].reverse())}
-      {s.moves.length === 0 && <EmptyState icon={<Icon name="list" size={24} />} title={`Sin movimientos en ${month}`} />}
+      {s.moves.length === 0 && <EmptyState icon={<Icon name="list" size={24} />} title={`Sin movimientos ${inM}`} />}
       <ListGroup>
         <ListRow leading={<ListRow.Icon name="plus" />} title="Agregar un movimiento" detail="Fijo o variable, que se repite o de una vez" onClick={() => go(addHref)} quiet />
       </ListGroup>
@@ -261,12 +268,13 @@ export function Presupuesto() {
   const m = useMoney();
   const { budget: b, first } = useBudget();
   if (!space) return <PageSkeleton title="Presupuesto"><GroupSkeleton rows={5} /></PageSkeleton>;
-  const t = todayCR();
-  const month = monthName(t.m);
+  const cyc = cycleRange(0);
+  const month = cyc.custom ? 'este mes' : cyc.name;
+  const inM = cyc.custom ? 'este mes' : `en ${cyc.name}`;
 
   const summary = b && (
     <BalanceSummary
-      label={b.free < 0 ? `Te pasás en ${month}` : `Libre en ${month}`}
+      label={b.free < 0 ? cap1(`te pasás ${inM}`) : cap1(`libre ${inM}`)}
       value={m.fmt(Math.abs(b.free))}
       unit={m.u}
       negative={b.free < 0}
@@ -305,7 +313,7 @@ export function Presupuesto() {
   const body = b && (
     <>
       {empty && (
-        <EmptyState icon={<Icon name="list" size={24} />} title={`Planeá ${month}`} action={<Button variant="primary" size="sm" onClick={() => go('/agregar?planear=1')}>Planear</Button>}>
+        <EmptyState icon={<Icon name="list" size={24} />} title={cyc.custom ? 'Planeá este mes' : `Planeá ${month}`} action={<Button variant="primary" size="sm" onClick={() => go('/agregar?planear=1')}>Planear</Button>}>
           Lo que entra, lo que pagás cada mes y cuánto querés gastar en súper o restaurantes.
         </EmptyState>
       )}
@@ -324,7 +332,7 @@ export function Presupuesto() {
     return (
       <div className="dpage">
         <header className="dpage-head"><h1 className="dtitle">Presupuesto</h1><span className="muted">{month}</span></header>
-        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{summary}{rings}{body}</div>}
+        {first ? <Loader><div className="dcol gap24 dnarrow"><SummarySkeleton /><GroupSkeleton rows={5} /></div></Loader> : <div className="dcol gap24 dnarrow">{summary}<CycleKickoff />{rings}{body}</div>}
       </div>
     );
   }
@@ -332,7 +340,7 @@ export function Presupuesto() {
     <div className="page">
       <PageHeader title="Presupuesto" onMenu={menu?.open} actions={<Button variant="secondary" size="xs" iconOnly onClick={() => go('/agregar?planear=1')} aria-label="Agregar un movimiento"><Icon name="plus" size={14} /></Button>} />
       <div className="page-hero" aria-label={title}>{first ? <Loader><SummarySkeleton /></Loader> : <>{summary}{rings}</>}</div>
-      <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : body}</div>
+      <div className="page-body">{first ? <Loader><GroupSkeleton rows={5} /></Loader> : <><CycleKickoff />{body}</>}</div>
     </div>
   );
 }
@@ -345,8 +353,8 @@ export function LineView({ id }: { id: string }) {
   const p = budget?.plans.find((x) => x.line.id === id);
   if (!space || first) return <PageSkeleton back nav={false}><TxListSkeleton /></PageSkeleton>;
   if (!p) return <div className="page no-nav"><PageHeader title="Presupuesto" onBack={navigateBack} /><EmptyState icon={<Icon name="list" size={24} />} title="Ese plan ya no existe" /></div>;
-  const t = todayCR();
-  const days = new Date(Date.UTC(t.y, t.m + 1, 0)).getUTCDate() - t.d + 1;
+  const cyc = cycleRange(0);
+  const days = Math.max(1, cycleLength(cyc) - cyc.day + 1);
   const pace = p.left > 0 && days > 1 ? ` · ${m.fmt(p.left / days)} ${m.u} por día` : '';
   const groups = groupByDay(p.txs);
   const name = p.cats[0]?.name || p.line.name;
@@ -356,7 +364,7 @@ export function LineView({ id }: { id: string }) {
         actions={<Button variant="secondary" size="xs" iconOnly onClick={() => (location.hash = `#/partida/${id}/editar`)} aria-label="Editar plan"><Icon name="pencil" size={14} /></Button>} />
       <div className="page-hero">
         <BalanceSummary
-          label={p.left < 0 ? 'Te pasaste por' : `Quedan en ${monthName(t.m)}`}
+          label={p.left < 0 ? 'Te pasaste por' : cyc.custom ? 'Quedan este mes' : `Quedan en ${cyc.name}`}
           value={m.fmt(Math.abs(p.left))}
           unit={m.u}
           negative={p.left < 0}
@@ -365,7 +373,7 @@ export function LineView({ id }: { id: string }) {
       </div>
       <div className="page-body">
         {groups.length === 0 ? (
-          <EmptyState icon={<Icon name="list" size={24} />} title={`Sin gastos en ${monthName(t.m)}`} />
+          <EmptyState icon={<Icon name="list" size={24} />} title={cyc.custom ? 'Sin gastos este mes' : `Sin gastos en ${cyc.name}`} />
         ) : (
           <div className="mb-flat">
             {groups.map((g) => (

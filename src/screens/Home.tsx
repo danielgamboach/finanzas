@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
 import { buildBudget, useBudgetData } from '../lib/budget';
+import { cycleLength, cycleRange } from '../lib/cycle';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
 import { byKind } from '../lib/accounts';
@@ -62,8 +63,12 @@ export function goAdd(tipo: string) {
 export function useHomeSummary() {
   const { space, categories, accounts, cur, fx, merchants: catalog } = useApp();
   const t = todayCR();
-  const month = monthRange(t.y, t.m);
-  const prevMonth = monthRange(t.y, t.m - 1);
+  const { cycles } = useApp();
+  const cyc = cycleRange(0), prevCyc = cycleRange(-1); // PRM-12: the month starts on payday when set
+  void cycles;
+  const month = { from: cyc.from, to: cyc.to };
+  const prevMonth = { from: prevCyc.from, to: prevCyc.to };
+  const inName = cyc.custom ? 'este mes' : `en ${cyc.name}`;
   const week = weekRange(space?.week_start ?? 5);
   const range = useMemo(() => ({ from: [prevMonth.from, week.from].sort()[0], to: [month.to, week.to].sort()[1] }), [prevMonth.from, week.from, month.to, week.to]);
   const { txs, loading } = useTxs(range);
@@ -71,7 +76,7 @@ export function useHomeSummary() {
   if (!space) return null;
   // PRM-06: what's free this month (or what's left in the open plans while nothing comes in yet)
   const plan = bd ? buildBudget({ ...bd, categories, accounts, txs, spaceId: space.id, fx }) : null;
-  const toSpendNow = plan ? (plan.hasIncome ? { left: plan.free, label: `Libre en ${monthName(t.m)}` } : plan.toSpend ? { left: plan.toSpend.left, label: 'Para gastar' } : null) : null;
+  const toSpendNow = plan ? (plan.hasIncome ? { left: plan.free, label: cap(`libre ${inName}`) } : plan.toSpend ? { left: plan.toSpend.left, label: 'Para gastar' } : null) : null;
 
   const inMonth = txs.filter((x) => inRange(x, month));
   const spent = sumSpend(inMonth);
@@ -80,10 +85,11 @@ export function useHomeSummary() {
   // same day of last month; only when we really have last month's data
   const pl = crLocal(prevMonth.from);
   const py = pl.getUTCFullYear(), pm = pl.getUTCMonth();
-  const prevDays = new Date(Date.UTC(py, pm + 1, 0)).getUTCDate();
+  const prevDays = cycleLength(prevMonth);
+  const pd = pl.getUTCDate();
   const prevTxs = txs.filter((x) => inRange(x, prevMonth));
-  const hasPrev = prevTxs.some((x) => x.occurred_at < crIso(py, pm, 4));
-  const prevSoFar = sumSpend(prevTxs.filter((x) => x.occurred_at < crIso(py, pm, Math.min(t.d, prevDays) + 1)));
+  const hasPrev = prevTxs.some((x) => x.occurred_at < crIso(py, pm, pd + 3));
+  const prevSoFar = sumSpend(prevTxs.filter((x) => x.occurred_at < crIso(py, pm, pd + Math.min(cyc.day, prevDays))));
 
   const shared = space.kind === 'shared';
   let label: string, value: number, negative = false;
@@ -96,7 +102,7 @@ export function useHomeSummary() {
     const avail = budget - spent;
     value = Math.abs(avail);
     negative = avail < 0;
-    label = negative ? (shared ? 'Se pasaron del presupuesto' : 'Te pasaste del presupuesto') : `Disponible en ${monthName(t.m)}`;
+    label = negative ? (shared ? 'Se pasaron del presupuesto' : 'Te pasaste del presupuesto') : cap(`disponible ${inName}`);
     if (hasPrev) {
       const prevAvail = budget - prevSoFar;
       const good = avail >= prevAvail;
@@ -108,17 +114,17 @@ export function useHomeSummary() {
   } else {
     // no budget yet: what matters is how much has gone out
     value = spent;
-    label = `Gastado en ${monthName(t.m)}`;
+    label = cap(`gastado ${inName}`);
     if (hasPrev && prevSoFar > 0) {
       const pct = Math.round(((spent - prevSoFar) / prevSoFar) * 100);
       delta = { text: `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)}%`, good: spent <= prevSoFar };
     }
   }
-  const vsLabel = `vs. ${Math.min(t.d, prevDays)} ${monthShort(pm)}`;
+  const vsLabel = cyc.custom ? 'vs. mes anterior' : `vs. ${Math.min(t.d, prevDays)} ${monthShort(pm)}`;
 
   // the summary card: month spend (or this week's when the big number already is the month)
   const weekSpent = sumSpend(txs.filter((x) => inRange(x, week)));
-  const cardLabel = budget > 0 ? `Gastado en ${monthName(t.m)}` : 'Esta semana';
+  const cardLabel = budget > 0 ? cap(`gastado ${inName}`) : 'Esta semana';
   const cardValue = budget > 0 ? spent : weekSpent;
   const cardSub = budget > 0 ? `de ${money(budget, cur, fx)}` : null;
 

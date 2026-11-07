@@ -3,6 +3,7 @@ import { db } from './api';
 import { spend } from './calc';
 import { cap, crLocal, monthName, monthShort, todayCR } from './format';
 import type { Tx } from './types';
+import { cycleRange, cycleStarts } from './cycle';
 
 /** The ranges of the Inicio chart, as the wheel shows them. */
 export type Span = 'D' | 'S' | 'M' | '6M' | '1A' | 'YTD';
@@ -131,6 +132,27 @@ export function spanDef(span: Span, weekStart: number): Def {
     case 'YTD':
       return weekly(cd(t.y, 0, 1), cd(t.y - 1, 0, 1), cd(t.y + 1, 0, 1), cd(t.y, 0, 1), `${t.y} a la fecha`, `vs ${t.y - 1}`);
     default: {
+      const cyc = cycleRange(0);
+      if (cyc.custom) {
+        // PRM-12: "Mes" is the budget month, from the day it was started
+        const prev = cycleRange(-1);
+        const ymdDate = (iso: string) => { const l = crLocal(iso); return cd(l.getUTCFullYear(), l.getUTCMonth(), l.getUTCDate()); };
+        const from = ymdDate(cyc.from), to = ymdDate(cyc.to), prevFrom = ymdDate(prev.from);
+        const length = daysBetween(from, to);
+        return {
+          fine: null,
+          from,
+          length,
+          prevFrom,
+          prevLength: daysBetween(prevFrom, from),
+          elapsed: Math.min(length, cyc.day),
+          step: 1,
+          label: `Desde el ${cyc.startLabel}`,
+          vs: 'vs mes anterior',
+          ends: [dm(from, t.y), dm(addDays(to, -1), t.y)],
+          bar: (_, s, p) => ({ title: longDay(s, t.y), curLabel: 'Este mes', prevLabel: shortDay(p, t.y) }),
+        };
+      }
       const from = cd(t.y, t.m, 1);
       const prevFrom = cd(t.y, t.m - 1, 1);
       const pm = prevFrom.getUTCMonth();
@@ -181,7 +203,9 @@ function useDaily(spaceId: string | undefined, from: string, to: string, version
  * which reach back to the start of last month.
  */
 export function useSpendSeries(span: Span, opts: { spaceId?: string; weekStart: number; version: number; txs: Tx[] }) {
-  const def = useMemo(() => spanDef(span, opts.weekStart), [span, opts.weekStart]);
+  const ck = cycleStarts().join();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const def = useMemo(() => spanDef(span, opts.weekStart), [span, opts.weekStart, ck]);
   const fetchFrom = ymdOf(def.prevFrom);
   const fetchTo = ymdOf(addDays(def.from, def.length));
   const daily = useDaily(opts.spaceId, fetchFrom, fetchTo, opts.version, def.fine !== null);

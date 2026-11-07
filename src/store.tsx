@@ -3,6 +3,7 @@ import { auth, db, getSession, onAuthChange, type Session } from './lib/api';
 import type { Account, Category, Currency, Member, Profile, Space, Tag, Tx } from './lib/types';
 import type { Range } from './lib/calc';
 import { loadMerchants, type Merchant } from './lib/merchants';
+import { setCycleStarts } from './lib/cycle';
 
 interface Ctx {
   session: Session | null;
@@ -18,6 +19,8 @@ interface Ctx {
   tags: Tag[];
   /** The shared merchant catalog (logos and the names that point to each merchant). */
   merchants: Merchant[];
+  /** Days the budget month started in this space ("Empezar mes", PRM-12), ascending. */
+  cycles: string[];
   /** App admin: can replace logos and manage the catalog. */
   isAdmin: boolean;
   cur: Currency;
@@ -55,6 +58,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [cycles, setCycles] = useState<string[]>([]);
   const [cur, setCur] = useState<Currency>((read('finanzas.cur') as Currency) || 'CRC');
   const [fx, setFx] = useState(460);
   const [version, setVersion] = useState(0);
@@ -105,11 +109,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadSpaceMeta = useCallback(async () => {
     if (!spaceId || !userId) return;
-    const [c, a, t] = await Promise.all([
+    const [c, a, t, cy] = await Promise.all([
       db.from<Category>('categories').eq('space_id', spaceId).order('sort'),
       db.from<Account>('accounts').eq('space_id', spaceId).order('created_at'),
       db.from<Tag>('tags').eq('space_id', spaceId).order('name'),
+      Promise.resolve(db.from<{ starts_on: string }>('budget_cycles', 'starts_on').eq('space_id', spaceId).order('starts_on')).catch(() => [] as { starts_on: string }[]),
     ]);
+    const starts = cy.map((x) => x.starts_on);
+    setCycleStarts(starts);
+    setCycles(starts);
     setCategories(c);
     setAccounts(a);
     setTags(t);
@@ -154,6 +162,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     accounts,
     tags,
     merchants,
+    cycles,
     isAdmin,
     cur,
     toggleCur: () => setCur((c) => {
@@ -170,7 +179,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toastMsg,
     toastUndo: toastUndo?.fn ?? null,
     clearToast,
-  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, merchants, isAdmin, cur, fx, version, reloadMeta, ready, toast, toastMsg, toastUndo, clearToast]);
+  }), [session, userId, profile, profiles, spaces, members, spaceId, categories, accounts, tags, merchants, cycles, isAdmin, cur, fx, version, reloadMeta, ready, toast, toastMsg, toastUndo, clearToast]);
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from './api';
 import { monthRange, spend } from './calc';
+import { cycleRange } from './cycle';
 import { familyIds, rootId } from './cats';
 import { crLocal, todayCR } from './format';
 import { addPeriod } from './recurring';
@@ -181,7 +182,7 @@ const txValue = (x: Tx, s: Section) => (s === 'out' ? (x.kind === 'transfer' ? N
 export function buildBudget(o: { lines: Line[]; links: LineLink[]; recurring: Recurring[]; categories: Category[]; accounts: Account[]; txs: Tx[]; spaceId: string; fx: number }): Budget {
   const { categories, fx, spaceId, accounts } = o;
   const t = todayCR();
-  const range = monthRange(t.y, t.m);
+  const range = cycleRange(0); // the budget month starts on payday when the space set one (PRM-12)
   const from = dayKey(range.from), to = dayKey(range.to);
   const monthTxs = o.txs.filter((x) => x.occurred_at >= range.from && x.occurred_at < range.to);
 
