@@ -254,7 +254,36 @@ El mes del presupuesto puede empezar el día que entra el salario, no el 1. En P
 
 Dado que en Simbiosis el mes empezó el 30 oct, cuando se gasta ¢15.000 en Restaurantes el 31 oct, entonces cuenta en el límite de Restaurantes de este mes y no en octubre.
 
+### PRM-13 · Inicio: lo libre primero
+
+**Estado:** Propuesta (reemplaza PRM-06 cuando se haga)
+
+Inicio contesta "¿voy bien y tengo que hacer algo?", no "¿cuánto gasté?". Arriba, en grande, lo libre del mes (mismo número de PRM-05) y debajo el ritmo:
+
+```
+LIBRE EN NOVIEMBRE         403.400 CRC
+Unos 19.200 por día · quedan 21 días
+Gastado 312.450 · ↓12% vs mismo día de octubre
+```
+
+- **Por día** = libre ÷ días que quedan del mes del presupuesto (PRM-12), contando hoy. Lo que queda en los límites ya está en "sale", así que no se suma.
+- **Gastado** pasa a ser la línea de contexto. La comparación es contra el mismo día del mes anterior, no contra el mes completo.
+- Sin ingreso (ni real ni planeado), arriba va "Para gastar" con lo que queda en los límites (como PRM-06) y el ritmo sale de ese número. Sin ninguno de los dos, el número grande es lo gastado, como hoy.
+- Libre menor que cero: "Te pasás por 15.000" en rojo y sin ritmo por día.
+
+- **Dado** libre ¢403.400 el 10 nov, con el mes del 1 al 30
+- **Entonces** dice "Unos 19.210 por día · quedan 21 días"
+
+**Categorías en Inicio.** Solo los límites que piden atención, con los mismos círculos de PRM-08: los que van al 80% o más, o arriba de su ritmo semanal (PRM-11). Si ninguno, no aparece nada. El desglose completo por categoría vive en Presupuesto y en Mis finanzas.
+
+- **Dado** Súper al 12%, Restaurantes al 85% y Bares al 104%
+- **Entonces** Inicio muestra dos círculos: Restaurantes (advertencia) y Bares (rojo)
+
+**Lo que pide acción** (pagos pendientes, por confirmar, ¿es una suscripción?) va debajo, fuera de la hoja, y solo si hay algo. Luego "Esta semana": los planeados de los próximos 7 días. El gráfico por rangos se mueve a Mis finanzas; en Inicio queda solo si Dani decide que sigue sirviendo.
+
 ## Preguntas abiertas
+
+**5. Ingresos extra.** Un ingreso no planeado (un freelance) sube lo libre. ¿Inicio lo dice ("+50.000 que no esperabas") o solo cambia el número?
 
 **1. Un gasto único planeado.** Hoy se planea escribiéndolo con fecha futura. Si después llega el voucher real, quedan los dos. ¿Hace falta ligarlos solos (como los recurrentes)?
 
