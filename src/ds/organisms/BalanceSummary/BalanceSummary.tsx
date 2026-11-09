@@ -18,7 +18,7 @@ export interface BalanceDelta {
  * The big number on Inicio: what went out in the period ("312.450 CRC"), the change against the
  * previous one ("↓12% vs Septiembre") and what's left of the month's budget ("102.023 CRC Disponible").
  */
-export function BalanceSummary({ label, value, unit, negative, delta, available, meta, action }: {
+export function BalanceSummary({ label, value, unit, negative, delta, available, meta, extra, action }: {
   label: React.ReactNode;
   value: string;
   unit?: string;
@@ -27,6 +27,8 @@ export function BalanceSummary({ label, value, unit, negative, delta, available,
   available?: { value: string; unit?: string; negative?: boolean; label?: string } | null;
   /** Any other quiet fact for the line under the number ("4 pagos activos", "Débito · BAC"). */
   meta?: React.ReactNode;
+  /** A second quiet line under the first one (Inicio: what went out, with its change). */
+  extra?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
@@ -51,6 +53,7 @@ export function BalanceSummary({ label, value, unit, negative, delta, available,
           {meta && <span>{meta}</span>}
         </div>
       )}
+      {extra && <div className="ds-balance__meta">{extra}</div>}
       {action && <div className="ds-balance__actions">{action}</div>}
     </section>
   );

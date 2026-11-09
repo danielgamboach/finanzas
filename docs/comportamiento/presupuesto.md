@@ -174,7 +174,7 @@ Mover dinero entre cuentas propias del mismo espacio (pagar la tarjeta, de débi
 
 ### PRM-06 · Inicio
 
-**Estado:** Hecho
+**Estado:** Reemplazada por PRM-13
 
 Debajo del gasto del rango, Inicio dice "Libre en noviembre" con el mismo número de PRM-05. Si en el mes no entra nada (ni real ni planeado), dice "Para gastar" con lo que queda en los planeados abiertos. Sin ninguno de los dos, no se muestra.
 
@@ -256,7 +256,7 @@ Dado que en Simbiosis el mes empezó el 30 oct, cuando se gasta ¢15.000 en Rest
 
 ### PRM-13 · Inicio: lo libre primero
 
-**Estado:** Propuesta (reemplaza PRM-06 cuando se haga)
+**Estado:** Hecho el resumen y los límites; falta "Esta semana" (reemplaza PRM-06)
 
 Inicio contesta "¿voy bien y tengo que hacer algo?", no "¿cuánto gasté?". Arriba, en grande, lo libre del mes (mismo número de PRM-05) y debajo el ritmo:
 
@@ -279,7 +279,9 @@ Gastado 312.450 · ↓12% vs mismo día de octubre
 - **Dado** Súper al 12%, Restaurantes al 85% y Bares al 104%
 - **Entonces** Inicio muestra dos círculos: Restaurantes (advertencia) y Bares (rojo)
 
-**Lo que pide acción** (pagos pendientes, por confirmar, ¿es una suscripción?) va debajo, fuera de la hoja, y solo si hay algo. Luego "Esta semana": los planeados de los próximos 7 días. El gráfico por rangos se mueve a Mis finanzas; en Inicio queda solo si Dani decide que sigue sirviendo.
+**Lo que pide acción** (pagos pendientes, por confirmar, ¿es una suscripción?) sigue arriba de la hoja, que ya se ve al abrir Inicio. El gráfico se queda: "Gastado" toma el rango de la rueda. Pendiente: "Esta semana" con los planeados de los próximos 7 días.
+
+<sub>Dónde vive: `useHomeSummary` (`daysLeft`, `attention`) y `SpendOverview` en `src/screens/Home.tsx`; `BalanceSummary extra`.</sub>
 
 ## Preguntas abiertas
 

@@ -1217,3 +1217,6 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 .plan-week.is-over { color: var(--destructive); }
 .plan-week-row { padding-top: 12px; padding-bottom: 12px; }
 .plan-week-row small { color: var(--muted-foreground); font-weight: var(--font-weight-normal); }
+
+/* PRM-13: the limits that need attention, under the summary, edge to edge */
+.home-summary .home-rings { margin: 0 -24px; padding: 0 24px; }

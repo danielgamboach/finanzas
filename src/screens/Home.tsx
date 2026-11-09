@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { HomeSkeleton } from '../ui/Skeletons';
 import { inRange, monthBudget, monthRange, spend, sumSpend, weekRange } from '../lib/calc';
-import { buildBudget, useBudgetData } from '../lib/budget';
+import { buildBudget, useBudgetData, weekAllowance } from '../lib/budget';
 import { cycleLength, cycleRange } from '../lib/cycle';
 import { amount, cap, crIso, crLocal, dayLabel, money, monthName, monthShort, shortK, todayCR, unitOf } from '../lib/format';
 import { SPANS, useSpendSeries, type Span } from '../lib/spendSeries';
@@ -10,7 +10,7 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, HomeHeader, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
+import { BalanceSummary, Button, Delta, HomeHeader, RingRail, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { usePendingCount } from '../ui/AppMenu';
 import { openKai } from '../ui/Kai';
@@ -143,7 +143,15 @@ export function useHomeSummary() {
 
   const peek = accounts.filter((a) => !a.archived).sort(byKind).slice(0, 3);
   const recent = txs.filter((x) => x.occurred_at <= nowIso).slice(0, 14);
-  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, toSpend: toSpendNow, merchants, peek, recent, loading, txs };
+  // PRM-13: days left in the budget month (today counts) and the limits that need attention
+  const daysLeft = Math.max(1, cycleLength(month) - Math.max(cyc.day, 1) + 1);
+  const attention = (plan?.plans ?? []).filter((p) => p.cats[0] && p.amount > 0).map((p) => {
+    const pct = p.spent / p.amount;
+    const wk = p.line.weekly_alert ? weekAllowance(p.amount, space.week_start ?? 1) : null;
+    const overWeek = !!wk && p.spent > wk.allowed;
+    return { p, pct, overWeek };
+  }).filter((x) => x.pct >= 0.8 || x.overWeek).sort((a, b) => b.pct - a.pct);
+  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, toSpend: toSpendNow, merchants, peek, recent, loading, txs, daysLeft, attention };
 }
 
 type HomeSummary = NonNullable<ReturnType<typeof useHomeSummary>>;
@@ -191,13 +199,42 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
       title: `Gastado: ${amount(s.total, cur, fx)} ${unit}. Antes, a esta altura: ${amount(s.prevTotal, cur, fx)} ${unit}`,
     };
   }
-  // PRM-06: what's free this month
   const avail = h.toSpend?.left ?? 0;
-  const available = h.toSpend ? { value: amount(avail, cur, fx, { sign: avail < 0 ? '−' : '' }), unit, negative: avail < 0, label: h.toSpend.label } : null;
+  const neg = avail < 0;
+  // PRM-13: what's free leads; what went out (in the chosen range) is the context line
+  const top = h.toSpend ? (
+    <BalanceSummary
+      label={neg ? (h.space.kind === 'shared' ? 'Se pasan este mes' : 'Te pasás este mes') : h.toSpend.label}
+      value={amount(Math.abs(avail), cur, fx)}
+      unit={unit}
+      negative={neg}
+      meta={neg ? null : `Unos ${amount(avail / h.daysLeft, cur, fx)} por día · ${h.daysLeft === 1 ? 'queda 1 día' : `quedan ${h.daysLeft} días`}`}
+      extra={shown ? (
+        <>
+          <span>Gastado <span className="ds-balance__avail">{amount(total, cur, fx)}</span></span>
+          {delta && <><span aria-hidden="true">·</span><span className="ds-balance__delta" title={delta.title}><Delta variant="arrow" value={delta.value} tone={delta.good ? 'good' : 'bad'} direction={delta.direction} /><span>{"\u00a0"}{delta.vs}</span></span></>}
+        </>
+      ) : null}
+    />
+  ) : <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} />;
+  const rings = h.attention.length > 0 && (
+    <RingRail
+      className="home-rings"
+      label="Límites que piden atención"
+      items={h.attention.map(({ p, pct, overWeek }) => {
+        const c = p.cats[0];
+        return {
+          key: p.line.id, name: c.name, face: c.emoji, value: Math.min(pct, 1), tone: pct >= 1 ? 'destructive' as const : 'warning' as const, href: `#/categoria/${c.id}`,
+          label: p.left < 0 ? `${c.name}: te pasaste por ${amount(-p.left, cur, fx)} ${unit}` : `${c.name}: ${Math.round(pct * 100)}% usado${overWeek ? ', arriba del ritmo de la semana' : ''}`,
+        };
+      })}
+    />
+  );
 
   return (
     <>
-      {shown || !h.loading ? <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} available={available} /> : <Loader><SummarySkeleton /></Loader>}
+      {shown || !h.loading ? top : <Loader><SummarySkeleton /></Loader>}
+      {rings}
       <SpendChart
         bars={shown?.bars ?? []}
         format={(n) => amount(n, cur, fx)}
