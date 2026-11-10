@@ -1220,3 +1220,5 @@ html:has(.shell), html:has(.shell) body { overflow: hidden; height: 100%; }
 
 /* PRM-13: the limits that need attention, under the summary, edge to edge */
 .home-summary .home-rings { margin: 0 -24px; padding: 0 24px; }
+/* Inicio: the chart sits right under the pulse; its tooltip floats over it */
+.home-summary .ds-chart__plot { height: 72px; padding-top: 8px; }

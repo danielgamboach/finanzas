@@ -39,6 +39,7 @@ export { AccountCard, AccountStack, type AccountColor } from './organisms/Accoun
 export { TabBar, type TabBarItem } from './organisms/TabBar/TabBar';
 export { HomeHeader, HomeHeaderButton } from './organisms/HomeHeader/HomeHeader';
 export { BalanceSummary } from './organisms/BalanceSummary/BalanceSummary';
+export { MonthPulse } from './organisms/MonthPulse/MonthPulse';
 export { SpendChart, type SpendChartBar } from './organisms/SpendChart/SpendChart';
 export { SpendCard, type SpendBubble } from './organisms/SpendCard/SpendCard';
 export { TxRow, type TxRowProps, type TxAmountTone } from './organisms/TxRow/TxRow';

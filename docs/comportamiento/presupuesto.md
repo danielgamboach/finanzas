@@ -267,7 +267,9 @@ Gastado 312.450 · ↓12% vs mismo día de octubre
 ```
 
 - **Por día** = libre ÷ días que quedan del mes del presupuesto (PRM-12), contando hoy. Lo que queda en los límites ya está en "sale", así que no se suma.
-- **Gastado** pasa a ser la línea de contexto. La comparación es contra el mismo día del mes anterior, no contra el mes completo.
+- Debajo del número, una **barra del mes**: lo lleno es lo gastado sobre (gastado + libre) y una marca dice "Hoy" (la parte del mes que ya pasó). Si lo lleno pasa la marca, la barra se pone en advertencia y arriba dice "Más rápido que el mes"; si no, "A buen ritmo"; pasado, en rojo, "Sin margen".
+- Por día y Gastado van en una tarjeta de dos columnas.
+- **Gastado** pasa a ser contexto. La comparación es contra el mismo día del mes anterior, no contra el mes completo.
 - Sin ingreso (ni real ni planeado), arriba va "Para gastar" con lo que queda en los límites (como PRM-06) y el ritmo sale de ese número. Sin ninguno de los dos, el número grande es lo gastado, como hoy.
 - Libre menor que cero: "Te pasás por 15.000" en rojo y sin ritmo por día.
 

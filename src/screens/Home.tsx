@@ -10,7 +10,7 @@ import { normWords, txMerchant, txPhoto } from '../lib/merchants';
 import type { Tx } from '../lib/types';
 import { go, useApp, useTxs } from '../store';
 import { Icon, Loading } from '../ui';
-import { BalanceSummary, Button, Delta, HomeHeader, RingRail, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
+import { BalanceSummary, Button, Delta, HomeHeader, MonthPulse, RingRail, HomeHeaderButton, KaiButton, Loader, MenuButton, SpendChart, SummarySkeleton } from '../ds';
 import { TxSheet } from '../ui/TxSheet';
 import { usePendingCount } from '../ui/AppMenu';
 import { openKai } from '../ui/Kai';
@@ -151,7 +151,14 @@ export function useHomeSummary() {
     const overWeek = !!wk && p.spent > wk.allowed;
     return { p, pct, overWeek };
   }).filter((x) => x.pct >= 0.8 || x.overWeek).sort((a, b) => b.pct - a.pct);
-  return { space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, toSpend: toSpendNow, merchants, peek, recent, loading, txs, daysLeft, attention };
+  // the pulse: share of the month gone and of its money used (what went out against what went out plus what's free)
+  const len = cycleLength(month);
+  const monthGone = Math.min(1, (Math.max(cyc.day, 1) - 0.5) / len);
+  const moneyUsed = spent + Math.max(toSpendNow?.left ?? 0, 0) > 0 ? spent / (spent + Math.max(toSpendNow?.left ?? 0, 0)) : 0;
+  const endDay = crLocal(new Date(new Date(month.to).getTime() - 86400000).toISOString());
+  const ends = [`${crLocal(month.from).getUTCDate()} ${monthShort(crLocal(month.from).getUTCMonth())}`, `${endDay.getUTCDate()} ${monthShort(endDay.getUTCMonth())}`];
+  const spentPct = hasPrev && prevSoFar > 0 ? Math.round(((spent - prevSoFar) / prevSoFar) * 100) : null;
+  return { monthGone, moneyUsed, ends, spentPct, space, label, value, negative, delta, vsLabel, cardLabel, cardValue, cardSub, spent, budget, toSpend: toSpendNow, merchants, peek, recent, loading, txs, daysLeft, attention };
 }
 
 type HomeSummary = NonNullable<ReturnType<typeof useHomeSummary>>;
@@ -203,18 +210,19 @@ export function SpendOverview({ h }: { h: HomeSummary }) {
   const neg = avail < 0;
   // PRM-13: what's free leads; what went out (in the chosen range) is the context line
   const top = h.toSpend ? (
-    <BalanceSummary
+    <MonthPulse
       label={neg ? (h.space.kind === 'shared' ? 'Se pasan este mes' : 'Te pasás este mes') : h.toSpend.label}
       value={amount(Math.abs(avail), cur, fx)}
       unit={unit}
       negative={neg}
-      meta={neg ? null : `Unos ${amount(avail / h.daysLeft, cur, fx)} por día · ${h.daysLeft === 1 ? 'queda 1 día' : `quedan ${h.daysLeft} días`}`}
-      extra={shown ? (
-        <>
-          <span>Gastado <span className="ds-balance__avail">{amount(total, cur, fx)}</span></span>
-          {delta && <><span aria-hidden="true">·</span><span className="ds-balance__delta" title={delta.title}><Delta variant="arrow" value={delta.value} tone={delta.good ? 'good' : 'bad'} direction={delta.direction} /><span>{"\u00a0"}{delta.vs}</span></span></>}
-        </>
-      ) : null}
+      used={neg ? 1 : h.moneyUsed}
+      today={h.monthGone}
+      start={h.ends[0]}
+      end={h.ends[1]}
+      stats={[
+        neg ? { label: 'Días que quedan', value: String(h.daysLeft) } : { label: `Por día · ${h.daysLeft === 1 ? 'queda 1' : `quedan ${h.daysLeft}`}`, value: amount(avail / h.daysLeft, cur, fx), unit },
+        { label: h.spentPct != null && h.spentPct !== 0 ? <>Gastado · <Delta variant="arrow" value={`${Math.abs(h.spentPct)}%`} tone={h.spentPct < 0 ? 'good' : 'bad'} direction={h.spentPct < 0 ? 'down' : 'up'} /></> : 'Gastado', value: amount(h.spent, cur, fx), unit },
+      ]}
     />
   ) : <BalanceSummary label={s.def.label} value={amount(total, cur, fx)} unit={unit} delta={delta} />;
   const rings = h.attention.length > 0 && (
