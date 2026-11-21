@@ -9,3 +9,4 @@
 .ds-sheet-head--center .ds-sheet-head__text { flex: none; align-items: center; }
 .ds-sheet-head--center .ds-sheet-head__title { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-medium); letter-spacing: 0; padding: 8px 12px; }
 .ds-sheet-head--center .ds-sheet-head__close { position: absolute; right: 0; }
+.ds-sheet-foot { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; }

@@ -2,13 +2,16 @@ import React from 'react';
 import './Utility.css';
 
 /** A keyboard key, for shortcut hints on desktop. */
-export const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="ds-kbd">{children}</kbd>;
+export const Kbd = ({ children }: { children: React.ReactNode }) => <kbd data-slot="kbd" className="ds-kbd">{children}</kbd>;
 
 /** The handle at the top of a sheet. */
 export const Grabber = ({ className, ...rest }: React.HTMLAttributes<HTMLSpanElement>) => <span className={['ds-grabber', className].filter(Boolean).join(' ')} aria-hidden="true" {...rest} />;
 
 /** A 1 px line between groups. */
-export const Separator = ({ className }: { className?: string }) => <hr className={['ds-sep', className].filter(Boolean).join(' ')} />;
+export const Separator = ({ className, orientation = 'horizontal', decorative = true }: { className?: string; orientation?: 'horizontal' | 'vertical'; decorative?: boolean }) =>
+  decorative
+    ? <span data-slot="separator" data-orientation={orientation} role="none" className={['ds-sep', orientation === 'vertical' && 'ds-sep--v', className].filter(Boolean).join(' ')} />
+    : <span data-slot="separator" data-orientation={orientation} role="separator" aria-orientation={orientation} className={['ds-sep', orientation === 'vertical' && 'ds-sep--v', className].filter(Boolean).join(' ')} />;
 
 /** Something is loading. */
 export const Spinner = ({ size = 20, label = 'Cargando' }: { size?: number; label?: string }) => (
@@ -31,5 +34,5 @@ export const Skeleton = ({ lines = 3 }: { lines?: number }) => (
 export const Bone = ({ width = '100%', height = 12, radius = 'full', className, style }: {
   width?: number | string; height?: number | string; radius?: 'md' | 'lg' | 'xl' | '2xl' | 'full'; className?: string; style?: React.CSSProperties;
 }) => (
-  <span className={['ds-bone', `ds-bone--r-${radius}`, className].filter(Boolean).join(' ')} style={{ width, height, ...style }} aria-hidden="true" />
+  <span data-slot="skeleton" className={['ds-bone', `ds-bone--r-${radius}`, className].filter(Boolean).join(' ')} style={{ width, height, ...style }} aria-hidden="true" />
 );

@@ -2,3 +2,6 @@
 .ds-field__label { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-medium); color: var(--secondary-foreground); padding: 0 4px; }
 .ds-field__hint { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--muted-foreground); padding: 0 4px; }
 .ds-field__hint.is-error { color: var(--destructive); }
+.ds-field__label.ds-label { display: block; }
+.ds-fieldset { display: flex; flex-direction: column; gap: 16px; border: none; margin: 0; padding: 0; min-width: 0; }
+.ds-fieldset__legend { padding: 0 4px; margin-bottom: 4px; font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); color: var(--foreground); }
